@@ -1,12 +1,12 @@
 r"""
 Spectral Model
--------
+--------------
 
-We fit an echelle spectrum with :math:`M` total total orders, :math:`m`, with a single model. :math:`F(\lambda, \Theta)` where :math:`\Theta` are the set of stellar and nuisance parameters. 
+We fit an echelle spectrum with :math:`M` total total orders, :math:`m`, with a single model. :math:`F(\lambda, \Theta)` where :math:`\Theta` are the set of stellar and nuisance parameters.
 
 
 MultiOrder
-############
+##########
 """
 
 import torch
