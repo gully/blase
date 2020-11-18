@@ -1,0 +1,6 @@
+sphinx>=3.2.1
+numpy
+torch
+astropy
+kornia
+pandas
