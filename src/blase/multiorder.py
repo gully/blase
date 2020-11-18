@@ -11,8 +11,8 @@ MultiOrder
 
 import torch
 from torch import nn
-import math
-from torch.distributions import Normal
+from astropy.io import fits
+import numpy as np
 
 
 class MultiOrder(nn.Module):
@@ -34,23 +34,25 @@ class MultiOrder(nn.Module):
 
         wl_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
-        )[0].data
+        )[0].data.astype(np.float64)
         mask = (wl_orig > self.wl_0) & (wl_orig < self.wl_max)
-        self.wl_native = wl_orig[mask]
+        self.wl_native = torch.tensor(wl_orig[mask], device=device, dtype=torch.float64)
 
         flux_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte04500-4.00-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
-        )[0].data
-        self.flux_native = flux_orig[mask]  # Units: erg/s/cm^2/cm
+        )[0].data.astype(np.float64)
+        self.flux_native = torch.tensor(
+            flux_orig[mask], device=device, dtype=torch.float64
+        )  # Units: erg/s/cm^2/cm
 
-        self.native_median = np.median(self.flux_native)
+        self.native_median = torch.median(self.flux_native)
         self.flux_native /= self.native_median  # Units: Relative flux density
 
         self.scalar_const = nn.Parameter(
             torch.tensor(200.0, requires_grad=True, dtype=torch.float64, device=device)
         )
 
-    def forward(self, index):
+    def forward(self):
         """The forward pass of the neural network model
 
         Args:
@@ -58,4 +60,4 @@ class MultiOrder(nn.Module):
         Returns:
             (torch.tensor): the 2D generative scene model destined for backpropagation parameter tuning
         """
-        return self.native_flux * self.scalar_const
+        return self.flux_native * self.scalar_const
