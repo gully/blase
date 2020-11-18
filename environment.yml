@@ -1,0 +1,33 @@
+name: blase
+channels:
+  - pytorch
+  - defaults
+  - gpytorch
+  - conda-forge
+dependencies:
+  - python=3.8
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - seaborn
+  - scikit-learn
+  - pyarrow
+  - pytorch>=1.7
+  - torchvision
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - celerite
+  - gpytorch
+  - black
+  - pip:
+      - kornia
+      - pykeops
+      - recommonmark
+      - tensorboard
