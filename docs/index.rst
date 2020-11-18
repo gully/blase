@@ -34,6 +34,7 @@ This project can use either CPUs or GPUs. To check if you have a GPU available:
   torch.cuda.is_available()
 
 
+The project currently only supports HPF data, but could be expanded to new spectrographs.  
 
 Indices and tables
 ==================
