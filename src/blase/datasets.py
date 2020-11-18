@@ -12,7 +12,6 @@ HPFDataset
 import torch
 from torch.utils.data import Dataset
 from astropy.io import fits
-import numpy as np
 import pandas as pd
 
 
@@ -41,6 +40,7 @@ class HPFDataset(Dataset):
         )
 
     def __getitem__(self, index):
+        """We currently do not use the index"""
         return (self.wl, self.flux, self.unc)
 
     def __len__(self):
