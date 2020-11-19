@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 .envrc
+test/data/*.fits
