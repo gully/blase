@@ -130,3 +130,5 @@ dmypy.json
 
 .envrc
 test/data/*.fits
+
+notebooks
