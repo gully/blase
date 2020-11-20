@@ -31,10 +31,14 @@ class MultiOrder(nn.Module):
 
         self.device = device
         self.c_km_s = torch.tensor(2.99792458e5, device=device)
+        self.n_pixels = 2048
+        self.pixel_index = torch.arange(self.n_pixels)
 
         # Need to init from data for wavelength resampling step
         if init_from_data is None:
-            self.wl_data = torch.linspace(9773.25, 9899.2825, 2048, device=device)
+            self.wl_data = torch.linspace(
+                9773.25, 9899.2825, self.n_pixels, device=device
+            )
         else:
             self.wl_data = init_from_data[6, 13, :]
         self.wl_0 = self.wl_data[0]  # Hardcode for now
@@ -59,16 +63,26 @@ class MultiOrder(nn.Module):
         self.native_median = torch.median(self.flux_native)
         self.flux_native /= self.native_median  # Units: Relative flux density
 
-        self.scalar_const = nn.Parameter(
-            torch.tensor(200.0, requires_grad=True, dtype=torch.float64, device=device)
-        )
-
         self.v_z = nn.Parameter(
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64, device=device)
         )
 
         self.log_blur_size = nn.Parameter(
             torch.tensor(1.67, requires_grad=True, dtype=torch.float64, device=device)
+        )
+
+        xv = torch.linspace(-1, 1, 2048)
+
+        self.cheb_coeffs = nn.Parameter(
+            torch.tensor(
+                [1.2, 0.1, -0.4, 0.15],
+                requires_grad=True,
+                dtype=torch.float64,
+                device=device,
+            )
+        )
+        self.cheb_array = torch.stack(
+            [torch.ones(self.n_pixels), xv, 2 * xv ** 2 - 1, 4 * xv ** 3 - 3 * xv]
         )
 
     def forward(self):
@@ -105,4 +119,7 @@ class MultiOrder(nn.Module):
         vs = torch.split_with_sizes(smoothed_flux, tuple(vals))
         resampled_model_flux = torch.tensor([v.mean() for v in vs])
 
-        return resampled_model_flux * self.scalar_const
+        # Blaze function warping
+        blaze = (self.cheb_array * self.cheb_coeffs.unsqueeze(1)).sum(0)
+
+        return resampled_model_flux * blaze
