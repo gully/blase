@@ -44,11 +44,11 @@ class HPFDataset(Dataset):
         self.df = self.get_goldilocks_dataframe(filename)
 
     def __getitem__(self, index):
-        """We currently do not use the index"""
-        return self.data_cube
+        """The index represents the echelle order"""
+        return self.data_cube[:, index, :]
 
     def __len__(self):
-        return 1
+        return self.n_orders
 
     def get_goldilocks_dataframe(self, filename):
         """Return a pandas Dataframe given a Goldilocks FITS file name"""

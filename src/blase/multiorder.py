@@ -26,7 +26,7 @@ class MultiOrder(nn.Module):
             Default: (425, 510)
     """
 
-    def __init__(self, device="cuda", init_from_data=None):
+    def __init__(self, device="cuda", wl_data=None):
         super().__init__()
 
         self.device = device
@@ -35,22 +35,19 @@ class MultiOrder(nn.Module):
         self.pixel_index = torch.arange(self.n_pixels)
 
         # Need to init from data for wavelength resampling step
-        if init_from_data is None:
-            self.wl_data = torch.linspace(
-                9773.25, 9899.2825, self.n_pixels, device=device
-            )
-        else:
-            self.wl_data = init_from_data[6, 13, :]
-        self.wl_0 = self.wl_data[0]  # Hardcode for now
-        self.wl_max = self.wl_data[-1]
+        if wl_data is None:
+            raise Exception("Must provide data wavelenth grid to model")
+        self.wl_data = wl_data
+        self.wl_0 = self.wl_data[0, 0]  # Hardcode for now
+        self.wl_max = self.wl_data[-1, -1]
 
         # Set up a single echelle order
         wl_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
         )[0].data.astype(np.float64)
         mask = (wl_orig > self.wl_0.item() * 0.995) & (
-            wl_orig < self.wl_max.item() * 1.005
-        )
+-            wl_orig < self.wl_max.item() * 1.005
+-        )
         self.wl_native = torch.tensor(wl_orig[mask], device=device, dtype=torch.float64)
 
         flux_orig = fits.open(
@@ -75,7 +72,7 @@ class MultiOrder(nn.Module):
 
         self.cheb_coeffs = nn.Parameter(
             torch.tensor(
-                [1.2, 0.1, -0.4, 0.15],
+                self.n_orders * [[1.2, 0.1, -0.4, 0.15]],
                 requires_grad=True,
                 dtype=torch.float64,
                 device=device,
@@ -85,7 +82,7 @@ class MultiOrder(nn.Module):
             [torch.ones(self.n_pixels), xv, 2 * xv ** 2 - 1, 4 * xv ** 3 - 3 * xv]
         )
 
-    def forward(self):
+    def forward(self, index):
         """The forward pass of the neural network model
 
         Args:
@@ -103,14 +100,15 @@ class MultiOrder(nn.Module):
         ).squeeze()
 
         # Radial Velocity Shift
+        wl_0, wl_max = self.wl_data[index, 0], self.wl_data[index, -1]
         rv_shift = torch.sqrt((self.c_km_s + self.v_z) / (self.c_km_s - self.v_z))
         wl_shifted = self.wl_native * rv_shift
-        trim_mask = (wl_shifted > self.wl_0) & (wl_shifted < self.wl_max)
+        trim_mask = (wl_shifted > wl_0) & (wl_shifted < wl_max)
         smoothed_flux = smoothed_flux[trim_mask]
 
         # Resampling (This step is subtle to get right)
         # match oversampled model to observed wavelengths:
-        column_vector = self.wl_data.unsqueeze(1)
+        column_vector = self.wl_data[index].unsqueeze(1)
         row_vector = wl_shifted[trim_mask].unsqueeze(0)
         dist = (column_vector - row_vector) ** 2
         indices = dist.argmin(0)
@@ -120,6 +118,6 @@ class MultiOrder(nn.Module):
         resampled_model_flux = torch.tensor([v.mean() for v in vs])
 
         # Blaze function warping
-        blaze = (self.cheb_array * self.cheb_coeffs.unsqueeze(1)).sum(0)
+        blaze = (self.cheb_array * self.cheb_coeffs[index].unsqueeze(1)).sum(0)
 
         return resampled_model_flux * blaze
