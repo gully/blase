@@ -13,6 +13,7 @@ import torch
 from torch.utils.data import Dataset
 from astropy.io import fits
 import pandas as pd
+import numpy as np
 
 
 # custom dataset loader
@@ -28,7 +29,18 @@ class HPFDataset(Dataset):
     def __init__(self, filename, device="cuda"):
         super().__init__()
         self.filename = filename
+        self.n_pix = 2048
         self.n_orders = 28
+        self.n_slices = 9
+        hdus = fits.open(filename)
+        self.hdus = hdus
+
+        data_cube = []
+        for i in range(1, self.n_slices + 1):
+            data_cube.append(hdus[i].data.astype(np.float64))
+
+        self.data_cube = torch.tensor(data_cube)
+
         self.df = self.get_goldilocks_dataframe(filename)
 
         self.wl = torch.tensor(self.df["Sci Wavl"], device=device, dtype=torch.float64)
@@ -38,6 +50,7 @@ class HPFDataset(Dataset):
         self.unc = torch.tensor(
             self.df["Sci Error"], device=device, dtype=torch.float64
         )
+        self.order = torch.tensor(self.df["order"], device=device, dtype=torch.int16)
 
     def __getitem__(self, index):
         """We currently do not use the index"""
@@ -48,13 +61,12 @@ class HPFDataset(Dataset):
 
     def get_goldilocks_dataframe(self, filename):
         """Return a pandas Dataframe given a Goldilocks FITS file name"""
-        hdus = fits.open(filename)
         df = pd.DataFrame()
         for j in range(self.n_orders):
             df_i = pd.DataFrame()
             for i in range(1, 10):
-                name = hdus[i].name
-                df_i[name] = hdus[i].data[j, :]
+                name = self.hdus[i].name
+                df_i[name] = self.hdus[i].data[j, :]
             df_i["order"] = j
             df = df.append(df_i, ignore_index=True)
         keep_mask = df[df.columns[0:6]] != 0.0
