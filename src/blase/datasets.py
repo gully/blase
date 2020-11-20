@@ -43,18 +43,9 @@ class HPFDataset(Dataset):
 
         self.df = self.get_goldilocks_dataframe(filename)
 
-        self.wl = torch.tensor(self.df["Sci Wavl"], device=device, dtype=torch.float64)
-        self.flux = torch.tensor(
-            self.df["Sci Flux"], device=device, dtype=torch.float64
-        )
-        self.unc = torch.tensor(
-            self.df["Sci Error"], device=device, dtype=torch.float64
-        )
-        self.order = torch.tensor(self.df["order"], device=device, dtype=torch.int16)
-
     def __getitem__(self, index):
         """We currently do not use the index"""
-        return (self.wl, self.flux, self.unc)
+        return self.data_cube
 
     def __len__(self):
         return 1
