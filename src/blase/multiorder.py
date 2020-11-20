@@ -13,6 +13,7 @@ import torch
 from torch import nn
 from astropy.io import fits
 import numpy as np
+import kornia
 
 
 class MultiOrder(nn.Module):
@@ -25,17 +26,27 @@ class MultiOrder(nn.Module):
             Default: (425, 510)
     """
 
-    def __init__(self, device="cuda", wl_limits=(8_500, 12_0000), library_path=None):
+    def __init__(self, device="cuda", init_from_data=None):
         super().__init__()
 
         self.device = device
-        self.wl_0 = wl_limits[0]
-        self.wl_max = wl_limits[1]
+        self.c_km_s = torch.tensor(2.99792458e5, device=device)
 
+        # Need to init from data for wavelength resampling step
+        if init_from_data is None:
+            self.wl_data = torch.linspace(9773.25, 9899.2825, 2048, device=device)
+        else:
+            self.wl_data = init_from_data[6, 13, :]
+        self.wl_0 = self.wl_data[0]  # Hardcode for now
+        self.wl_max = self.wl_data[-1]
+
+        # Set up a single echelle order
         wl_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
         )[0].data.astype(np.float64)
-        mask = (wl_orig > self.wl_0) & (wl_orig < self.wl_max)
+        mask = (wl_orig > self.wl_0.item() * 0.995) & (
+            wl_orig < self.wl_max.item() * 1.005
+        )
         self.wl_native = torch.tensor(wl_orig[mask], device=device, dtype=torch.float64)
 
         flux_orig = fits.open(
@@ -52,6 +63,14 @@ class MultiOrder(nn.Module):
             torch.tensor(200.0, requires_grad=True, dtype=torch.float64, device=device)
         )
 
+        self.v_z = nn.Parameter(
+            torch.tensor(0.0, requires_grad=True, dtype=torch.float64, device=device)
+        )
+
+        self.log_blur_size = nn.Parameter(
+            torch.tensor(1.67, requires_grad=True, dtype=torch.float64, device=device)
+        )
+
     def forward(self):
         """The forward pass of the neural network model
 
@@ -60,4 +79,30 @@ class MultiOrder(nn.Module):
         Returns:
             (torch.tensor): the 2D generative scene model destined for backpropagation parameter tuning
         """
-        return self.flux_native * self.scalar_const
+
+        # Instrumental broadening
+        blur_size = torch.exp(self.log_blur_size)
+        smoothed_flux = kornia.filters.gaussian_blur2d(
+            self.flux_native.view(1, 1, 1, -1),
+            kernel_size=(1, 21),
+            sigma=(0.01, blur_size),
+        ).squeeze()
+
+        # Radial Velocity Shift
+        rv_shift = torch.sqrt((self.c_km_s + self.v_z) / (self.c_km_s - self.v_z))
+        wl_shifted = self.wl_native * rv_shift
+        trim_mask = (wl_shifted > self.wl_0) & (wl_shifted < self.wl_max)
+        smoothed_flux = smoothed_flux[trim_mask]
+
+        # Resampling (This step is subtle to get right)
+        # match oversampled model to observed wavelengths:
+        column_vector = self.wl_data.unsqueeze(1)
+        row_vector = wl_shifted[trim_mask].unsqueeze(0)
+        dist = (column_vector - row_vector) ** 2
+        indices = dist.argmin(0)
+
+        idx, vals = torch.unique(indices, return_counts=True)
+        vs = torch.split_with_sizes(smoothed_flux, tuple(vals))
+        resampled_model_flux = torch.tensor([v.mean() for v in vs])
+
+        return resampled_model_flux * self.scalar_const
