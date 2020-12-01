@@ -1,6 +1,7 @@
 sphinx>=3.2.1
 numpy
-pytorch
+torch
+torchvision
 astropy
 kornia
 pandas
