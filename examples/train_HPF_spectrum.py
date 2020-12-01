@@ -51,11 +51,11 @@ def plot_spectrum(spectra):
 
 # Change to 'cpu' if you do not have an NVIDIA GPU
 # Warning, it will be about 30X slower.
-device = "cpu"
+device = "cuda"
 
 dataset = HPFDataset(args.filename)
-data_cube = dataset[0]
-model = MultiOrder(device=device, init_from_data=data_cube)
+data_cube = dataset.data_cube.to(device)
+model = MultiOrder(device=device, wl_data=data_cube[6, :, :])
 model = model.to(device, non_blocking=True)
 
 
@@ -78,30 +78,30 @@ optimizer = optim.Adam(model.parameters(), 0.02)
 n_epochs = args.n_epochs
 
 # Hard-code the 13th echelle order for now...
-data_vector = data_cube[0, 13, :].to(device)
-data_vector = data_vector / torch.median(data_vector)
-wl_vector = data_cube[6, 13, :].to(device)
 losses = []
 
 t0 = time.time()
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
-    model.train()
-    yhat = model.forward()
-    loss = loss_fn(yhat, data_vector)
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-    losses.append(loss.item())
+    for i, data in enumerate(train_loader, 0):
+        index, spectrum = data
+        y_batch = spectrum.squeeze().to(device)
+        model.train()
+        yhat = model.forward(index.item()).squeeze()
+        loss = loss_fn(yhat, y_batch)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        losses.append(loss.item())
 
     writer.add_scalar("loss", loss.item(), global_step=epoch)
     t_iter.set_description(f"Loss {loss.item(): 15.3f}")
     t_iter.refresh()
-    if (epoch % 60) == 0:
+    if (epoch % 20) == 0:
         torch.save(model.state_dict(), "model_coeffs.pt")
         to_plot = [
-            {"wl": wl_vector.cpu(), "flux": yhat.detach().cpu()},
-            {"wl": wl_vector.cpu(), "flux": data_vector.cpu()},
+            {"wl": data_cube[6, i, :].cpu(), "flux": yhat.detach().cpu()},
+            {"wl": data_cube[6, i, :].cpu(), "flux": y_batch.cpu()},
         ]
         writer.add_figure(
             "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,

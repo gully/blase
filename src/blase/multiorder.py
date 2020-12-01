@@ -32,12 +32,13 @@ class MultiOrder(nn.Module):
         self.device = device
         self.c_km_s = torch.tensor(2.99792458e5, device=device)
         self.n_pixels = 2048
+        self.n_orders = 28
         self.pixel_index = torch.arange(self.n_pixels)
 
         # Need to init from data for wavelength resampling step
         if wl_data is None:
             raise Exception("Must provide data wavelenth grid to model")
-        self.wl_data = wl_data
+        self.wl_data = wl_data.to(device)
         self.wl_0 = self.wl_data[0, 0]  # Hardcode for now
         self.wl_max = self.wl_data[-1, -1]
 
@@ -46,12 +47,12 @@ class MultiOrder(nn.Module):
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
         )[0].data.astype(np.float64)
         mask = (wl_orig > self.wl_0.item() * 0.995) & (
--            wl_orig < self.wl_max.item() * 1.005
--        )
+            wl_orig < self.wl_max.item() * 1.005
+        )
         self.wl_native = torch.tensor(wl_orig[mask], device=device, dtype=torch.float64)
 
         flux_orig = fits.open(
-            "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte04500-4.00-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
+            "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte04700-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
         )[0].data.astype(np.float64)
         self.flux_native = torch.tensor(
             flux_orig[mask], device=device, dtype=torch.float64
@@ -68,7 +69,7 @@ class MultiOrder(nn.Module):
             torch.tensor(1.67, requires_grad=True, dtype=torch.float64, device=device)
         )
 
-        xv = torch.linspace(-1, 1, 2048)
+        xv = torch.linspace(-1, 1, 2048, device=device)
 
         self.cheb_coeffs = nn.Parameter(
             torch.tensor(
@@ -79,8 +80,13 @@ class MultiOrder(nn.Module):
             )
         )
         self.cheb_array = torch.stack(
-            [torch.ones(self.n_pixels), xv, 2 * xv ** 2 - 1, 4 * xv ** 3 - 3 * xv]
-        )
+            [
+                torch.ones(self.n_pixels, device=device),
+                xv,
+                2 * xv ** 2 - 1,
+                4 * xv ** 3 - 3 * xv,
+            ]
+        ).to(device)
 
     def forward(self, index):
         """The forward pass of the neural network model
@@ -91,20 +97,19 @@ class MultiOrder(nn.Module):
             (torch.tensor): the 2D generative scene model destined for backpropagation parameter tuning
         """
 
-        # Instrumental broadening
-        blur_size = torch.exp(self.log_blur_size)
-        smoothed_flux = kornia.filters.gaussian_blur2d(
-            self.flux_native.view(1, 1, 1, -1),
-            kernel_size=(1, 21),
-            sigma=(0.01, blur_size),
-        ).squeeze()
-
         # Radial Velocity Shift
-        wl_0, wl_max = self.wl_data[index, 0], self.wl_data[index, -1]
+        wl_0, wl_max = self.wl_data[index, 0] * 0.995, self.wl_data[index, -1] * 1.005
         rv_shift = torch.sqrt((self.c_km_s + self.v_z) / (self.c_km_s - self.v_z))
         wl_shifted = self.wl_native * rv_shift
         trim_mask = (wl_shifted > wl_0) & (wl_shifted < wl_max)
-        smoothed_flux = smoothed_flux[trim_mask]
+
+        # Instrumental broadening
+        blur_size = torch.exp(self.log_blur_size)
+        smoothed_flux = kornia.filters.gaussian_blur2d(
+            self.flux_native[trim_mask].view(1, 1, 1, -1),
+            kernel_size=(1, 21),
+            sigma=(0.01, blur_size),
+        ).squeeze()
 
         # Resampling (This step is subtle to get right)
         # match oversampled model to observed wavelengths:
@@ -115,7 +120,7 @@ class MultiOrder(nn.Module):
 
         idx, vals = torch.unique(indices, return_counts=True)
         vs = torch.split_with_sizes(smoothed_flux, tuple(vals))
-        resampled_model_flux = torch.tensor([v.mean() for v in vs])
+        resampled_model_flux = torch.tensor([v.mean() for v in vs], device=self.device)
 
         # Blaze function warping
         blaze = (self.cheb_array * self.cheb_coeffs[index].unsqueeze(1)).sum(0)

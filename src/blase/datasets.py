@@ -41,13 +41,20 @@ class HPFDataset(Dataset):
 
         self.data_cube = torch.tensor(data_cube)
 
+        # normalize the flux dimension:
+        nans = torch.isnan(self.data_cube)
+        self.data_cube[nans] = 0.0  # for now...
+        med, _ = torch.median(self.data_cube[0, :, :], axis=1)
+        self.data_cube[0, :, :] = self.data_cube[0, :, :] / med.unsqueeze(1)
+
         self.df = self.get_goldilocks_dataframe(filename)
 
     def __getitem__(self, index):
         """The index represents the echelle order"""
-        return self.data_cube[:, index, :]
+        return (index, self.data_cube[0, index, :])
 
     def __len__(self):
+        # Only do 3 orders right now
         return self.n_orders
 
     def get_goldilocks_dataframe(self, filename):
