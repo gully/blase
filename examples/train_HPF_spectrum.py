@@ -104,7 +104,7 @@ for epoch in t_iter:
     writer.add_scalar("loss", loss.item(), global_step=epoch)
     writer.add_scalar("RV", model.v_z.item(), global_step=epoch)
     writer.add_scalar(
-        "blur size", np.exp(model.log_blur_size.item()), global_step=epoch
+        "log blur size", model.log_blur_size.item(), global_step=epoch
     )
     t_iter.set_description(f"Loss {loss.item(): 15.3f}")
     t_iter.refresh()

@@ -13,7 +13,7 @@ import torch
 from torch import nn
 from astropy.io import fits
 import numpy as np
-import kornia
+import math
 from torchinterp1d import Interp1d
 
 
@@ -35,6 +35,12 @@ class MultiOrder(nn.Module):
         self.n_pixels = 2048
         self.n_orders = 28
         self.pixel_index = torch.arange(self.n_pixels)
+        self.root2pi = torch.sqrt(torch.tensor(2 * math.pi, device=device)).double()
+        self.conv_window_size = 391  # must be odd for symmetry...
+        self.conv_x = (
+            torch.arange(self.conv_window_size, device=device).double()
+            - self.conv_window_size // 2
+        )
 
         # Need to init from data for wavelength resampling step
         if wl_data is None:
@@ -66,9 +72,10 @@ class MultiOrder(nn.Module):
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64, device=device)
         )
 
-        self.log_blur_size = nn.Parameter(
-            torch.tensor(1.67, requires_grad=True, dtype=torch.float64, device=device)
-        )
+        # self.log_blur_size = nn.Parameter(
+        #    torch.tensor(-1.5, requires_grad=False, dtype=torch.float64, device=device)
+        # )
+        self.log_blur_size = torch.tensor(-1.5, dtype=torch.float64, device=device)
 
         xv = torch.linspace(-1, 1, 2048, device=device)
 
@@ -104,12 +111,23 @@ class MultiOrder(nn.Module):
         wl_shifted = self.wl_native * rv_shift
         trim_mask = (wl_shifted > wl_0) & (wl_shifted < wl_max)
 
+        pixel_scale = torch.mean(
+            self.wl_native[trim_mask][1:] - self.wl_native[trim_mask][0:-1]
+        )
+
         # Instrumental broadening
-        blur_size = torch.exp(self.log_blur_size)
-        smoothed_flux = kornia.filters.gaussian_blur2d(
-            self.flux_native[trim_mask].view(1, 1, 1, -1),
-            kernel_size=(1, 21),
-            sigma=(0.01, blur_size),
+        blur_size_angstroms = torch.exp(self.log_blur_size)
+        blur_size_pixels = blur_size_angstroms / pixel_scale
+        normalization = torch.div(1.0, (blur_size_pixels * self.root2pi))
+
+        weights = normalization * torch.exp(
+            (-self.conv_x ** 2 / (2 * blur_size_pixels ** 2))
+        )
+
+        smoothed_flux = torch.nn.functional.conv1d(
+            self.flux_native[trim_mask].unsqueeze(0).unsqueeze(1),
+            weights.unsqueeze(0).unsqueeze(1),
+            padding=self.conv_window_size // 2,
         ).squeeze()
 
         ## Resampling (This step is subtle to get right)
