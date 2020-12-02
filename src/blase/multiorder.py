@@ -49,17 +49,17 @@ class MultiOrder(nn.Module):
         self.wl_max = self.wl_data[-1, -1]
 
         # Read in the synthetic spectra at native resolution
-        self.wl_native = self.read_native_wl()
-        self.flux_native = self.read_native_flux(4700, 4.5)
+        self.wl_native, self.flux_native = self.read_native_PHOENIX_model(4700, 4.5)
 
+        # Radial Velocity
         self.v_z = nn.Parameter(
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64, device=device)
         )
 
-        # self.log_blur_size = nn.Parameter(
-        #    torch.tensor(-1.5, requires_grad=False, dtype=torch.float64, device=device)
-        # )
-        self.log_blur_size = torch.tensor(-1.5, dtype=torch.float64, device=device)
+        # Spectral smoothing, placeholder for vsini for now.
+        self.log_blur_size = nn.Parameter(
+            torch.tensor(-1.5, requires_grad=False, dtype=torch.float64, device=device)
+        )
 
         xv = torch.linspace(-1, 1, 2048, device=device)
 
@@ -130,29 +130,31 @@ class MultiOrder(nn.Module):
     def read_native_wl(self):
         """Return the native model wavelength as a torch tensor"""
         # Set up a single echelle order
+
+    def read_native_PHOENIX_model(self, teff, logg):
+        """Return the native model wavelength and flux as a torch tensor
+        
+        Args:
+            Teff (int): The Teff label of the PHOENIX model to read in.  Must exist!
+            logg (float): The logg label of the PHOENIX model to read in.  Must exist!
+        Returns:
+            (torch.tensor): the normalized PHOENIX model wavelength and flux at native spectral resolution
+        """
         wl_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
         )[0].data.astype(np.float64)
         mask = (wl_orig > self.wl_0.item() * 0.995) & (
             wl_orig < self.wl_max.item() * 1.005
         )
-        return torch.tensor(wl_orig[mask], device=self.device, dtype=torch.float64)
+        wl_out = torch.tensor(wl_orig[mask], device=self.device, dtype=torch.float64)
 
-    def read_native_flux(self, teff, logg):
-        """Return the native model flux as a torch tensor
-        
-        Args:
-            Teff (int): The Teff label of the PHOENIX model to read in.  Must exist!
-            logg (float): The logg label of the PHOENIX model to read in.  Must exist!
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
-        """
         fn = "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
         flux_orig = fits.open(fn.format(teff, logg))[0].data.astype(np.float64)
         flux_native = torch.tensor(
-            flux_orig[mask], device=device, dtype=torch.float64
+            flux_orig[mask], device=self.device, dtype=torch.float64
         )  # Units: erg/s/cm^2/cm
         native_median = torch.median(flux_native)
         # Units: Relative flux density
-        return flux_native / native_median
+        flux_out = flux_native / native_median
+        return (wl_out, flux_out)
 

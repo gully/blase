@@ -16,8 +16,6 @@ def test_pixels():
     fns = glob.glob("data/Goldilocks_*.fits")
     for fn in fns:
         data = HPFDataset(fn)
-        wl, flux, unc = data[0]
-        assert isinstance(wl, torch.Tensor)
-        assert len(flux) > 10_000
-        assert flux.shape == unc.shape
-        assert wl.shape == flux.shape
+        index, flux = data[5]
+        assert isinstance(flux, torch.Tensor)
+        assert len(flux) > 1900
