@@ -23,8 +23,7 @@ class MultiOrder(nn.Module):
 
     Args:
         device (str): Either "cuda" for GPU acceleration, or "cpu" otherwise
-        wl_limits (tuple): the limits :math:`\lambda_0` and :math:`\lambda_{max}` in Angstroms to analyze.
-            Default: (425, 510)
+        wl_data (Tensor): The array of wavelengths used for HPF science data
     """
 
     def __init__(self, device="cuda", wl_data=None):
@@ -36,7 +35,7 @@ class MultiOrder(nn.Module):
         self.n_orders = 28
         self.pixel_index = torch.arange(self.n_pixels)
         self.root2pi = torch.sqrt(torch.tensor(2 * math.pi, device=device)).double()
-        self.conv_window_size = 391  # must be odd for symmetry...
+        self.conv_window_size = 191  # must be odd for symmetry...
         self.conv_x = (
             torch.arange(self.conv_window_size, device=device).double()
             - self.conv_window_size // 2
@@ -49,24 +48,9 @@ class MultiOrder(nn.Module):
         self.wl_0 = self.wl_data[0, 0]  # Hardcode for now
         self.wl_max = self.wl_data[-1, -1]
 
-        # Set up a single echelle order
-        wl_orig = fits.open(
-            "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
-        )[0].data.astype(np.float64)
-        mask = (wl_orig > self.wl_0.item() * 0.995) & (
-            wl_orig < self.wl_max.item() * 1.005
-        )
-        self.wl_native = torch.tensor(wl_orig[mask], device=device, dtype=torch.float64)
-
-        flux_orig = fits.open(
-            "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte04700-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
-        )[0].data.astype(np.float64)
-        self.flux_native = torch.tensor(
-            flux_orig[mask], device=device, dtype=torch.float64
-        )  # Units: erg/s/cm^2/cm
-
-        self.native_median = torch.median(self.flux_native)
-        self.flux_native /= self.native_median  # Units: Relative flux density
+        # Read in the synthetic spectra at native resolution
+        self.wl_native = self.read_native_wl()
+        self.flux_native = self.read_native_flux(4700, 4.5)
 
         self.v_z = nn.Parameter(
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64, device=device)
@@ -97,12 +81,12 @@ class MultiOrder(nn.Module):
         ).to(device)
 
     def forward(self, index):
-        """The forward pass of the neural network model
+        """The forward pass of the spectral model
 
         Args:
-            index (int): the index of the ABB'A' nod frames: *e.g.* A=0, B=1, B'=2, A'=3
+            index (int): the index of the HPF spectral order
         Returns:
-            (torch.tensor): the 2D generative scene model destined for backpropagation parameter tuning
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
 
         # Radial Velocity Shift
@@ -142,3 +126,33 @@ class MultiOrder(nn.Module):
         blaze = (self.cheb_array * self.cheb_coeffs[index].unsqueeze(1)).sum(0)
 
         return resampled_model_flux * blaze
+
+    def read_native_wl(self):
+        """Return the native model wavelength as a torch tensor"""
+        # Set up a single echelle order
+        wl_orig = fits.open(
+            "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
+        )[0].data.astype(np.float64)
+        mask = (wl_orig > self.wl_0.item() * 0.995) & (
+            wl_orig < self.wl_max.item() * 1.005
+        )
+        return torch.tensor(wl_orig[mask], device=self.device, dtype=torch.float64)
+
+    def read_native_flux(self, teff, logg):
+        """Return the native model flux as a torch tensor
+        
+        Args:
+            Teff (int): The Teff label of the PHOENIX model to read in.  Must exist!
+            logg (float): The logg label of the PHOENIX model to read in.  Must exist!
+        Returns:
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        """
+        fn = "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
+        flux_orig = fits.open(fn.format(teff, logg))[0].data.astype(np.float64)
+        flux_native = torch.tensor(
+            flux_orig[mask], device=device, dtype=torch.float64
+        )  # Units: erg/s/cm^2/cm
+        native_median = torch.median(flux_native)
+        # Units: Relative flux density
+        return flux_native / native_median
+
