@@ -14,6 +14,7 @@ from torch import nn
 from astropy.io import fits
 import numpy as np
 import kornia
+from torchinterp1d import Interp1d
 
 
 class MultiOrder(nn.Module):
@@ -111,16 +112,13 @@ class MultiOrder(nn.Module):
             sigma=(0.01, blur_size),
         ).squeeze()
 
-        # Resampling (This step is subtle to get right)
-        # match oversampled model to observed wavelengths:
-        column_vector = self.wl_data[index].unsqueeze(1)
-        row_vector = wl_shifted[trim_mask].unsqueeze(0)
-        dist = (column_vector - row_vector) ** 2
-        indices = dist.argmin(0)
+        ## Resampling (This step is subtle to get right)
+        ## match oversampled model to observed wavelengths
+        ## For now simply interpolate.
 
-        idx, vals = torch.unique(indices, return_counts=True)
-        vs = torch.split_with_sizes(smoothed_flux, tuple(vals))
-        resampled_model_flux = torch.tensor([v.mean() for v in vs], device=self.device)
+        resampled_model_flux = Interp1d()(
+            wl_shifted[trim_mask], smoothed_flux, self.wl_data[index]
+        ).squeeze()
 
         # Blaze function warping
         blaze = (self.cheb_array * self.cheb_coeffs[index].unsqueeze(1)).sum(0)

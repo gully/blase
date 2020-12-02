@@ -1,4 +1,7 @@
 from os import initgroups
+
+# from astropy.io.fits import column
+# from numpy.lib.shape_base import column_stack
 import torch
 import time
 from blase.datasets import HPFDataset
@@ -11,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import argparse
 import webbrowser
+import numpy as np
 
 parser = argparse.ArgumentParser(
     description="Blase: astronomical echelle spectrum analysis with PyTorch"
@@ -80,6 +84,9 @@ n_epochs = args.n_epochs
 # Hard-code the 13th echelle order for now...
 losses = []
 
+columns = torch.arange(2048)
+hard_mask = (columns > 10) & (columns < 2038)
+
 t0 = time.time()
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
@@ -88,20 +95,24 @@ for epoch in t_iter:
         y_batch = spectrum.squeeze().to(device)
         model.train()
         yhat = model.forward(index.item()).squeeze()
-        loss = loss_fn(yhat, y_batch)
+        loss = loss_fn(yhat[hard_mask], y_batch[hard_mask])
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
         losses.append(loss.item())
 
     writer.add_scalar("loss", loss.item(), global_step=epoch)
+    writer.add_scalar("RV", model.v_z.item(), global_step=epoch)
+    writer.add_scalar(
+        "blur size", np.exp(model.log_blur_size.item()), global_step=epoch
+    )
     t_iter.set_description(f"Loss {loss.item(): 15.3f}")
     t_iter.refresh()
     if (epoch % 20) == 0:
         torch.save(model.state_dict(), "model_coeffs.pt")
         to_plot = [
-            {"wl": data_cube[6, i, :].cpu(), "flux": yhat.detach().cpu()},
-            {"wl": data_cube[6, i, :].cpu(), "flux": y_batch.cpu()},
+            {"wl": data_cube[6, index.item(), :].cpu(), "flux": yhat.detach().cpu()},
+            {"wl": data_cube[6, index.item(), :].cpu(), "flux": y_batch.cpu()},
         ]
         writer.add_figure(
             "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
