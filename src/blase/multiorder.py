@@ -61,7 +61,7 @@ class MultiOrder(nn.Module):
             torch.tensor(-1.5, requires_grad=False, dtype=torch.float64, device=device)
         )
 
-        xv = torch.linspace(-1, 1, 2048, device=device)
+        xv = torch.linspace(-1, 1, 2048, device=device, dtype=torch.float64)
 
         self.cheb_coeffs = nn.Parameter(
             torch.tensor(
@@ -72,12 +72,7 @@ class MultiOrder(nn.Module):
             )
         )
         self.cheb_array = torch.stack(
-            [
-                torch.ones(self.n_pixels, device=device),
-                xv,
-                2 * xv ** 2 - 1,
-                4 * xv ** 3 - 3 * xv,
-            ]
+            [torch.ones_like(xv), xv, 2 * xv ** 2 - 1, 4 * xv ** 3 - 3 * xv,]
         ).to(device)
 
     def forward(self, index):
@@ -127,10 +122,6 @@ class MultiOrder(nn.Module):
 
         return resampled_model_flux * blaze
 
-    def read_native_wl(self):
-        """Return the native model wavelength as a torch tensor"""
-        # Set up a single echelle order
-
     def read_native_PHOENIX_model(self, teff, logg):
         """Return the native model wavelength and flux as a torch tensor
         
@@ -138,7 +129,7 @@ class MultiOrder(nn.Module):
             Teff (int): The Teff label of the PHOENIX model to read in.  Must exist!
             logg (float): The logg label of the PHOENIX model to read in.  Must exist!
         Returns:
-            (torch.tensor): the normalized PHOENIX model wavelength and flux at native spectral resolution
+            (tuple of tensors): the PHOENIX model wavelength and normalized flux at native spectral resolution
         """
         wl_orig = fits.open(
             "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
@@ -150,9 +141,10 @@ class MultiOrder(nn.Module):
 
         fn = "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
         flux_orig = fits.open(fn.format(teff, logg))[0].data.astype(np.float64)
+        # Units: erg/s/cm^2/cm
         flux_native = torch.tensor(
             flux_orig[mask], device=self.device, dtype=torch.float64
-        )  # Units: erg/s/cm^2/cm
+        )
         native_median = torch.median(flux_native)
         # Units: Relative flux density
         flux_out = flux_native / native_median
