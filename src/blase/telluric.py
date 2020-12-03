@@ -46,7 +46,7 @@ class TelluricModel(nn.Module):
         return torch.ones(2048, device=self.device, dtype=torch.float64)
 
     def get_hapi_molec_data(self, species):
-        """Fetch HITRAN atomic and molecular data as torch tensors
+        r"""Fetch HITRAN atomic and molecular data as torch tensors
 
         Args:
             species (str): Which atomic/molecular species to examine
@@ -101,10 +101,10 @@ class TelluricModel(nn.Module):
             p (float): Pressure :math:`p` in standard atmospheres `atm`
             nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
             gamma (float): Lorentz half width at half maximum (HWHM), :math:`\gamma` in units of :math:`\mathrm{cm^{-1}}`
-            dp_ref (float): The pressure shift :math:`\mathrm{cm^{-1}/atm}` at :math:`T_{ref}=296`K
-                and :math:`p_{ref} = 1`atm of the line position with respect to the vacuum transition 
+            dp_ref (float): The pressure shift :math:`\mathrm{cm^{-1}/atm}` at :math:`T_{ref}=296` K
+                and :math:`p_{ref} = 1` atm of the line position with respect to the vacuum transition 
                 wavenumber :math:`\nu_{ij}`
-            S_ij (float): 
+            S_ij (float): The spectral line intensity :math:`\mathrm{cm^{-1}/(molecule·cm^{-2}})` at :math:`T_{ref}=296` K
             
 
         """

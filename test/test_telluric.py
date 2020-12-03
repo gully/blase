@@ -71,12 +71,7 @@ def test_atomic_data_broadcasting():
     ## Computing the Lorentz profile
 
     profiles = skymodel.lorentz_profile(
-        nus.unsqueeze(1),
-        1.0,
-        molec_data["nu"],
-        gamma,
-        molec_data["delta_air"],
-        molec_data["sw"],
+        nus.unsqueeze(1), 1.0, molec_data["nu"], gamma, molec_data["delta_air"], 1.0,
     )
     profile = profiles.sum(1)
 
