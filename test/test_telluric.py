@@ -44,7 +44,17 @@ def test_atomic_data_broadcasting():
     skymodel = TelluricModel()
     molec_data = skymodel.get_hapi_molec_data("O2")
 
-    output = skymodel.gamma_of_p_and_T(
+    wls = np.linspace(12600, 12800, 20000)
+    nus = torch.tensor(
+        (wls * u.Angstrom).to(1 / u.cm, equivalencies=u.spectral()).value,
+        device=skymodel.device,
+    )
+    mask = (molec_data["nu"] > nus.min()) & (molec_data["nu"] < nus.max())
+    for key in molec_data.keys():
+        molec_data[key] = molec_data[key][mask]
+
+    ## Computing the gamma HWHM
+    gamma = skymodel.gamma_of_p_and_T(
         1.0,
         296.0,
         0.21,
@@ -53,7 +63,24 @@ def test_atomic_data_broadcasting():
         molec_data["gamma_self"],
     )
 
-    print(f"\n\tFound {output.size()[0]} O2 lines in local HITRAN")
-    assert output.ndim == 1
-    assert output.shape == molec_data["nu"].shape
-    assert output.shape[0] > 10
+    print(f"\n\tFound {gamma.nelement()} O2 lines in local HITRAN")
+    assert gamma.ndim == 1, "Gammas should usually be vectors"
+    assert gamma.shape == molec_data["nu"].shape
+    assert gamma.nelement() > 1
+
+    ## Computing the Lorentz profile
+
+    profiles = skymodel.lorentz_profile(
+        nus.unsqueeze(1),
+        1.0,
+        molec_data["nu"],
+        gamma,
+        molec_data["delta_air"],
+        molec_data["sw"],
+    )
+    profile = profiles.sum(1)
+
+    print(f"\n\tLorentz profile is {profiles.size()[0]} x {profiles.size()[1]}")
+    assert profiles.ndim == 2
+    assert profile.ndim == 1
+    assert profile.nelement() == len(nus)
