@@ -40,6 +40,7 @@ class TelluricModel(nn.Module):
             "delta_air",
             "sw",
         ]
+        self.hitran_c2 = 1.4387770  # cm K
 
     def forward(self):
         """The forward pass of the neural network"""
@@ -83,6 +84,10 @@ class TelluricModel(nn.Module):
                 reference pressure :math:`p_{ref}=1\;` atm
             gamma_self_ref (float): The self-broadened HWHM at :math:`T_{ref}=296\;` K  
                 and reference pressure :math:`p_{ref}=1\;` atm
+
+        Returns:
+            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}` 
+
         """
 
         return (296.0 / T) ** n_air * (
@@ -97,7 +102,8 @@ class TelluricModel(nn.Module):
             f_\mathrm{L}(\nu; \nu_{ij}, T, p) = \frac{1}{\pi}\frac{\gamma(p,T)}{\gamma(p,T)^2 + [\nu-(\nu_{ij} + \delta(p_\mathrm{ref})p)]^2}    
 
         Args:
-            nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`
+            nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
+                For matrix output, nu should have shape :math:`N_{\lambda} \times 1`.
             p (float): Pressure :math:`p` in standard atmospheres `atm`
             nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
             gamma (float): Lorentz half width at half maximum (HWHM), :math:`\gamma` in units of :math:`\mathrm{cm^{-1}}`
@@ -106,6 +112,28 @@ class TelluricModel(nn.Module):
                 wavenumber :math:`\nu_{ij}`
             S_ij (float): The spectral line intensity :math:`\mathrm{cm^{-1}/(molecule·cm^{-2}})` at :math:`T_{ref}=296` K
             
-
+        Returns:
+            torch.Tensor: Either a vector of length :math:`N_\lambda` if :math:`\gamma` is a scalar, or a matrix of size :math:`N_\lambda \times N_{lines}` if :math:`\gamma` is a vector
+        
         """
         return S_ij / math.pi * gamma / (gamma ** 2 + (nu - (nu_ij + dp_ref * p)) ** 2)
+
+    def tips_Q_of_T(self, T, g_k, E_k):
+        r"""Total Internal Partition Sum
+        
+        .. math :: 
+        
+            Q(T) = \sum_k g_k \exp\left(-\frac{c_2E_k}{T}\right)
+
+
+        Args:
+            T (float): Temperature :math:`T` in `K`
+            g_k (float): The lower state statistical weights :math:`g_k`
+            E_k (float): The lower-state energy of the transition :math:`\mathrm{cm^{-1}}`
+        
+        Returns:
+            torch.Tensor: A scalar or a vector the same length as T    
+        
+        """
+        return torch.sum(g_k * torch.exp(-self.hitran_c2 * E_k / T))
+

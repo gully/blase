@@ -79,3 +79,10 @@ def test_atomic_data_broadcasting():
     assert profiles.ndim == 2
     assert profile.ndim == 1
     assert profile.nelement() == len(nus)
+
+    q_value = skymodel.tips_Q_of_T(296.0, molec_data["gpp"], molec_data["elower"])
+
+    assert q_value == q_value
+    assert q_value.ndim == 0
+    assert q_value.nelement() == 1
+
