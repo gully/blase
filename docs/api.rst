@@ -9,3 +9,6 @@ The API is under active development and should be considered unstable.  Feedback
 
 .. automodule:: blase.multiorder
     :members:
+
+.. automodule:: blase.telluric
+    :members:
