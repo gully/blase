@@ -17,6 +17,14 @@ cd torchinterp1d
 python setup.py develop
 ```
 
+## HITRAN
+
+The [HITRAN database](https://hitran.org/) stores atomic data used here for bespoke modeling of Earth's atmospheric absorption and emission.  To tap into this database, we use the HITRAN Python API [hapi](https://hitran.org/hapi/).  You will need to install the bleeding-edge version of HAPI from source using the same pattern as for `torchinterp1d`, but for `hapi` instead.
+
+
+
+
+
 ### Authors:
 
 - Michael Gully-Santiago (UT Austin)

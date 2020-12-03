@@ -10,6 +10,10 @@ TelluricModel
 
 import torch
 from torch import nn
+from blase.utils import suppress_stdout
+
+with suppress_stdout():
+    import hapi
 
 
 # custom dataset loader
