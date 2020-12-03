@@ -46,6 +46,13 @@ class TelluricModel(nn.Module):
 
     def get_hapi_molec_data(self, species):
         """Fetch HITRAN atomic and molecular data as torch tensors
+
+        Args:
+            species (str): Which atomic/molecular species to examine
+
+        Returns:
+            dict: A dictionary containing tensors of size :math:`N_{\mathrm{lines}}` 
+                for each of the 8 HITRAN columns of interest
         """
 
         out_dict = {
@@ -64,7 +71,6 @@ class TelluricModel(nn.Module):
 
             \gamma(p, T) = \left( \frac{T_\mathrm{ref}}{T} \right)^{n_\mathrm{air}}\left( \gamma_\mathrm{air}(p_\mathrm{ref}, T_\mathrm{ref})(p-p_\mathrm{self}) + \gamma_\mathrm{self}(p_\mathrm{ref}, T_\mathrm{ref})p_\mathrm{self}\right)
 
-        
 
         Args:
             p (float): Pressure :math:`p` in standard atmospheres `atm`

@@ -36,3 +36,24 @@ def test_hitran_io():
 
     assert mask.sum() < len(mask)
     assert mask.sum() > 10
+
+
+def test_atomic_data_broadcasting():
+    """Does the pytorch broadcasting make sense?"""
+
+    skymodel = TelluricModel()
+    molec_data = skymodel.get_hapi_molec_data("O2")
+
+    output = skymodel.gamma_of_p_and_T(
+        1.0,
+        296.0,
+        0.21,
+        molec_data["n_air"],
+        molec_data["gamma_air"],
+        molec_data["gamma_self"],
+    )
+
+    print(f"\n\tFound {output.size()[0]} O2 lines in local HITRAN")
+    assert output.ndim == 1
+    assert output.shape == molec_data["nu"].shape
+    assert output.shape[0] > 10
