@@ -29,10 +29,32 @@ class TelluricModel(nn.Module):
     def __init__(self, device="cuda"):
         super().__init__()
         self.device = device
+        self.hitran_columns = [
+            "n_air",
+            "gamma_air",
+            "gamma_self",
+            "elower",
+            "gpp",
+            "nu",
+            "delta_air",
+            "sw",
+        ]
 
     def forward(self):
         """The forward pass of the neural network"""
         return torch.ones(2048, device=self.device, dtype=torch.float64)
+
+    def get_hapi_molec_data(self, species):
+        """Fetch HITRAN atomic and molecular data as torch tensors
+        """
+
+        out_dict = {
+            col: torch.tensor(
+                hapi.getColumn(species, col), dtype=torch.float64, device=self.device
+            )
+            for col in self.hitran_columns
+        }
+        return out_dict
 
     def gamma_of_p_and_T(self, p, T, p_self, n_air, gamma_air_ref, gamma_self_ref):
         r"""Compute the Lorentz half width at half maximum (HWHM) in units of :math:`\mathrm{cm^{-1}/atm}`
