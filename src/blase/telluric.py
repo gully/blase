@@ -11,6 +11,7 @@ TelluricModel
 import torch
 from torch import nn
 from blase.utils import suppress_stdout
+import math
 
 with suppress_stdout():
     import hapi
@@ -64,7 +65,7 @@ class TelluricModel(nn.Module):
         return out_dict
 
     def gamma_of_p_and_T(self, p, T, p_self, n_air, gamma_air_ref, gamma_self_ref):
-        r"""Compute the Lorentz half width at half maximum (HWHM) in units of :math:`\mathrm{cm^{-1}/atm}`
+        r"""Compute the Lorentz half width at half maximum (HWHM) in units of :math:`\mathrm{cm^{-1}}`
         with pressure and temperature: 
         
         .. math::
@@ -87,3 +88,24 @@ class TelluricModel(nn.Module):
         return (296.0 / T) ** n_air * (
             gamma_air_ref * (p - p_self) + gamma_self_ref * (p_self)
         )
+
+    def lorentz_profile(self, nu, p, nu_ij, gamma, dp_ref, S_ij):
+        r"""Return the Lorentz line profile given vectors and parameters
+
+        .. math::
+        
+            f_\mathrm{L}(\nu; \nu_{ij}, T, p) = \frac{1}{\pi}\frac{\gamma(p,T)}{\gamma(p,T)^2 + [\nu-(\nu_{ij} + \delta(p_\mathrm{ref})p)]^2}    
+
+        Args:
+            nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`
+            p (float): Pressure :math:`p` in standard atmospheres `atm`
+            nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
+            gamma (float): Lorentz half width at half maximum (HWHM), :math:`\gamma` in units of :math:`\mathrm{cm^{-1}}`
+            dp_ref (float): The pressure shift :math:`\mathrm{cm^{-1}/atm}` at :math:`T_{ref}=296`K
+                and :math:`p_{ref} = 1`atm of the line position with respect to the vacuum transition 
+                wavenumber :math:`\nu_{ij}`
+            S_ij (float): 
+            
+
+        """
+        return S_ij / math.pi * gamma / (gamma ** 2 + (nu - (nu_ij + dp_ref * p)) ** 2)
