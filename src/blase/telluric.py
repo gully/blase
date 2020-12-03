@@ -110,7 +110,7 @@ class TelluricModel(nn.Module):
             dp_ref (float): The pressure shift :math:`\mathrm{cm^{-1}/atm}` at :math:`T_{ref}=296` K
                 and :math:`p_{ref} = 1` atm of the line position with respect to the vacuum transition 
                 wavenumber :math:`\nu_{ij}`
-            S_ij (float): The spectral line intensity :math:`\mathrm{cm^{-1}/(molecule·cm^{-2}})` at :math:`T_{ref}=296` K
+            S_ij (float): The spectral line intensity :math:`\mathrm{cm^{-1}/(molecule·cm^{-2}})`
             
         Returns:
             torch.Tensor: Either a vector of length :math:`N_\lambda` if :math:`\gamma` is a scalar, or a matrix of size :math:`N_\lambda \times N_{lines}` if :math:`\gamma` is a vector
@@ -136,4 +136,35 @@ class TelluricModel(nn.Module):
         
         """
         return torch.sum(g_k * torch.exp(-self.hitran_c2 * E_k / T))
+
+    def S_ij_of_T(self, T, S_ij_296, nu_ij, g_lower, E_lower):
+        r"""The Spectral Line Intensity as a function of temperature
+        
+        .. math::
+
+            S_{ij}(T) = S_{ij}(T_\mathrm{ref}) \frac{Q(T_\mathrm{ref})}{Q(T)} \frac{\exp\left( -c_2 E''/T \right)}{\exp\left( -c_2 E''/T_\mathrm{ref} \right)} \frac{[1-\exp\left( -c_2 \nu_{ij}/T \right)]}{[1-\exp\left(-c_2 \nu_{ij}/T_\mathrm{ref} \right)]}
+
+        Args:
+            T (float): Temperature :math:`T` in `K`
+            S_ij_296 (float): The spectral line intensity at :math:`T_{ref}=296` K
+            nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
+            g_lower (float): The lower state statistical weights :math:`g''`
+            E_lower (float): The lower-state energy of the transition :math:`\mathrm{cm^{-1}}`
+        
+        Returns:
+            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}`  
+
+        """
+        c_2 = 1.4387770  # cm K
+        with torch.no_grad():
+            Q_at_296 = self.tips_Q_of_T(296.0, g_lower, E_lower)
+        return (
+            S_ij_296
+            * Q_at_296
+            / self.tips_Q_of_T(T, g_lower, E_lower)
+            * torch.exp(-c_2 * E_lower / T)
+            / torch.exp(-c_2 * E_lower / 296.0)
+            * (1 - torch.exp(-c_2 * nu_ij / T))
+            / (1 - torch.exp(-c_2 * nu_ij / 296.0))
+        )
 

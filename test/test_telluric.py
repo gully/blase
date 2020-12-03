@@ -55,8 +55,8 @@ def test_atomic_data_broadcasting():
 
     ## Computing the gamma HWHM
     gamma = skymodel.gamma_of_p_and_T(
-        1.0,
-        296.0,
+        0.98,
+        297.0,
         0.21,
         molec_data["n_air"],
         molec_data["gamma_air"],
@@ -71,7 +71,7 @@ def test_atomic_data_broadcasting():
     ## Computing the Lorentz profile
 
     profiles = skymodel.lorentz_profile(
-        nus.unsqueeze(1), 1.0, molec_data["nu"], gamma, molec_data["delta_air"], 1.0,
+        nus.unsqueeze(1), 1.1, molec_data["nu"], gamma, molec_data["delta_air"], 1.0,
     )
     profile = profiles.sum(1)
 
@@ -80,9 +80,20 @@ def test_atomic_data_broadcasting():
     assert profile.ndim == 1
     assert profile.nelement() == len(nus)
 
-    q_value = skymodel.tips_Q_of_T(296.0, molec_data["gpp"], molec_data["elower"])
+    q_value = skymodel.tips_Q_of_T(297.0, molec_data["gpp"], molec_data["elower"])
 
     assert q_value == q_value
     assert q_value.ndim == 0
     assert q_value.nelement() == 1
+
+    S_ij = skymodel.S_ij_of_T(
+        297.0,
+        molec_data["sw"],
+        molec_data["nu"],
+        molec_data["gpp"],
+        molec_data["elower"],
+    )
+
+    assert len(S_ij) == len(gamma)
+    assert len(S_ij) == (S_ij == S_ij).sum()
 
