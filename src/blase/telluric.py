@@ -12,6 +12,7 @@ import torch
 from torch import nn
 from blase.utils import suppress_stdout
 import math
+from collections import OrderedDict
 
 with suppress_stdout():
     import hapi
@@ -57,12 +58,17 @@ class TelluricModel(nn.Module):
                 for each of the 8 HITRAN columns of interest
         """
 
-        out_dict = {
-            col: torch.tensor(
-                hapi.getColumn(species, col), dtype=torch.float64, device=self.device
+        out_dict = OrderedDict(
+            (
+                col,
+                torch.tensor(
+                    hapi.getColumn(species, col),
+                    dtype=torch.float64,
+                    device=self.device,
+                ),
             )
             for col in self.hitran_columns
-        }
+        )
         return out_dict
 
     def gamma_of_p_and_T(self, p, T, p_self, n_air, gamma_air_ref, gamma_self_ref):
@@ -168,3 +174,8 @@ class TelluricModel(nn.Module):
             / (1 - torch.exp(-c_2 * nu_ij / 296.0))
         )
 
+    def transmission_of_T_p(T, p, nus, vol_mix_ratio, atomic_data):
+        """Return the absorption coefficient as a function of T"""
+
+        # TODO, this is the next step...
+        return 1

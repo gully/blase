@@ -37,6 +37,13 @@ def test_hitran_io():
     assert mask.sum() < len(mask)
     assert mask.sum() > 10
 
+    vals = O2_hitran_all.values()
+    keys = O2_hitran_all.keys()
+
+    assert len(vals) == len(skymodel.hitran_columns)
+    for i, key in enumerate(keys):
+        assert key == skymodel.hitran_columns[i]
+
 
 def test_atomic_data_broadcasting():
     """Does the pytorch broadcasting make sense?"""
