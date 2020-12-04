@@ -174,8 +174,36 @@ class TelluricModel(nn.Module):
             / (1 - torch.exp(-c_2 * nu_ij / 296.0))
         )
 
-    def transmission_of_T_p(T, p, nus, vol_mix_ratio, atomic_data):
-        """Return the absorption coefficient as a function of T"""
+    def transmission_of_T_p(self, T, p, nus, vol_mix_ratio, hitran):
+        r"""Return the transmission spectrum :math:`\mathcal{T}(\nu; T, P)=\exp(-\tau_\nu)` for 1 km of pathlength
 
-        # TODO, this is the next step...
-        return 1
+        Args:
+            T (float): Temperature :math:`T` in `K`
+            p (float): Pressure :math:`p` in standard atmospheres `atm`
+            nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
+            vol_mix_ratio (float): The volume mixing ratio of the species assuming ideal gas
+        
+        Returns:
+            torch.Tensor: A vector of length :math:`N_{\nu}`  
+        
+        """
+        gammas = self.gamma_of_p_and_T(
+            p,
+            T,
+            vol_mix_ratio,
+            hitran["n_air"],
+            hitran["gamma_air"],
+            hitran["gamma_self"],
+        )
+
+        S_ij = self.S_ij_of_T(
+            T, hitran["sw"], hitran["nu"], hitran["gpp"], hitran["elower"]
+        )
+
+        abs_coeff = self.lorentz_profile(
+            nus.unsqueeze(1), p, hitran["nu"], gammas, hitran["delta_air"], S_ij
+        ).sum(1)
+
+        # path_length_km = 1.0
+        tau = abs_coeff * (vol_mix_ratio * 2.688392857142857e19) * (1.0 * 100000.0)
+        return torch.exp(-tau)

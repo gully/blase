@@ -104,3 +104,7 @@ def test_atomic_data_broadcasting():
     assert len(S_ij) == len(gamma)
     assert len(S_ij) == (S_ij == S_ij).sum()
 
+    trans = skymodel.transmission_of_T_p(261.0, 0.89, nus, 0.21, molec_data)
+
+    assert len(trans) == len(nus)
+    assert torch.isfinite(trans).all().item()
