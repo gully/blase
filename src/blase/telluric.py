@@ -180,7 +180,7 @@ class TelluricModel(nn.Module):
         Args:
             T (float): Temperature :math:`T` in `K`
             p (float): Pressure :math:`p` in standard atmospheres `atm`
-            nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
+            nus (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
             vol_mix_ratio (float): The volume mixing ratio of the species assuming ideal gas
         
         Returns:
@@ -207,3 +207,22 @@ class TelluricModel(nn.Module):
         # path_length_km = 1.0
         tau = abs_coeff * (vol_mix_ratio * 2.688392857142857e19) * (1.0 * 100000.0)
         return torch.exp(-tau)
+
+    def transmission_multilayer_atmosphere(
+        self, T_vector, p_vector, nus, vol_mix_ratio, hitran
+    ):
+        r"""Return the transmission spectrum :math:`\mathcal{T}(\nu; T, P)=\exp(-\tau_\nu)` for 
+        a cascade of :math:`N_{layers}` pathlengths with thickness 1 km.
+
+        Args:
+            T (:math:`1 \times 1 \times N_{layers}` tensor): Temperature :math:`T` in `K`
+            p (:math:`1 \times 1 \times N_{layers}` tensor): Pressure :math:`p` in standard atmospheres `atm`
+            nus (:math:`N_{\nu} \times 1 \times 1` tensor): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
+            vol_mix_ratio (scalar or :math:`1 \times 1 \times N_{layers}` tensor): The volume mixing ratio of the species assuming ideal gas
+            hitran (OrderedDict): Each entry of consists of a :math:`N_{lines}` vector that will be broadcasted to
+                a :math:`1 \times N_{lines} \times 1` tensor when operating with the other vectors.
+        Returns:
+            torch.Tensor: A vector of length :math:`N_{\nu}`  
+        
+        """
+        return None
