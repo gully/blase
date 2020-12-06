@@ -215,8 +215,8 @@ class TelluricModel(nn.Module):
         a cascade of :math:`N_{layers}` pathlengths with thickness 1 km.
 
         Args:
-            T (:math:`1 \times 1 \times N_{layers}` tensor): Temperature :math:`T` in `K`
-            p (:math:`1 \times 1 \times N_{layers}` tensor): Pressure :math:`p` in standard atmospheres `atm`
+            T_vector (:math:`1 \times 1 \times N_{layers}` tensor): Temperature :math:`T` in `K`
+            p_vector (:math:`1 \times 1 \times N_{layers}` tensor): Pressure :math:`p` in standard atmospheres `atm`
             nus (:math:`N_{\nu} \times 1 \times 1` tensor): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
             vol_mix_ratio (scalar or :math:`1 \times 1 \times N_{layers}` tensor): The volume mixing ratio of the species assuming ideal gas
             hitran (OrderedDict): Each entry of consists of a :math:`N_{lines}` vector that will be broadcasted to
@@ -225,4 +225,15 @@ class TelluricModel(nn.Module):
             torch.Tensor: A vector of length :math:`N_{\nu}`  
         
         """
-        return None
+
+        return (
+            self.transmission_of_T_p(
+                T_vector.unsqueeze(0).unsqueeze(1),
+                p_vector.unsqueeze(0).unsqueeze(1),
+                nus,
+                vol_mix_ratio,
+                hitran,
+            )
+            .prod(1)
+            .prod(1)
+        )
