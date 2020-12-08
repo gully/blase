@@ -58,7 +58,7 @@ class MultiOrder(nn.Module):
 
         # Spectral smoothing, placeholder for vsini for now.
         self.log_blur_size = nn.Parameter(
-            torch.tensor(-1.5, requires_grad=False, dtype=torch.float64, device=device)
+            torch.tensor(-3.0, requires_grad=False, dtype=torch.float64, device=device)
         )
 
         xv = torch.linspace(-1, 1, 2048, device=device, dtype=torch.float64)
@@ -103,11 +103,12 @@ class MultiOrder(nn.Module):
             (-self.conv_x ** 2 / (2 * blur_size_pixels ** 2))
         )
 
-        smoothed_flux = torch.nn.functional.conv1d(
-            self.flux_native[trim_mask].unsqueeze(0).unsqueeze(1),
-            weights.unsqueeze(0).unsqueeze(1),
-            padding=self.conv_window_size // 2,
-        ).squeeze()
+        with torch.no_grad():
+            smoothed_flux = torch.nn.functional.conv1d(
+                self.flux_native[trim_mask].unsqueeze(0).unsqueeze(1),
+                weights.unsqueeze(0).unsqueeze(1),
+                padding=self.conv_window_size // 2,
+            ).squeeze()
 
         ## Resampling (This step is subtle to get right)
         ## match oversampled model to observed wavelengths
