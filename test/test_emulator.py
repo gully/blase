@@ -10,6 +10,5 @@ def test_forward():
     spectrum = emulator.forward(wl)
 
     assert spectrum is not None
-    # len(spectrum) == 2048
-    # assert spectrum.device.type == device
-    # assert spectrum.dtype == torch.float64
+    assert len(spectrum) == len(wl)
+    assert spectrum.dtype == torch.float64
