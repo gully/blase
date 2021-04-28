@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-
 import numpy as np
 from scipy.signal import find_peaks, find_peaks_cwt, peak_prominences, peak_widths
 from scipy.ndimage import gaussian_filter1d
@@ -10,13 +9,19 @@ class PhoenixEmulator(nn.Module):
     r"""
     A PyTorch layer that clones precomputed synthetic spectra
 
+    Teff (int): The Teff label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
+    logg (float): The logg label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
+
+    Currently hardcoded to assume your PHOENIX grid is stored at: ~/libraries/raw/PHOENIX/
     """
 
     def __init__(self):
-        super().__init__()
+        super().__init__(Teff, logg)
+
+        self.Teff, self.logg = Teff, logg
 
         # Read in the synthetic spectra at native resolution
-        # self.wl_native, self.flux_native = self.read_native_PHOENIX_model(4700, 4.5)
+        self.wl_native, self.flux_native = self.read_native_PHOENIX_model(Teff, logg)
 
         (lam_centers, prominences, widths) = identify_lines_in_native_model()
 
@@ -32,7 +37,7 @@ class PhoenixEmulator(nn.Module):
             lam_centers.clone().detach().requires_grad_(False)
         )
 
-        self.teff = nn.Parameter(
+        self.ln_teff_scalar = nn.Parameter(
             torch.tensor(0, requires_grad=True, dtype=torch.float64)
         )
 
@@ -67,11 +72,11 @@ class PhoenixEmulator(nn.Module):
 
         return net_spectrum * self.black_body(self.teff, wl) * modulation
 
-    def black_body(self, Teff, wavelengths):
+    def black_body(self, ln_teff_scalar, wavelengths):
         """Make a black body spectrum given Teff and wavelengths
         
         Args:
-            Teff (torch.tensor scalar): the natural log of a scalar multiplied by 4700 K to get Teff
+            ln_teff_scalar (torch.tensor scalar): the natural log of a scalar multiplied by the baseline Teff
         Returns:
             (torch.tensor): the 1D smooth Black Body model normalized to roughly 1 for 4700 K
         -----
@@ -81,7 +86,8 @@ class PhoenixEmulator(nn.Module):
             / (wavelengths / 10_000) ** 5
             / (
                 torch.exp(
-                    1.4387752e-2 / (wavelengths * 1e-10 * (4700.0 * torch.exp(Teff)))
+                    1.4387752e-2
+                    / (wavelengths * 1e-10 * (self.Teff * torch.exp(ln_teff_scalar)))
                 )
                 - 1
             )
@@ -118,4 +124,55 @@ class PhoenixEmulator(nn.Module):
             * width
             / (width ** 2 + (wavelengths - lam_center) ** 2)
         )
+
+    def read_native_PHOENIX_model(
+        self,
+        teff,
+        logg,
+        PHOENIX_path="~/libraries/raw/PHOENIX/",
+        wl_lo=8038,
+        wl_hi=12849,
+    ):
+        """Return the native model wavelength and flux as a torch tensor
+        
+        Args:
+            Teff (int): The Teff label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
+            logg (float): The logg label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
+            PHOENIX_path (str): The path to your local PHOENIX grid library.  You must have the PHOENIX
+                grid downloaded locally.  Default: "~/libraries/raw/PHOENIX/"
+            wl_lo (float): the bluest wavelength of the models to keep (Angstroms)
+            wl_lo (float): the reddest wavelength of the models to keep (Angstroms)
+        Returns:
+            (tuple of tensors): the PHOENIX model wavelength and normalized flux at native spectral resolution
+        """
+        base_path = os.path.expanduser(PHOENIX_path)
+        assert os.path.exists(
+            base_path
+        ), "You must specify the path to local PHOENIX models"
+
+        wl_filename = base_path + "/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
+        assert os.path.exists(
+            wl_filename
+        ), "You need to place the PHOENIX models in {}".format(base_path)
+
+        wl_orig = fits.open(wl_filename)[0].data.astype(np.float64)
+
+        mask = (wl_orig > wl_lo) & (wl_orig < wl_max)
+        wl_out = torch.tensor(wl_orig[mask], dtype=torch.float64)
+
+        fn = (
+            base_path
+            + "/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
+        ).format(teff, logg)
+        assert os.path.exists(fn), "Double check that the file {} exists".format(fn)
+
+        flux_orig = fits.open(fn)[0].data.astype(np.float64)
+        # Units: erg/s/cm^2/cm
+        flux_native = torch.tensor(
+            flux_orig[mask], device=self.device, dtype=torch.float64
+        )
+        native_median = torch.median(flux_native)
+        # Units: Relative flux density
+        flux_out = flux_native / native_median
+        return (wl_out, flux_out)
 
