@@ -5,3 +5,4 @@ torchvision
 astropy
 kornia
 pandas
+scipy
