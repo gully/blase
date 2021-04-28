@@ -1,8 +1,9 @@
 import torch
 from torch import nn
+import os
 import numpy as np
-from scipy.signal import find_peaks, find_peaks_cwt, peak_prominences, peak_widths
-from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks, peak_prominences, peak_widths
+from astropy.io import fits
 
 
 class PhoenixEmulator(nn.Module):
@@ -15,21 +16,23 @@ class PhoenixEmulator(nn.Module):
     Currently hardcoded to assume your PHOENIX grid is stored at: ~/libraries/raw/PHOENIX/
     """
 
-    def __init__(self):
-        super().__init__(Teff, logg)
+    def __init__(self, Teff, logg, prominence=0.03):
+        super().__init__()
 
         self.Teff, self.logg = Teff, logg
 
         # Read in the synthetic spectra at native resolution
         self.wl_native, self.flux_native = self.read_native_PHOENIX_model(Teff, logg)
 
-        (lam_centers, prominences, widths) = identify_lines_in_native_model()
+        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            self.wl_native, self.flux_native, prominence=prominence
+        )
 
         self.amplitudes = nn.Parameter(
             torch.log(amplitudes).clone().detach().requires_grad_(True)
         )
         self.widths = nn.Parameter(
-            np.log(widths_angs).clone().detach().requires_grad_(True)
+            np.log(widths_angstroms).clone().detach().requires_grad_(True)
         )
 
         # Fix the wavelength centers as gospel for now.
@@ -58,7 +61,7 @@ class PhoenixEmulator(nn.Module):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
 
-        net_spectrum = 1 - lorentzian_line(
+        net_spectrum = 1 - self.lorentzian_line(
             self.lam_centers.unsqueeze(1),
             torch.exp(self.widths).unsqueeze(1),
             torch.exp(self.amplitudes).unsqueeze(1),
@@ -70,7 +73,7 @@ class PhoenixEmulator(nn.Module):
             self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
         )
 
-        return net_spectrum * self.black_body(self.teff, wl) * modulation
+        return net_spectrum * self.black_body(self.ln_teff_scalar, wl) * modulation
 
     def black_body(self, ln_teff_scalar, wavelengths):
         """Make a black body spectrum given Teff and wavelengths
@@ -94,7 +97,7 @@ class PhoenixEmulator(nn.Module):
         )
         return unnormalized * 20.0
 
-    def identify_lines_in_native_model(self, wl_native, flux_native):
+    def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
         
         Args:
@@ -108,13 +111,13 @@ class PhoenixEmulator(nn.Module):
         prominence_data = peak_prominences(-flux_native, peaks)
         width_data = peak_widths(-flux_native, peaks, prominence_data=prominence_data)
         lam_centers = wl_native[peaks]
-        prominences = prominence_data[0]
+        prominences = torch.tensor(prominence_data[0])
         widths = width_data[0]
         d_lam = np.diff(wl_native)[peaks]
         # Convert FWHM in pixels to Gaussian sigma in Angstroms
         widths_angs = torch.tensor(widths * d_lam / 2.355)
 
-        return (lam_centers, prominences, widths)
+        return (lam_centers, prominences, widths_angs)
 
     def lorentzian_line(self, lam_center, width, amplitude, wavelengths):
         """Return a Lorentzian line, given properties"""
@@ -157,7 +160,7 @@ class PhoenixEmulator(nn.Module):
 
         wl_orig = fits.open(wl_filename)[0].data.astype(np.float64)
 
-        mask = (wl_orig > wl_lo) & (wl_orig < wl_max)
+        mask = (wl_orig > wl_lo) & (wl_orig < wl_hi)
         wl_out = torch.tensor(wl_orig[mask], dtype=torch.float64)
 
         fn = (
@@ -168,9 +171,7 @@ class PhoenixEmulator(nn.Module):
 
         flux_orig = fits.open(fn)[0].data.astype(np.float64)
         # Units: erg/s/cm^2/cm
-        flux_native = torch.tensor(
-            flux_orig[mask], device=self.device, dtype=torch.float64
-        )
+        flux_native = torch.tensor(flux_orig[mask], dtype=torch.float64)
         native_median = torch.median(flux_native)
         # Units: Relative flux density
         flux_out = flux_native / native_median
