@@ -2,7 +2,7 @@
 
 Hybrid data/model-driven approach to astronomical echelle spectroscopy data built on PyTorch
 
-:new: See our new YouTube video tutorial on the concepts behind blasé, and how and why we use PyTorch!  Click the screen shot below for a 4K screencast.
+:new: *See our new [4K YouTube video tutorial](https://www.youtube.com/watch?v=gSIeg2drSTw) on the concepts behind blasé, and how and why we use PyTorch!*
 
 [![Make astronomical spectral models more flexible with PyTorch cloning](https://img.youtube.com/vi/gSIeg2drSTw/0.jpg)](https://www.youtube.com/watch?v=gSIeg2drSTw)
 
