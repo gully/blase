@@ -2,6 +2,8 @@
 
 Hybrid data/model-driven approach to astronomical echelle spectroscopy data built on PyTorch
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/gSIeg2drSTw?start=270" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 ## Interpolation
 
 Interpolation is needed in order to fit for the radial velocity of an observed spectrum compared to a spectral template. Currently PyTorch has not implemented interpolation for irregularly specified input coordinates, though the PyTorch team is aware of the interest in this [Feature Request](https://github.com/pytorch/pytorch/issues/1552).
