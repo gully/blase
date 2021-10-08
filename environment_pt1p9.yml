@@ -1,0 +1,37 @@
+name: blase_pt1p9
+channels:
+  - pytorch
+  - nvidia
+  - gpytorch
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.7
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - seaborn
+  - scikit-learn
+  - magma-cuda110
+  - pyarrow
+  - pytorch>=1.9
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - celerite2
+  - gpytorch
+  - black
+  - pip:
+      - kornia
+      - pykeops
+      - recommonmark
+      - tensorboard
