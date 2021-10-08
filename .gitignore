@@ -132,3 +132,6 @@ dmypy.json
 test/data/*.fits
 
 notebooks
+
+# Ignore pytorch saved models
+*.pt
