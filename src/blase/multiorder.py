@@ -9,6 +9,7 @@ MultiOrder
 ##########
 """
 
+import os
 import torch
 from torch import nn
 from astropy.io import fits
@@ -49,7 +50,9 @@ class MultiOrder(nn.Module):
         self.wl_max = self.wl_data[-1, -1]
 
         # Read in the synthetic spectra at native resolution
-        self.wl_native, self.flux_native = self.read_native_PHOENIX_model(4700, 4.5)
+        self.wl_native, self.flux_native = self.read_native_PHOENIX_model(
+            4700, 4.5, PHOENIX_path="~/libraries/raw/PHOENIX/"
+        )
 
         # Radial Velocity
         self.v_z = nn.Parameter(
@@ -123,7 +126,9 @@ class MultiOrder(nn.Module):
 
         return resampled_model_flux * blaze
 
-    def read_native_PHOENIX_model(self, teff, logg):
+    def read_native_PHOENIX_model(
+        self, teff, logg, PHOENIX_path="~/libraries/raw/PHOENIX/"
+    ):
         """Return the native model wavelength and flux as a torch tensor
         
         Args:
@@ -132,15 +137,19 @@ class MultiOrder(nn.Module):
         Returns:
             (tuple of tensors): the PHOENIX model wavelength and normalized flux at native spectral resolution
         """
-        wl_orig = fits.open(
-            "/home/gully/libraries/raw/PHOENIX/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits"
-        )[0].data.astype(np.float64)
+        PHOENIX_path = os.path.expanduser(PHOENIX_path)
+        wl_orig = fits.open(PHOENIX_path + "/WAVE_PHOENIX-ACES-AGSS-COND-2011.fits")[
+            0
+        ].data.astype(np.float64)
         mask = (wl_orig > self.wl_0.item() * 0.995) & (
             wl_orig < self.wl_max.item() * 1.005
         )
         wl_out = torch.tensor(wl_orig[mask], device=self.device, dtype=torch.float64)
 
-        fn = "/home/gully/libraries/raw/PHOENIX/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
+        fn = (
+            PHOENIX_path
+            + "/Z-0.0/lte{:05d}-{:0.2f}-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes.fits"
+        )
         flux_orig = fits.open(fn.format(teff, logg))[0].data.astype(np.float64)
         # Units: erg/s/cm^2/cm
         flux_native = torch.tensor(
