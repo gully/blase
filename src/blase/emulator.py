@@ -34,9 +34,11 @@ class PhoenixEmulator(nn.Module):
         # Read in the synthetic spectra at native resolution
         self.wl_native, self.flux_native = self.read_native_PHOENIX_model(Teff, logg)
 
-        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
-            self.wl_native, self.flux_native, prominence=prominence
-        )
+        (
+            lam_centers,
+            amplitudes,
+            widths_angstroms,
+        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
 
         self.amplitudes = nn.Parameter(
             torch.log(amplitudes).clone().detach().requires_grad_(True)
@@ -71,12 +73,15 @@ class PhoenixEmulator(nn.Module):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
 
-        net_spectrum = 1 - self.lorentzian_line(
-            self.lam_centers.unsqueeze(1),
-            torch.exp(self.widths).unsqueeze(1),
-            torch.exp(self.amplitudes).unsqueeze(1),
-            wl.unsqueeze(0),
-        ).sum(0)
+        net_spectrum = (
+            1
+            - self.lorentzian_line(
+                self.lam_centers.unsqueeze(1),
+                torch.exp(self.widths).unsqueeze(1),
+                torch.exp(self.amplitudes).unsqueeze(1),
+                wl.unsqueeze(0),
+            ).sum(0)
+        )
 
         wl_normed = (wl - 10_500.0) / 2500.0
         modulation = (
@@ -87,7 +92,7 @@ class PhoenixEmulator(nn.Module):
 
     def black_body(self, ln_teff_scalar, wavelengths):
         """Make a black body spectrum given Teff and wavelengths
-        
+
         Args:
             ln_teff_scalar (torch.tensor scalar): the natural log of a scalar multiplied by the baseline Teff
         Returns:
@@ -109,7 +114,7 @@ class PhoenixEmulator(nn.Module):
 
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
-        
+
         Args:
             wl_native (torch.tensor vector): The 1D vector of native model wavelengths (Angstroms)
             flux_native (torch.tensor vector): The 1D vector of native model fluxes (Normalized)
@@ -147,7 +152,7 @@ class PhoenixEmulator(nn.Module):
         wl_hi=12849,
     ):
         """Return the native model wavelength and flux as a torch tensor
-        
+
         Args:
             Teff (int): The Teff label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
             logg (float): The logg label of the PHOENIX model to read in.  Must be on the PHOENIX grid.
@@ -186,4 +191,3 @@ class PhoenixEmulator(nn.Module):
         # Units: Relative flux density
         flux_out = flux_native / native_median
         return (wl_out, flux_out)
-
