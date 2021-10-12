@@ -1,0 +1,30 @@
+name: blase_ptpreview
+channels:
+  - pytorch-nightly
+  - nvidia
+  - gpytorch
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.7
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - seaborn
+  - pyarrow
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - black
+  - pip:
+      - tensorboard
