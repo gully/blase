@@ -1,0 +1,33 @@
+name: blase_m1_source
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.8
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - astunparse 
+  - ninja 
+  - pyyaml 
+  - setuptools 
+  - cffi 
+  - typing_extensions
+  - future
+  - six
+  - requests
+  - dataclasses
+  - pkg-config 
+  - libuv
+  - jupyter
+  - ipython
+  - seaborn
+  - pyarrow
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - black

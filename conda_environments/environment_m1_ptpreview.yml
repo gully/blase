@@ -1,0 +1,19 @@
+name: blase_m1_ptpreview
+channels:
+  - pytorch-nightly
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.8
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - pytorch>=1.10
+  - pytest
+  - pip
+  - black
