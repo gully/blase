@@ -62,8 +62,18 @@ class PhoenixEmulator(nn.Module):
         self.amplitudes = nn.Parameter(
             torch.log(amplitudes).clone().detach().requires_grad_(True)
         )
-        self.widths = nn.Parameter(
-            np.log(widths_angstroms).clone().detach().requires_grad_(True)
+        self.sigma_widths = nn.Parameter(
+            np.log(widths_angstroms / math.sqrt(2))
+            .clone()
+            .detach()
+            .requires_grad_(True)
+        )
+
+        self.gamma_widths = nn.Parameter(
+            np.log(widths_angstroms / math.sqrt(2))
+            .clone()
+            .detach()
+            .requires_grad_(True)
         )
 
         # Fix the wavelength centers as gospel for now.
@@ -85,6 +95,9 @@ class PhoenixEmulator(nn.Module):
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
         )
 
+        # Somehow these don't get told to go to cuda device with model.to(device)?
+        # Send them to cuda manually as a HACK
+        # TODO: figure out why .to(device) doesn't work on these attributes.
         self.an = (
             torch.tensor(
                 [
@@ -119,7 +132,7 @@ class PhoenixEmulator(nn.Module):
             )
             .unsqueeze(0)
             .unsqueeze(1)
-        )
+        ).cuda()
 
         self.a2n2 = (
             torch.tensor(
@@ -155,7 +168,7 @@ class PhoenixEmulator(nn.Module):
             )
             .unsqueeze(0)
             .unsqueeze(1)
-        )
+        ).cuda()
 
     def forward(self, wl):
         """The forward pass of the spectral model
@@ -170,7 +183,8 @@ class PhoenixEmulator(nn.Module):
         """Return a sum-of-Voigts forward model, modulated by Blackbody and slopes"""
         net_spectrum = 1 - self.voigt_profile(
             self.lam_centers.unsqueeze(1),
-            torch.exp(self.widths).unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
+            torch.exp(self.gamma_widths).unsqueeze(1),
             torch.exp(self.amplitudes).unsqueeze(1),
             wl.unsqueeze(0),
         ).sum(0)
@@ -185,7 +199,7 @@ class PhoenixEmulator(nn.Module):
         """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
         net_spectrum = 1 - self.lorentzian_line(
             self.lam_centers.unsqueeze(1),
-            torch.exp(self.widths).unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
             torch.exp(self.amplitudes).unsqueeze(1),
             wl.unsqueeze(0),
         ).sum(0)
@@ -228,7 +242,7 @@ class PhoenixEmulator(nn.Module):
             (tuple of tensors): The wavelength centers, prominences, and widths for all ID'ed spectral lines
         -----
         """
-        peaks, _ = find_peaks(-flux_native, distance=10, prominence=0.03)
+        peaks, _ = find_peaks(-flux_native, distance=10, prominence=prominence)
         prominence_data = peak_prominences(-flux_native, peaks)
         width_data = peak_widths(-flux_native, peaks, prominence_data=prominence_data)
         lam_centers = wl_native[peaks]
@@ -254,14 +268,14 @@ class PhoenixEmulator(nn.Module):
     ):
         """Return a tensor of sparse Voigt Profiles, given properties"""
         # At first the x term should be (N_lines x N_wl)
-        x_term = (wavelengths.unsqueeze(0) - lam_center) / (math.sqrt(2) * sigma_width)
+        x_term = (wavelengths - lam_center) / (math.sqrt(2) * sigma_width)
         # At first the a term should be (N_lines x 1)
-        a_term = gamma_width / (math.sqrt(2) * sigma_width).unsqueeze(1)
-        prefactor = amplitude / (math.sqrt(2.0 * math.pi) * sigma_width).unsqueeze(1)
-
+        a_term = gamma_width / (math.sqrt(2) * sigma_width)
+        prefactor = amplitude / (math.sqrt(2.0 * math.pi) * sigma_width)
         # xterm gains an empty dimension for approximation (N_lines x N_wl x 1)
         # aterm gains an empty dimension for approximation (N_lines x 1 x 1)
-        return prefactor * self.rewofz(x_term.unsqueeze(2), a_term.unsqueeze(2))
+        unnormalized_voigt = self.rewofz(x_term.unsqueeze(2), a_term.unsqueeze(2))
+        return prefactor * unnormalized_voigt.squeeze()
 
     def rewofz(self, x, y):
         """Real part of wofz (Faddeeva) function based on Algorithm 916
@@ -283,14 +297,15 @@ class PhoenixEmulator(nn.Module):
         exx = torch.exp(-1.0 * x * x)
         f = exx * (
             erfcx(y) * torch.cos(2.0 * xy)
-            + x * torch.sin(xy) / math.pi * torch.sinc(xy / math.pi)
+            + x * torch.sin(xy) / 3.141592654 * torch.sinc(xy / 3.141592654)
         )
         y2 = y ** 2
         Sigma23 = torch.sum(
             (torch.exp(-((self.an + x) ** 2)) + torch.exp(-((self.an - x) ** 2)))
             / (self.a2n2 + y2),
             axis=2,
-        )
+        ).unsqueeze(2)
+
         Sigma1 = exx * (
             7.78800786e-01 / (0.25 + y2)
             + 3.67879450e-01 / (1.0 + y2)
@@ -301,9 +316,8 @@ class PhoenixEmulator(nn.Module):
             + 4.78511765e-06 / (12.25 + y2)
             + 1.12535176e-07 / (16.0 + y2)
         )
-        f = f + y / math.pi * (
-            -1 * torch.cos(2.0 * xy) * Sigma1 + 0.5 * Sigma23.unsqueeze(1)
-        )
+
+        f = f + y / math.pi * (-1 * torch.cos(2.0 * xy) * Sigma1 + 0.5 * Sigma23)
         return f
 
     def read_native_PHOENIX_model(
