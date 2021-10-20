@@ -49,7 +49,7 @@ webbrowser.open("http://localhost:6006/", new=2)
 
 
 # Create the emulator
-emulator = PhoenixEmulator(4700, 4.5, prominence=0.1)
+emulator = PhoenixEmulator(4700, 4.5, prominence=0.1,)
 emulator.to(device)
 
 n_pix = len(emulator.wl_native)
