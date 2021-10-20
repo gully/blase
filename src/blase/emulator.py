@@ -73,7 +73,7 @@ class PhoenixEmulator(nn.Module):
             np.log(widths_angstroms / math.sqrt(2))
             .clone()
             .detach()
-            .requires_grad_(True)
+            .requires_grad_(False)
         )
 
         # Fix the wavelength centers as gospel for now.
@@ -176,18 +176,21 @@ class PhoenixEmulator(nn.Module):
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        # return self.sum_of_lorentzian_model(wl)
-        return self.sum_of_voigts_model(wl)
+        return self.sum_of_lorentzian_model(wl)
+        # return self.sum_of_voigts_model(wl)
 
     def sum_of_voigts_model(self, wl):
         """Return a sum-of-Voigts forward model, modulated by Blackbody and slopes"""
-        net_spectrum = 1 - self.voigt_profile(
-            self.lam_centers.unsqueeze(1),
-            torch.exp(self.sigma_widths).unsqueeze(1),
-            torch.exp(self.gamma_widths).unsqueeze(1),
-            torch.exp(self.amplitudes).unsqueeze(1),
-            wl.unsqueeze(0),
-        ).sum(0)
+        net_spectrum = (
+            1
+            - self.voigt_profile(
+                self.lam_centers.unsqueeze(1),
+                torch.exp(self.sigma_widths).unsqueeze(1),
+                torch.exp(self.gamma_widths).unsqueeze(1),
+                torch.exp(self.amplitudes).unsqueeze(1),
+                wl.unsqueeze(0),
+            )
+        ).prod(0)
 
         wl_normed = (wl - 10_500.0) / 2500.0
         modulation = (
@@ -197,12 +200,15 @@ class PhoenixEmulator(nn.Module):
 
     def sum_of_lorentzian_model(self, wl):
         """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
-        net_spectrum = 1 - self.lorentzian_line(
-            self.lam_centers.unsqueeze(1),
-            torch.exp(self.sigma_widths).unsqueeze(1),
-            torch.exp(self.amplitudes).unsqueeze(1),
-            wl.unsqueeze(0),
-        ).sum(0)
+        net_spectrum = (
+            1
+            - self.lorentzian_line(
+                self.lam_centers.unsqueeze(1),
+                torch.exp(self.sigma_widths).unsqueeze(1),
+                torch.exp(self.amplitudes).unsqueeze(1),
+                wl.unsqueeze(0),
+            )
+        ).prod(0)
 
         wl_normed = (wl - 10_500.0) / 2500.0
         modulation = (
