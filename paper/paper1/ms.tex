@@ -1,0 +1,87 @@
+\documentclass[modern]{aastex631}
+\bibliographystyle{aasjournal}
+\turnoffedit
+\usepackage[caption=false]{subfig}
+\usepackage{booktabs}
+\usepackage{censor}
+
+\def\Teff{T_{\rm eff}}
+\def\vsini{v\sin{i}}
+\def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
+
+\begin{document}
+\shorttitle{blas\'e}
+\shortauthors{Gully-Santiago}
+\title{Transfer learning for echelle spectroscopy}
+
+\author{Michael Gully-Santiago}
+\affiliation{University of Texas at Austin Department of Astronomy}
+
+
+\begin{abstract}
+
+  We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.
+
+\end{abstract}
+
+\keywords{High resolution spectroscopy (2096)}
+
+\section{Introduction}\label{sec:intro}
+
+Here is an annotated bibliography.
+
+\begin{deluxetable}{chc}
+  \tablecaption{Annotated bibliography for intro\label{table1}}
+  \tablehead{
+    \colhead{Reference} & \nocolhead{two} & \colhead{Key idea}
+  }
+  \startdata
+  \citet{2017ApJ...836..200G} & - & Extensions to Starfish
+  \enddata
+\end{deluxetable}
+
+\newpage
+
+
+\section{Methodology}
+
+TBD
+
+\section{Conclusions}
+
+More placeholder text...
+
+
+\begin{acknowledgements}
+  The author acknowledges the Texas Advanced Computing Center (TACC, \url{http://www.tacc.utexas.edu}) at The University of Texas at Austin for providing HPC resources that have contributed to the research results reported within this paper.
+\end{acknowledgements}
+
+\clearpage
+
+
+\facilities{HET (HPF)}
+
+\software{  pandas \citep{mckinney10},
+  matplotlib \citep{hunter07},
+  astropy \citep{exoplanet:astropy13,exoplanet:astropy18},
+  exoplanet \citep{exoplanet:joss}, %celerite
+  numpy \citep{harris2020array},
+  scipy \citep{2020SciPy-NMeth},
+  ipython \citep{perez07},
+  starfish \citep{czekala15},
+  seaborn \citep{Waskom2021},
+  pytorch \citep{2019arXiv191201703P}}
+
+
+\bibliography{ms}
+
+
+\clearpage
+
+\appendix
+\restartappendixnumbering
+
+\section{Autodiff themes} \label{appendix:tools}
+
+Here are some more details about autodiff
+\end{document}
