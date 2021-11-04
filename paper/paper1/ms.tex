@@ -28,17 +28,71 @@
 
 \section{Introduction}\label{sec:intro}
 
-Here is an annotated bibliography.
+\subsection{Spectral fitting past and present}
 
-\begin{deluxetable}{chc}
-  \tablecaption{Annotated bibliography for intro\label{table1}}
-  \tablehead{
-    \colhead{Reference} & \nocolhead{two} & \colhead{Key idea}
-  }
-  \startdata
-  \citet{2017ApJ...836..200G} & - & Extensions to Starfish
-  \enddata
-\end{deluxetable}
+Below is a table exploring recent techniques for spectral fitting.
+
+\movetabledown=13mm
+\begin{rotatetable}
+  \begin{deluxetable}{chc}
+    \tablecaption{Annotated bibliography for intro\label{table1}}
+    \tablehead{
+      \colhead{Reference} & \nocolhead{two} & \colhead{Key idea}
+    }
+    \startdata
+    \citet{2015PhDT........82P} & - & \texttt{specmatch-syn} Synthetic spectral template matching \\
+    \citet{czekala15} & - & \texttt{starfish} robust spectral inference on precomputed models \\
+    \citet{2016ApJS..223....8C} & - & \texttt{sick} Spectral Inference Crank, similar to \texttt{Starfish}\\
+    \citet{2017ApJ...836..200G} & - & Modular extensions to \texttt{starfish}: starspots \\
+    \citet{2018ApJ...862...85G} & - & Modular extensions to \texttt{starfish}: veiling \\
+    \citet{2017ApJ...836...77Y} & - & \texttt{specmatch-emp} Empirical template matching for visible\\
+    \citet{exoplanet:astropy18} & - & \texttt{astropy} General purpose tools for spectral manipulation\\
+    \citet{2019AJ....158..164B} & - & \texttt{wobble}: data driven stellar and telluric models
+    \enddata
+  \end{deluxetable}
+
+\end{rotatetable}
+
+
+
+\subsection{Seeking physical self-consistency and high predictive accuracy}
+Ideally we seek models that are both physically self-consistent and highly accurate when compared to data.  We want tunable models that can be evaluated quickly for use in likelihood calculations.  We want likelihood calculations to accurately account for nearly-degenerate parameters, common in retrievals in the Planetary Science and Remote Sensing community.  We want unbiased, noise-free templates for use in cross-correlation spectroscopy.  We want precision and accuracy over a large spectral grasp: simultaneously wide bandwidth and high spectral resolution.  We want high out-of-band prediction accuracy.  Ideally we also want precision and accuracy in the modeling of--or at least separation of--affiliated telluric and instrumental signals.
+
+These goals form the backbone of spectral calibration, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.
+
+\subsection{Current limitations to our spectral models}
+
+Several practical and ostensibly fundamental barriers limit the accuracy of spectral models.
+
+First, High latent dimensionality: Many effects matter at the precision level of the data...
+
+Second, Degeneracy among parameters
+
+
+- [ ]
+- [ ] Underlying atomic and molecular data may be wrong or approximate or missing
+- [ ] Underlying radiative transfer may be inaccurate or approximate (T-P profile / T-Tau)
+- [ ] Time is a dimension: Star is changing
+- [ ] Stellar surface inhomogeneities become important: Doppler Imaging and limb darkening
+- [ ] We do not know how to accurately parameterize some dimensions
+- [ ] High dynamic range is both a blessing and a curse:
+- [ ] Feeding back locations of model imperfections becomes unwieldy for many lines
+- [ ] Many lines essentially becomes a book-keeping and continuum assignment problem
+- [ ] Computational problem
+- [ ] Some lines have large line wings, blurring continuum and line
+- [ ] Line blanketing has almost no continuum
+- [ ] So in practice, tradeoffs between model flexibility and physical self-consistency
+- [ ] Semi-empirical models may be a middle ground: informed from models, but revised with data
+- [ ] The radiative transfer step is computationally expensive, so we want to avoid redoing that
+- [ ] Instead focus on pre-computed models that have that wisdom baked-in
+- [ ] We are essentially compressing pre-computed models into evaluable, interpretable models
+- [ ] Transfer learning is one plausible approach: pre-train on pre-computed models, transfer to data
+- [ ] Neural network frameworks make this possible with autodiff
+- [ ] We use the autodiff and GPU acceleration, but not the neural architectures
+- [ ] We do not use the neural architectures because we have good understand for how a spectrum is generated
+- [ ] Instead of tuning weights of a neural network, we tune the atomic and molecular properties of a spectrum
+
+
 
 \newpage
 
@@ -64,7 +118,7 @@ More placeholder text...
 \software{  pandas \citep{mckinney10},
   matplotlib \citep{hunter07},
   astropy \citep{exoplanet:astropy13,exoplanet:astropy18},
-  exoplanet \citep{exoplanet:joss}, %celerite
+  exoplanet \citep{exoplanet:joss}, %celerite?
   numpy \citep{harris2020array},
   scipy \citep{2020SciPy-NMeth},
   ipython \citep{perez07},
