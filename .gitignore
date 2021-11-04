@@ -135,3 +135,6 @@ notebooks
 
 # Ignore pytorch saved models
 *.pt
+
+# Ignore pdf version of the paper
+paper/paper1/final/ms.pdf
