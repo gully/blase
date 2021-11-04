@@ -1,0 +1,149 @@
+# Outline: Blase transfer learning with precomputed synthetic model spectra
+
+- **Introduction: **
+	- [ ] Spectral fitting past and present
+	- [ ] Ideal goal is both physical self-consistency and high predictive accuracy
+		- [ ] We want noise-free templates
+		- [ ] We want accurate posterior inferences (ability to do retrievals)
+		- [ ] We want precision and accuracy over a wide bandwidth and high dynamic range
+		- [ ] Ideally we also want accuracy in telluric and instrument models
+	- [ ] Some problems prevent this goal
+		- [ ] High latent dimensionality: Many effects matter at the precision level of the data
+		- [ ] Degeneracy among parameters
+		- [ ] Underlying atomic and molecular data may be wrong or approximate or missing
+		- [ ] Underlying radiative transfer may be inaccurate or approximate (T-P profile / T-Tau)
+		- [ ] Time is a dimension: Star is changing
+		- [ ] Stellar surface inhomogeneities become important: Doppler Imaging and limb darkening
+		- [ ] We do not know how to accurately parameterize some dimensions
+		- [ ] High dynamic range is both a blessing and a curse: 
+			- [ ] Feeding back locations of model imperfections becomes unwieldy for many lines
+			- [ ] Many lines essentially becomes a book-keeping and continuum assignment problem
+			- [ ] Computational problem
+			- [ ] Some lines have large line wings, blurring continuum and line
+			- [ ] Line blanketing has almost no continuum
+ 	- [ ] So in practice, tradeoffs between model flexibility and physical self-consistency
+	- [ ] Semi-empirical models may be a middle ground: informed from models, but revised with data
+		- [ ] The radiative transfer step is computationally expensive, so we want to avoid redoing that
+		- [ ] Instead focus on pre-computed models that have that wisdom baked-in
+		- [ ] We are essentially compressing pre-computed models into evaluable, interpretable models
+	- [ ] Transfer learning is one plausible approach: pre-train on pre-computed models, transfer to data
+	- [ ] Neural network frameworks make this possible with autodiff
+	- [ ] We use the autodiff and GPU acceleration, but not the neural architectures
+	- [ ] We do not use the neural architectures because we have good understand for how a spectrum is generated
+	- [ ] Instead of tuning weights of a neural network, we tune the atomic and molecular properties of a spectrum
+- **Data and reduction**
+	- Example data from HPF
+		- [ ] A0V 
+		- [ ] Narrow-lined G-star? M Dwarf?
+- **Methodology: Blase**
+	- [ ] Currently limit the bandwidth to a single high-bandwidth echelle spectrograph (plus buffer at edges)
+		- [ ] This choice is principally computational at the moment, no fundamental limit
+	- [ ] We fetch a high resolution pre-computed spectrum from PHOENIX
+	- [ ] We use the exact native wavelength sampling, yielding N pixels
+	- [ ] Tradeoff of working in log or linear flux
+		- [ ] First normalize by a scalar since we do not intend to use absolute flux calibration
+		- [ ] Log prevents negative fluxes
+		- [ ] Trickier to do Pseudo-Voigt approximation as sum in linear space
+	- [ ] Initialize the model with preprocessing steps:
+		- [ ] Low-pass filter to remove narrow spectral lines
+		- [ ] (Optional) Place known Hydrogen, Sodium lines with large wings and non-standard line shapes
+		- [ ] Define a prominence threshold and find locations of peaks above that threshold
+		- [ ] Derive coarse properties about those peaks: widths and amplitudes
+	- [ ] We now have a coarse model that needs to be fine-tuned with autodiff
+	- [ ] How to describe the continuum:
+		- [ ] Black body / Rayleigh Jeans plus perturbation
+		- [ ] High order polynomial: Chebyshev? Somewhere between 3rd and 20th order?
+		- [ ] Use cross validation?
+		- [ ] GPs are also possible, but high Number of pixels--> need scalable GP
+		- [ ] Celerite not implemented for PyTorch?
+		- [ ] GPyTorch possible, but has certain restrictions on kernel and sampling
+	- [ ] Faced with a question: what lineshape to use
+		- [ ] To First order the lines are Gaussian or Lorentzian
+		- [ ] To Second order the lines are Voigt Profiles
+		- [ ] In detail the lines are the result of radiative transfer that can smear the Voigt profile
+		- [ ] In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
+		- [ ] Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
+		- [ ] Additional Implementation challenge: Fadeeva function not implemented in PyTorch
+		- [ ] We choose a pseudo-Voigt as a balance between computation and adequate accuracy
+	- [ ] Total number of parameters: 
+		- [ ] For the lines =  N-lines x 4 (lambda_c, fwhm_L, sigma_G, Amplitude)
+		- [ ] For the "continuum" = Nth order polynomial = N+1 parameters, or Gaussian Process = 2 hyperparameters
+	- [ ] GPU- and autodiff- specific considerations:
+		- [ ] Each Tunable parameter gets `grad=True`
+		- [ ] We assemble the product of all lines and all continuum sources, this is the computational bottleneck
+		- [ ] This becomes a matrix of size N_lines x N_wavelength points
+		- [ ] We take the element-wise product over the lines axis, contracting to 1 x N_wavelength points
+		- [ ] For N_lines = X and N_wavelength_points = Y, we expect X*Y*k primative operations.
+		- [ ] For N_lines = X and N_wavelength_points = Y, we expect X*Y*32 bits of memory => XX GB
+		- [ ] NVIDIA GPUs can handle 8 - 40 GB of memory depending on the model
+	- [ ] In the parlance of Machine Learning, we have a big model and small data
+	- [ ] Really our model is too big: most of the entries are zero, so we should use a sparse implementation
+	- [ ] If the model is too big to fit in memory, we have to train in mini-batches
+	- [ ] We hand-in some fraction f ~ 1/20th of the entire wavelength range as a mini-batch
+		- [ ] The model is only evaluated at that ~5% of pixels,  N_lines x (N_wl *0.05)
+		- [ ] Technically all lines are updated
+		- [ ] In practice, only lines that are sufficiently informed by those pixels will get large updates
+		- [ ] Causes some stochasticity--- Stochastic Gradient Descent "SGD"
+		- [ ] Analogous but different from the notion of minibatch in ML: not a distinct axis, like N_images
+		- [ ] We use random minibatches
+	- [ ] Run the training:
+		- [ ] Set the optimizer: Adam with a LR=0.004
+		- [ ] Set the loss function: Chi-squared with no per-pixel uncertainty
+		- [ ] Set the "mini-batch" fraction f~1-5%
+		- [ ] Choice of epochs or steps N_steps = 300-10,000
+		- [ ] The training process sees 20 minibatches per epoch, sees N_pixels, with some repeats some misses
+		- [ ] Monitor with Tensorboard: see the improvement
+		- [ ] The training takes X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU
+		- [ ] We save the model parameters, refer to them collectively as the pre-trained model
+- **Cloning performance**
+	- [ ] We compute the residual of native PHOENIX minus cloned model
+	- [ ] We see X percent residuals at native resolution
+	- [ ] We smooth the residual to HPF instrumental resolution and see Y percent residuals
+	- [ ] The main residuals come from missing line opacity due to our prominence threshold:
+		- [ ] Including smaller prominence lines means smaller residuals, but more lines and higher computational cost
+	- [ ] We see some lines that devolve into missing continuum opacity
+		- [ ] Especially acute near broad line wings if you don't handle the non-standard line shapes
+	- [ ] How do the lineshapes cluster in sigma_G vs fwhm_L?
+	- [ ] How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
+	- [ ] Does the pre-trained model round-trip effectively (model saved at end of training = model from loaded params)?
+- **Application to data**
+	- [ ] Augment the pre-trained model with extrinsic parameters:
+		- [ ] vsini and RV
+	- [ ] How to re-sample into the data space?
+	- [ ] Option 1: Convolve the Pseudo-Voigt with a Instrumenal Gaussian
+		- [ ] The convolution of a Gaussian with a Pseudo-Voigt is simply a new Pseudo-Voigt!
+		- [ ] Simply evaluate on a new coarse wavelength grid!  Saves computation!
+	- [ ] Option 2: Numerically convolve output on a fine grid and sum pixels
+		- [ ] Computationally wasteful
+		- [ ] Requires generating full bandwidth spectrum at native resolution
+	- [ ] Both options should give the same answer (right?)
+		- [ ] Need to double-check commutivity of convolution and element-wise product...
+	- [ ] Ideally you need wavelength-dependent resolution, not just a single stock resolving power
+	- [ ] Need accurate per-pixel uncertainties
+	- [ ] We have to apply some amount of regularization to the pre-trained model
+		- [ ] Regularization tunes how much to trust the data versus the model in the semi-empirical model
+		- [ ] No Regularization means likely to overfit noise in the data
+		- [ ] Too much regularization resembles a static (fixed) PHOENIX model
+- **Data transfer learning performance**
+	- [ ] What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
+	- [ ] What is the residual level with no regularization (i.e. tune all lines and continuum)?
+		- [ ] Should be near-zero except for missing lines
+		- [ ] What should we do about missing lines?
+	- [ ] What is the residual level with modest regularization?  What is the typical change to the line?
+	- [ ] Plot of cloned FWHM versus FWHM transferred
+	- [ ] The pseudo-voigt line properties can be analytically integrated to give an equivalent width
+	- [ ] Plot of cloned EW (before) versus transfer EW (after)
+- **Discussion**
+	- [ ] Questioning the assumptions of the method
+		- [ ] Is PseudoVoigt Adequate?
+		- [ ] What performance level is adequate? (depends on your application)
+		- [ ] What about PRV applications
+		- [ ] What about the choice of minibatch size?	
+		- [ ] How would a sparse tensor change the computational performance?
+		- [ ] Are we using the GPU effectively?  Are we memory bandwidth limited?
+		- [ ] Should we update the line center positions?
+	- [ ] Limitations
+		- [ ] What to do when continuum is absent even in at the native resolution of precomputed synthetic model?
+			- [ ] Relevant to brown dwarfs and possibly M dwarfs molecular bands
+		- [ ] Bandwidth limitations
+		- [ ] Interplay with tellurics		
