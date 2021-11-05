@@ -6,7 +6,7 @@
 \usepackage{censor}
 
 \usepackage{outlines}
-\usepackage{enumitem}
+\usepackage{amsmath,bm}
 
 \def\Teff{T_{\rm eff}}
 \def\vsini{v\sin{i}}
@@ -104,17 +104,14 @@ Second, Degeneracy among parameters
 \section{Methodology}
 
 \subsection{Overall Architecture and Design Choices}
-Here is an outline
-\begin{outline}
-  \1 Currently limit the bandwidth to a single high-bandwidth echelle spectrograph (plus buffer at edges)
-  \2 This choice is principally computational at the moment, no fundamental limit
-  \1 We fetch a high resolution pre-computed spectrum from PHOENIX
-  \1 We use the exact native wavelength sampling, yielding N pixels
-  \1 Tradeoff of working in log or linear flux
-  \2 First normalize by a scalar since we do not intend to use absolute flux calibration
-  \2 Log prevents negative fluxes
-  \2 Trickier to do Pseudo-Voigt approximation as sum in linear space
-\end{outline}
+
+We start with a high resolution pre-computed stellar model spectrum, $\mathsf{M}(\bm{\lambda})$.  For now, we require that the spectrum have sporadic regions of discernable continuum devoid of lines, and that the continuum varies smoothly in wavelength.  We suspect most stellar spectra meet these criteria, with the exception of the coolest M dwarfs and brown dwarfs.  The method is hypothetically capable of handling spectra without discernable continua, but we suspect some modifications to the preprocessing steps would be needed.  We allow the spectrum to have any number of spectral lines, so long as the continuum criterion is met.  We currently truncate the bandwidth of the precomputed synthetic spectra to match a high-bandwidth echelle spectrograph, extended with a buffer at the edges of size $\pm \Delta \lambda_{\mathrm{buffer}}$, chosen to account for plausible radial velocity and rotational broadening of real stars.  A generous buffer of $v \sin{i} < 500 \;\kmps$ and $|RV|<500 \;\kmps$ yields a typical buffer of about 30~\AA.
+
+The choice of limiting the bandwidth to a region-of-interest around a single echelle spectrograph bandwidth stems from computational constraints.  In principle there is no fundamental limit to the bandwidth one could clone with this method, up to and including the entire precomputed synthetic spectral model bandwidth.
+
+We adopt the exact native wavelength sampling with no smoothing or interpolation, yielding a wavelength vector $\bm{\lambda}$ with length $N_\mathrm{pixels}$ equal to the number of pixels within the extents of our region of interest including the buffers.
+
+At this stage we have a choice of whether to work in linear or log scale units.  Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desireable trait of any physical spectral model.  We chose instead to stick with native linear flux scaling because of the availability of convenient approximations to astrophysically relevant line profiles in the linear scaling domain.  We normalize the spectrum by its mean value since we do not intend to apply these methods to absolutely flux calibrated spectra.
 
 \subsection{Initialization}
 \begin{outline}
