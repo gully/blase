@@ -5,6 +5,9 @@
 \usepackage{booktabs}
 \usepackage{censor}
 
+\usepackage{outlines}
+\usepackage{enumitem}
+
 \def\Teff{T_{\rm eff}}
 \def\vsini{v\sin{i}}
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
@@ -66,43 +69,209 @@ Several practical barriers limit the accuracy of spectral models.  First and for
 
 Second, Degeneracy among parameters
 
+\begin{itemize}
+  \item Underlying atomic and molecular data may be wrong or approximate or missing
+  \item Underlying radiative transfer may be inaccurate or approximate (T-P profile / T-Tau)
+  \item Time is a dimension: Star is changing
+  \item Stellar surface inhomogeneities become important: Doppler Imaging and limb darkening
+  \item We do not know how to accurately parameterize some dimensions
+\end{itemize}
 
-- [ ]
-- [ ] Underlying atomic and molecular data may be wrong or approximate or missing
-- [ ] Underlying radiative transfer may be inaccurate or approximate (T-P profile / T-Tau)
-- [ ] Time is a dimension: Star is changing
-- [ ] Stellar surface inhomogeneities become important: Doppler Imaging and limb darkening
-- [ ] We do not know how to accurately parameterize some dimensions
-- [ ] High dynamic range is both a blessing and a curse:
-- [ ] Feeding back locations of model imperfections becomes unwieldy for many lines
-- [ ] Many lines essentially becomes a book-keeping and continuum assignment problem
-- [ ] Computational problem
-- [ ] Some lines have large line wings, blurring continuum and line
-- [ ] Line blanketing has almost no continuum
-- [ ] So in practice, tradeoffs between model flexibility and physical self-consistency
-- [ ] Semi-empirical models may be a middle ground: informed from models, but revised with data
-- [ ] The radiative transfer step is computationally expensive, so we want to avoid redoing that
-- [ ] Instead focus on pre-computed models that have that wisdom baked-in
-- [ ] We are essentially compressing pre-computed models into evaluable, interpretable models
-- [ ] Transfer learning is one plausible approach: pre-train on pre-computed models, transfer to data
-- [ ] Neural network frameworks make this possible with autodiff
-- [ ] We use the autodiff and GPU acceleration, but not the neural architectures
-- [ ] We do not use the neural architectures because we have good understand for how a spectrum is generated
-- [ ] Instead of tuning weights of a neural network, we tune the atomic and molecular properties of a spectrum
+\subsection{High dynamic range is both a blessing and a curse:}
+\begin{itemize}
+  \item Feeding back locations of model imperfections becomes unwieldy for many lines
+  \item Many lines essentially becomes a book-keeping and continuum assignment problem
+  \item Computational problem
+  \item Some lines have large line wings, blurring continuum and line
+  \item Line blanketing has almost no continuum
+\end{itemize}
 
-
-
-\newpage
+\subsection{This paper: towards semi-empirical models}
+\begin{itemize}
+  \item So in practice, tradeoffs between model flexibility and physical self-consistency
+  \item Semi-empirical models may be a middle ground: informed from models, but revised with data
+  \item The radiative transfer step is computationally expensive, so we want to avoid redoing that
+  \item Instead focus on pre-computed models that have that wisdom baked-in
+  \item We are essentially compressing pre-computed models into evaluable, interpretable models
+  \item Transfer learning is one plausible approach: pre-train on pre-computed models, transfer to data
+  \item Neural network frameworks make this possible with autodiff
+  \item We use the autodiff and GPU acceleration, but not the neural architectures
+  \item We do not use the neural architectures because we have good understand for how a spectrum is generated
+  \item Instead of tuning weights of a neural network, we tune the atomic and molecular properties of a spectrum
+\end{itemize}
 
 
 \section{Methodology}
 
-TBD
+\subsection{Overall Architecture and Design Choices}
+Here is an outline
+\begin{outline}
+  \1 Currently limit the bandwidth to a single high-bandwidth echelle spectrograph (plus buffer at edges)
+  \2 This choice is principally computational at the moment, no fundamental limit
+  \1 We fetch a high resolution pre-computed spectrum from PHOENIX
+  \1 We use the exact native wavelength sampling, yielding N pixels
+  \1 Tradeoff of working in log or linear flux
+  \2 First normalize by a scalar since we do not intend to use absolute flux calibration
+  \2 Log prevents negative fluxes
+  \2 Trickier to do Pseudo-Voigt approximation as sum in linear space
+\end{outline}
+
+\subsection{Initialization}
+\begin{outline}
+  \1 Initialize the model with preprocessing steps:
+  \2 Low-pass filter to remove narrow spectral lines
+  \2 (Optional) Place known Hydrogen, Sodium lines with large wings and non-standard line shapes
+  \2 Define a prominence threshold and find locations of peaks above that threshold
+  \2 Derive coarse properties about those peaks: widths and amplitudes
+  \1 We now have a coarse model that needs to be fine-tuned with autodiff
+\end{outline}
+
+\subsection{Continuum model}
+\begin{outline}
+  \1 How to describe the continuum:
+  \2 Black body / Rayleigh Jeans plus perturbation
+  \2 High order polynomial: Chebyshev? Somewhere between 3rd and 20th order?
+  \2 Use cross validation?
+  \1 GPs are also possible, but high Number of pixels--> need scalable GP
+  \2 Celerite not implemented for PyTorch?
+  \2 GPyTorch possible, but has certain restrictions on kernel and sampling
+\end{outline}
+
+\subsection{Lineshapes choice and tradeoffs}
+\begin{outline}
+  \1 Faced with a question: what lineshape to use
+  \2 To First order the lines are Gaussian or Lorentzian
+  \2 To Second order the lines are Voigt Profiles
+  \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
+  \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
+  \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
+  \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
+  \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
+\end{outline}
+
+\subsection{GPU and Autodiff specific considerations}
+\begin{outline}
+  \1 Total number of parameters
+  \2 For the lines =  N-lines x 4 (lambda center, fwhm L, sigma G, Amplitude)
+  \2 For the continuum = Nth order polynomial = N+1 parameters, or Gaussian Process = 2 hyperparameters
+  \1 Each Tunable parameter gets `grad=True`
+  \1 We assemble the product of all lines and all continuum sources, this is the computational bottleneck
+  \1 This becomes a matrix of size N-lines x N-wavelength points
+  \1 We take the element-wise product over the lines axis, contracting to 1 x N-wavelength points
+  \1 For N-lines = X and N-wavelength-points = Y, we expect X*Y*k primative operations.
+  \1 For N-lines = X and N-wavelength-points = Y, we expect X*Y*32 bits of memory => XX GB
+  \1 NVIDIA GPUs can handle 8 - 40 GB of memory depending on the model
+\end{outline}
+
+\subsection{Minibatches}
+\begin{outline}
+  \1 In the parlance of Machine Learning, we have a big model and small data
+  \1 Really our model is too big: most of the entries are zero, so we should use a sparse implementation
+  \1 If the model is too big to fit in memory, we have to train in mini-batches
+  \1 We hand-in some fraction f ~ 1/20th of the entire wavelength range as a mini-batch
+  \1 The model is only evaluated at that 5\% of pixels,  $N_{lines} \times N_{pix} \cdot 0.05$)
+  \1 Technically all lines are updated
+  \1 In practice, only lines that are sufficiently informed by those pixels will get large updates
+  \1 Causes some stochasticity--- Stochastic Gradient Descent "SGD"
+  \1 Analogous but different from the notion of minibatch in ML: not a distinct axis, like $N_{images}$
+  \1 We use random minibatches
+\end{outline}
+
+\subsection{Optimization and training}
+\begin{outline}
+  \1 Run the training:
+  \1 Set the optimizer: Adam with a LR=0.004
+  \1 Set the loss function: Chi-squared with no per-pixel uncertainty
+  \1 Set the "mini-batch" fraction f~1-5%
+  \1 Choice of epochs or steps $N_steps = 300-10000$
+  \1 The training process sees 20 minibatches per epoch, sees $N_pixels$, with some repeats some misses
+  \1 Monitor with Tensorboard: see the improvement
+  \1 The training takes X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU
+  \1 We save the model parameters, refer to them collectively as the pre-trained model
+\end{outline}
+
+
+\section{Cloning Performance}
+
+\subsection{Results and scaling}
+
+\begin{outline}
+  \1 We compute the residual of native PHOENIX minus cloned model
+  \1 We see X percent residuals at native resolution
+  \1 We smooth the residual to HPF instrumental resolution and see Y percent residuals
+  \1 The main residuals come from missing line opacity due to our prominence threshold:
+  \1 Including smaller prominence lines means smaller residuals, but more lines and higher computational cost
+\end{outline}
+
+\subsection{Line data clustering and conspicuous flaws}
+\begin{outline}
+  \1 We see some lines that devolve into missing continuum opacity
+  \1 Especially acute near broad line wings if you don't handle the non-standard line shapes
+  \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
+  \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
+  \1 Does the pre-trained model round-trip effectively (model saved at end of training = model from loaded params)?
+\end{outline}
+
+
+\section{Refining the model from data with transfer learning}
+\begin{outline}
+  \1 Augment the pre-trained model with extrinsic parameters:
+  \2 vsini and RV
+  \1 How to re-sample into the data space?
+  \1 Option 1: Convolve the Pseudo-Voigt with a Instrumenal Gaussian
+  \2 The convolution of a Gaussian with a Pseudo-Voigt is simply a new Pseudo-Voigt!
+  \2 Simply evaluate on a new coarse wavelength grid!  Saves computation!
+  \1 Option 2: Numerically convolve output on a fine grid and sum pixels
+  \2 Computationally wasteful
+  \2 Requires generating full bandwidth spectrum at native resolution
+  \1 Both options should give the same answer (right?)
+  \2 Need to double-check commutivity of convolution and element-wise product...
+  \1 Ideally you need wavelength-dependent resolution, not just a single stock resolving power
+  \1 Need accurate per-pixel uncertainties
+  \1 We have to apply some amount of regularization to the pre-trained model
+  \2 Regularization tunes how much to trust the data versus the model in the semi-empirical model
+  \2 No Regularization means likely to overfit noise in the data
+  \2 Too much regularization resembles a static (fixed) PHOENIX model
+\end{outline}
+
+\section{Performance of transfer learning}
+\begin{outline}
+  \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
+  \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
+  \2 Should be near-zero except for missing lines
+  \2  What should we do about missing lines?
+  \1 What is the residual level with modest regularization?  What is the typical change to the line?
+  \2 Plot of cloned FWHM versus FWHM transferred
+  \2 The pseudo-voigt line properties can be analytically integrated to give an equivalent width
+  \2 Plot of cloned EW (before) versus transfer EW (after)
+\end{outline}
+
+\section{Discussion}
+
+\subsection{Questioning the assumptions of the method}
+\begin{outline}
+  \1 Is PseudoVoigt Adequate?
+  \1 What performance level is adequate? (depends on your application)
+  \1 What about PRV applications
+  \1 What about the choice of minibatch size?
+  \1 How would a sparse tensor change the computational performance?
+  \1 Are we using the GPU effectively?  Are we memory bandwidth limited?
+  \1 Should we update the line center positions?
+\end{outline}
+
+\subsection{Limitations}
+\begin{outline}
+  \1 What to do when continuum is absent even in at the native resolution of precomputed synthetic model?
+  \1 Relevant to brown dwarfs and possibly M dwarfs molecular bands
+  \1 Bandwidth limitations
+  \1 Interplay with tellurics
+\end{outline}
 
 \section{Conclusions}
-
 More placeholder text...
 
+
+\
 
 \begin{acknowledgements}
   The author acknowledges the Texas Advanced Computing Center (TACC, \url{http://www.tacc.utexas.edu}) at The University of Texas at Austin for providing HPC resources that have contributed to the research results reported within this paper.
@@ -136,4 +305,20 @@ More placeholder text...
 \section{Autodiff themes} \label{appendix:tools}
 
 Here are some more details about autodiff
+
+
+% Table
+\begin{deluxetable}{cc}
+  \tablecaption{Notation used in this paper\label{table2}}
+  \tablehead{
+    \colhead{Symbol} & \nocolhead{Meaning}
+  }
+  \startdata
+  $N_{pix}$ & Number of pixels in the precomputed spectrum \\
+  $N_{lines}$ & Number of spectral lines \\
+  $\sigma_G$ & Gaussian line profile scale and standard deviation \\
+  $\gamma_L$ & Lorentzian line profile half width
+  \enddata
+\end{deluxetable}
+
 \end{document}
