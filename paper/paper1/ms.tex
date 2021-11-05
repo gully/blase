@@ -56,15 +56,13 @@ Below is a table exploring recent techniques for spectral fitting.
 
 
 \subsection{Seeking physical self-consistency and high predictive accuracy}
-Ideally we seek models that are both physically self-consistent and highly accurate when compared to data.  We want tunable models that can be evaluated quickly for use in likelihood calculations.  We want likelihood calculations to accurately account for nearly-degenerate parameters, common in retrievals in the Planetary Science and Remote Sensing community.  We want unbiased, noise-free templates for use in cross-correlation spectroscopy.  We want precision and accuracy over a large spectral grasp: simultaneously wide bandwidth and high spectral resolution.  We want high out-of-band prediction accuracy.  Ideally we also want precision and accuracy in the modeling of--or at least separation of--affiliated telluric and instrumental signals.
+Ideally we seek models that are both physically self-consistent and highly accurate when compared to data.  We want tunable models that can be evaluated quickly for use in likelihood calculations.  We want posterior inference to accurately explore correlations among parameters.  We want unbiased, noise-free templates for use in cross-correlation spectroscopy.  We want accuracy over a large spectral grasp: simultaneously wide bandwidth and high spectral resolution.  We want high out-of-band prediction accuracy.  Ideally we also want precision and accuracy in the separation of affiliated telluric and instrumental signals.
 
 These goals form the backbone of spectral calibration, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.
 
 \subsection{Current limitations to our spectral models}
 
-Several practical and ostensibly fundamental barriers limit the accuracy of spectral models.
-
-First, High latent dimensionality: Many effects matter at the precision level of the data...
+Several practical barriers limit the accuracy of spectral models.  First and foremost, real stars are usually more complicated than our simplified models of them.  Real spectra often vary over more dimensions than specified.  Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting.  Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere and  High latent dimensionality: Many effects matter at the precision level of the data...
 
 Second, Degeneracy among parameters
 
