@@ -11,30 +11,8 @@ PhoenixEmulator
 import math
 import torch
 from torch import nn
-import os
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
-from astropy.io import fits
-
-from torch.special import erfc
-
-
-def erfcx_naive(x):
-    """Erfcx based on erfc"""
-    return torch.exp(x * x) * erfc(x)
-
-
-try:
-    from torch.special import erfcx
-
-    print("Woohoo! You have a version {} of PyTorch".format(torch.__version__))
-except ImportError:
-    erfcx = erfcx_naive
-    print(
-        "Version {} of PyTorch does not offer erfcx, defaulting to unstable...".format(
-            torch.__version__
-        )
-    )
 
 
 class PhoenixEmulator(nn.Module):
