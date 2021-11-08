@@ -4,6 +4,7 @@ from tqdm import trange
 import torch.optim as optim
 from blase.emulator import PhoenixEmulator
 import matplotlib.pyplot as plt
+from gollum.phoenix import PHOENIXSpectrum
 from torch.utils.tensorboard import SummaryWriter
 import webbrowser
 import numpy as np
@@ -48,55 +49,61 @@ writer = SummaryWriter(log_dir="runs/emulator1")
 webbrowser.open("http://localhost:6006/", new=2)
 
 
+# Pre-process the model as described in the paper
+spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
+spectrum = spectrum.divide_by_blackbody()
+spectrum = spectrum.normalize()
+
+# Numpy arrays: 1 x N_pix
+wl_native = spectrum.wavelength.value
+flux_native = spectrum.flux.value
+
 # Create the emulator
-emulator = PhoenixEmulator(4700, 4.5, prominence=0.1,)
+emulator = PhoenixEmulator(wl_native, flux_native, prominence=0.05)
 emulator.to(device)
 
 n_pix = len(emulator.wl_native)
 wl_native = emulator.wl_native.clone().detach().to(device)
 target = emulator.flux_native.clone().detach().to(device)
 
-if redo_training:
-    loss_fn = nn.MSELoss(reduction="mean")
-    optimizer = optim.Adam(emulator.parameters(), 0.004)
-    n_epochs = 300
-    sub_divisions = 20
-    losses = []
+# Training Loop
+loss_fn = nn.MSELoss(reduction="mean")
+optimizer = optim.Adam(emulator.parameters(), 0.004)
+n_epochs = 300
+sub_divisions = 20
+losses = []
 
-    t_iter = trange(n_epochs, desc="Training", leave=True)
-    for epoch in t_iter:
-        for i in range(sub_divisions):
-            emulator.train()
-            indices = torch.randint(0, n_pix, (n_pix // sub_divisions,)).to(device)
-            wl = wl_native[indices].to(device)
-            yhat = emulator.forward(wl)
-            loss = loss_fn(yhat, target[indices])
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            losses.append(loss.item())
-            t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
+t_iter = trange(n_epochs, desc="Training", leave=True)
+for epoch in t_iter:
+    for i in range(sub_divisions):
+        emulator.train()
+        indices = torch.randint(0, n_pix, (n_pix // sub_divisions,)).to(device)
+        wl = wl_native[indices].to(device)
+        yhat = emulator.forward(wl)
+        loss = loss_fn(yhat, target[indices])
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        losses.append(loss.item())
+        t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
 
-        writer.add_scalar("loss", loss.item(), global_step=epoch)
-        writer.add_scalar(
-            "ln_teff_scalar", emulator.ln_teff_scalar.item(), global_step=epoch
+    writer.add_scalar("loss", loss.item(), global_step=epoch)
+    writer.add_scalar("a", emulator.a_coeff.item(), global_step=epoch)
+    writer.add_scalar("b", emulator.b_coeff.item(), global_step=epoch)
+    writer.add_scalar("c", emulator.c_coeff.item(), global_step=epoch)
+    if (epoch % 5) == 0:
+        # torch.save(model.state_dict(), "model_coeffs.pt")
+        sort_inds = np.argsort(wl.cpu())
+        wl_plot = wl.cpu()[sort_inds]
+        flux_clone = yhat.detach().cpu()[sort_inds]
+        flux_targ = target[indices].cpu()[sort_inds]
+        to_plot = [
+            {"wl": wl_plot, "flux": flux_clone,},
+            {"wl": wl_plot, "flux": flux_targ},
+        ]
+        writer.add_figure(
+            "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
-        writer.add_scalar("scalar", emulator.a_coeff.item(), global_step=epoch)
-        if (epoch % 5) == 0:
-            # torch.save(model.state_dict(), "model_coeffs.pt")
-            sort_inds = np.argsort(wl.cpu())
-            wl_plot = wl.cpu()[sort_inds]
-            flux_clone = yhat.detach().cpu()[sort_inds]
-            flux_targ = target[indices].cpu()[sort_inds]
-            to_plot = [
-                {"wl": wl_plot, "flux": flux_clone,},
-                {"wl": wl_plot, "flux": flux_targ},
-            ]
-            writer.add_figure(
-                "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
-            )
 
-    torch.save(emulator.state_dict(), "native_res_0p1prom.pt")
-else:
-    emulator.load_state_dict(torch.load("native_res_0p1prom.pt", map_location=device))
+torch.save(emulator.state_dict(), "native_res_0p1prom.pt")
 
