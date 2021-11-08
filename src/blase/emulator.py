@@ -73,7 +73,7 @@ class PhoenixEmulator(nn.Module):
             np.log(widths_angstroms / math.sqrt(2))
             .clone()
             .detach()
-            .requires_grad_(False)
+            .requires_grad_(True)
         )
 
         # Fix the wavelength centers as gospel for now.
@@ -82,7 +82,7 @@ class PhoenixEmulator(nn.Module):
         )
 
         self.ln_teff_scalar = nn.Parameter(
-            torch.tensor(0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0, requires_grad=False, dtype=torch.float64)
         )
 
         self.a_coeff = nn.Parameter(
@@ -176,10 +176,11 @@ class PhoenixEmulator(nn.Module):
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        return self.sum_of_lorentzian_model(wl)
+        #return self.product_of_lorentzian_model(wl)
+        return self.product_of_pseudovoigt_model(wl)
         # return self.sum_of_voigts_model(wl)
 
-    def sum_of_voigts_model(self, wl):
+    def product_of_voigts_model(self, wl):
         """Return a sum-of-Voigts forward model, modulated by Blackbody and slopes"""
         net_spectrum = (
             1
@@ -198,7 +199,7 @@ class PhoenixEmulator(nn.Module):
         )
         return net_spectrum * self.black_body(self.ln_teff_scalar, wl) * modulation
 
-    def sum_of_lorentzian_model(self, wl):
+    def product_of_lorentzian_model(self, wl):
         """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
         net_spectrum = (
             1
@@ -209,6 +210,17 @@ class PhoenixEmulator(nn.Module):
                 wl.unsqueeze(0),
             )
         ).prod(0)
+
+        wl_normed = (wl - 10_500.0) / 2500.0
+        modulation = (
+            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
+        )
+        return net_spectrum * self.black_body(self.ln_teff_scalar, wl) * modulation
+
+
+    def product_of_pseudovoigt_model(self, wl):
+        """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
+        net_spectrum = (1- self.pseudo_voigt_profiles(wl)).prod(0)
 
         wl_normed = (wl - 10_500.0) / 2500.0
         modulation = (
@@ -260,14 +272,61 @@ class PhoenixEmulator(nn.Module):
 
         return (lam_centers, prominences, widths_angs)
 
-    def lorentzian_line(self, lam_center, width, amplitude, wavelengths):
+    def lorentzian_line(self, lam_center, width, wavelengths):
         """Return a Lorentzian line, given properties"""
-        return (
-            amplitude
+        return (1
             / 3.141592654
             * width
             / (width ** 2 + (wavelengths - lam_center) ** 2)
         )
+
+    def gaussian_line(self, lam_center, width, wavelengths):
+        """Return a normalized Gaussian line, given properties"""
+
+        return (
+            1.0
+            / (width * 2.5066)
+            * torch.exp(-0.5 * ((wavelengths - lam_center) / width) ** 2)
+        )
+
+    def _compute_eta(self, fwhm_L, fwhm):
+        """Compute the eta parameter for pseudo Voigt"""
+        f_ratio = fwhm_L / fwhm
+        return 1.36603 * f_ratio - 0.47719 * f_ratio ** 2 + 0.11116 * f_ratio ** 3
+
+    def _compute_fwhm(self, fwhm_L, fwhm_G):
+        """Compute the fwhm for pseudo Voigt using the approximation:
+        :math:`f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}`
+        
+        """
+
+        return (
+            fwhm_G ** 5
+            + 2.69269 * fwhm_G ** 4 * fwhm_L ** 1
+            + 2.42843 * fwhm_G ** 3 * fwhm_L ** 2
+            + 4.47163 * fwhm_G ** 2 * fwhm_L ** 3
+            + 0.07842 * fwhm_G ** 1 * fwhm_L ** 4
+            + fwhm_L ** 5
+        ) ** (1 / 5)
+
+    def pseudo_voigt_profiles(
+        self, wavelengths
+    ):
+        """Compute the pseudo Voigt Profile, much faster than the full Voigt profile"""
+        fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
+        fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
+        fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
+        eta = self._compute_eta(fwhm_L, fwhm)
+
+        return torch.exp(self.amplitudes).unsqueeze(1)*(eta * self.lorentzian_line(
+            self.lam_centers.unsqueeze(1),
+            torch.exp(self.gamma_widths).unsqueeze(1),
+            wavelengths.unsqueeze(0),
+        ) + (1 - eta) * self.gaussian_line(
+            self.lam_centers.unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
+            wavelengths.unsqueeze(0),
+        ))
 
     def voigt_profile(
         self, lam_center, sigma_width, gamma_width, amplitude, wavelengths
