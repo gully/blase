@@ -36,18 +36,23 @@ class PhoenixEmulator(nn.Module):
             self.wl_native, self.flux_native, prominence=prominence
         )
 
+        # Experimentally determined scale factors tweaks
+        amp_tweak = 0.14
+        sigma_width_tweak = 1.28
+        gamma_width_tweak = 1.52
+
         self.amplitudes = nn.Parameter(
-            torch.log(amplitudes).clone().detach().requires_grad_(True)
+            torch.log(amplitudes * amp_tweak).clone().detach().requires_grad_(True)
         )
         self.sigma_widths = nn.Parameter(
-            np.log(widths_angstroms / math.sqrt(2))
+            np.log(widths_angstroms / math.sqrt(2) * sigma_width_tweak)
             .clone()
             .detach()
             .requires_grad_(True)
         )
 
         self.gamma_widths = nn.Parameter(
-            np.log(widths_angstroms / math.sqrt(2))
+            np.log(widths_angstroms / math.sqrt(2) * gamma_width_tweak)
             .clone()
             .detach()
             .requires_grad_(True)
@@ -59,13 +64,13 @@ class PhoenixEmulator(nn.Module):
         )
 
         self.a_coeff = nn.Parameter(
-            torch.tensor(1.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(1.0, requires_grad=False, dtype=torch.float64)
         )
         self.b_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
         )
         self.c_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
         )
 
     def forward(self, wl):
@@ -76,7 +81,6 @@ class PhoenixEmulator(nn.Module):
         """
         # return self.product_of_lorentzian_model(wl)
         return self.product_of_pseudovoigt_model(wl)
-        # return self.sum_of_voigts_model(wl)
 
     def product_of_lorentzian_model(self, wl):
         """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
