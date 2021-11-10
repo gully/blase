@@ -130,15 +130,17 @@ So far we have only one piece of information about the peaks: their location.  N
 
 There does not exist a general-purpose, single-shot algorithm for obtaining the lineshape in the presence of overlapping spectral lines: where do the wings of one line begin and the wings of another adjacent line end?  We therefore do not attempt to determine anything about the lineshape at this stage, and instead assume that the lines resemble a Voigt profile, with a guess width about equally split between Lorentzian and Gaussian.
 
+\subsection{The \emph{blas\'e} clone model}
+
 We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s)$ for a flattened synthetic spectrum $\mathsf{S}$: it is the cumulative product of transmission through the sea of all overlapping spectral lines:
 
 \begin{eqnarray}
-  \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}}  (1-a_j V(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )}
+  \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}}  (1-a_j V(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )} \label{equation1}
 \end{eqnarray}
 
 where $V(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
 
-The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths,lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar loss function, which we define as the mean squared error (MSE), proportional to $\chi^2$, the sum of the squares of the residual vector, $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$:
+The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar ``goodness-of-fit'' metric, \emph{aka}loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise, since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
   \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
@@ -147,45 +149,27 @@ The model evaluated with its coarse initial values would have terrible performan
 
 As seen in Figure XX, the number of lines can exceed $XX$, meaning the model has over $XX \times 3 = ZZ$ free parameters.  Fitting that large number of parameters is difficult with conventional optimizers, which struggle to converge after hundreds of parameters\authorcomment1{Citation to limits of optimizers}.
 
-Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, the Jacobian: $(\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \frac{\partial \mathcal{L}}{\partial \gamma_j})$.  The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply which way and by how much you have to change the line properties to make a better fit.
+Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, the Jacobian: $(\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \frac{\partial \mathcal{L}}{\partial \gamma_j})$.  The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply which-way and by-how-much you have to change the line properties to get a better fit.
 
 The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously.  The Jacobian is calculated behind-the-scenes with automatic differentiation\authorcomment1{Citation} implemented as the so-called backwards-propagation algorithm or simply ``back-prop''.  We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primatives in our \texttt{blas\'e} implementation.
 
-In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  Still, the performance of an analytic implementation over the one presented here represents an interesting avenue of future research.
-
-
-
-
-
-\subsection{Continuum model}
-\begin{outline}
-  \1 How to describe the continuum:
-  \2 Black body / Rayleigh Jeans plus perturbation
-  \2 High order polynomial: Chebyshev? Somewhere between 3rd and 20th order?
-  \2 Use cross validation?
-  \1 GPs are also possible, but high Number of pixels--> need scalable GP
-  \2 Celerite not implemented for PyTorch?
-  \2 GPyTorch possible, but has certain restrictions on kernel and sampling
-\end{outline}
-
-\subsection{Lineshapes choice and tradeoffs}
-\begin{outline}
-  \1 Faced with a question: what lineshape to use
-  \2 To First order the lines are Gaussian or Lorentzian
-  \2 To Second order the lines are Voigt Profiles
-  \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
-  \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
-  \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
-  \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
-  \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
-\end{outline}
+In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  Futher, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation.  Still, the performance of an analytic Jacobian implementation over the autodiff route presented here presents an interesting avenue of future research.
 
 \subsection{GPU and Autodiff specific considerations}
+We make a few tweaks to the implementation for numerical purposes.  First, we want all the parameters to be positive, forbidding negative amplitudes and negative widths.  We therefore tune the natural log of the parameters, and exponentiate them before inclusion in Equation \ref{equation1}.  Second, we found through iterative experimentation that the initialization amplitudes and widths were systematically shifted from the optimized values.  We built-in a three scalar tweaks to the initialization amplitudes, Gaussian width, and Lorentzian width, which dramatically accelerated the optimization step.
+
+We set the \texttt{requires\_grad=True} property for any Torch tensor that we want to vary.  This allows us to easily explore whether, say, allowing the $\lambda_c$ parameter to vary significantly improves the fit.  It also allows us to tune or freeze an experimental wavelength-dependent pre-factor to Equation \ref{equation1} to correct for lingering imperfections in the otherwise-fixed continuum flattening procedure.
+
+The computational bottleneck occurs at...
+
+
+
+
+
 \begin{outline}
   \1 Total number of parameters
   \2 For the lines =  N-lines x 4 (lambda center, fwhm L, sigma G, Amplitude)
   \2 For the continuum = Nth order polynomial = N+1 parameters, or Gaussian Process = 2 hyperparameters
-  \1 Each Tunable parameter gets `grad=True`
   \1 We assemble the product of all lines and all continuum sources, this is the computational bottleneck
   \1 This becomes a matrix of size N-lines x N-wavelength points
   \1 We take the element-wise product over the lines axis, contracting to 1 x N-wavelength points
@@ -279,7 +263,20 @@ In principle we could compute the Jacobians analytically---since the partial der
 
 \section{Discussion}
 
+\subsection{Lineshapes choice and tradeoffs}
+\begin{outline}
+  \1 Faced with a question: what lineshape to use
+  \2 To First order the lines are Gaussian or Lorentzian
+  \2 To Second order the lines are Voigt Profiles
+  \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
+  \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
+  \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
+  \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
+  \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
+\end{outline}
+
 \subsection{Questioning the assumptions of the method}
+
 \begin{outline}
   \1 Is PseudoVoigt Adequate?
   \1 What performance level is adequate? (depends on your application)
