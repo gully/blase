@@ -138,7 +138,7 @@ We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s
 
 where $V(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
 
-The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths,lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar loss function, which we define as the sum of the squares of the residual vector, $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$:
+The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths,lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar loss function, which we define as the mean squared error (MSE), proportional to $\chi^2$, the sum of the squares of the residual vector, $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$:
 
 \begin{eqnarray}
   \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
@@ -147,7 +147,12 @@ The model evaluated with its coarse initial values would have terrible performan
 
 As seen in Figure XX, the number of lines can exceed $XX$, meaning the model has over $XX \times 3 = ZZ$ free parameters.  Fitting that large number of parameters is difficult with conventional optimizers, which struggle to converge after hundreds of parameters\authorcomment1{Citation to limits of optimizers}.
 
-Here we employ a variant of Stochastic Gradient Descent, an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, so for example %\frac{\partial \mathcal{L}}{\partial a}
+Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, the Jacobian: $(\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \frac{\partial \mathcal{L}}{\partial \gamma_j})$.  The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply which way and by how much you have to change the line properties to make a better fit.
+
+The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously.  The Jacobian is calculated behind-the-scenes with automatic differentiation\authorcomment1{Citation} implemented as the so-called backwards-propagation algorithm or simply ``back-prop''.  We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primatives in our \texttt{blas\'e} implementation.
+
+In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  Still, the performance of an analytic implementation over the one presented here represents an interesting avenue of future research.
+
 
 
 
