@@ -10,5 +10,8 @@ all: ms.pdf
 	rm -rf *.out
 	rm -rf *.blg
 	rm -rf *.dvi
+	rm -rf ms.fdb_latexmk
+	rm ms.fls
+	rm ms.synctex*
 	mv ms.pdf final/
 	# open final/ms.pdf
