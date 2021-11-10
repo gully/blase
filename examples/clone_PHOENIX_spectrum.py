@@ -9,8 +9,6 @@ from torch.utils.tensorboard import SummaryWriter
 import webbrowser
 import numpy as np
 
-# Toggle below if you just want to read in a pre-trained model
-redo_training = True
 if torch.cuda.is_available():
     device = "cuda"
 else:
@@ -53,13 +51,15 @@ webbrowser.open("http://localhost:6006/", new=2)
 spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
 spectrum = spectrum.divide_by_blackbody()
 spectrum = spectrum.normalize()
+continuum_fit = spectrum.fit_continuum(polyorder=5)
+spectrum = spectrum.divide(continuum_fit, handle_meta="ff")
 
 # Numpy arrays: 1 x N_pix
 wl_native = spectrum.wavelength.value
 flux_native = spectrum.flux.value
 
 # Create the emulator
-emulator = PhoenixEmulator(wl_native, flux_native, prominence=0.05)
+emulator = PhoenixEmulator(wl_native, flux_native, prominence=0.02)
 emulator.to(device)
 
 n_pix = len(emulator.wl_native)
@@ -67,17 +67,33 @@ wl_native = emulator.wl_native.clone().detach().to(device)
 target = emulator.flux_native.clone().detach().to(device)
 
 # Training Loop
+emulator.lam_centers.requires_grad = False
+emulator.a_coeff.requires_grad = False
+emulator.b_coeff.requires_grad = False
+emulator.c_coeff.requires_grad = False
+
 loss_fn = nn.MSELoss(reduction="mean")
-optimizer = optim.Adam(emulator.parameters(), 0.004)
-n_epochs = 300
-sub_divisions = 20
+optimizer = optim.Adam(
+    filter(lambda p: p.requires_grad, emulator.parameters()), 0.004, amsgrad=True
+)
+n_epochs = 100
+sub_divisions = 30
 losses = []
+
+# Experiment: just optimize the line cores:
+indices = np.isin(emulator.wl_native.cpu(), emulator.lam_centers.detach().cpu())
+# from scipy.ndimage import binary_dilation
+# dilated_inds = binary_dilation(indices, iterations=2)
+peak_indices = torch.tensor(indices).to(device)
 
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     for i in range(sub_divisions):
         emulator.train()
-        indices = torch.randint(0, n_pix, (n_pix // sub_divisions,)).to(device)
+        if i in [0, 5, 10, 15, 20, 25, 30]:
+            indices = peak_indices
+        else:
+            indices = torch.randint(0, n_pix, (n_pix // sub_divisions,)).to(device)
         wl = wl_native[indices].to(device)
         yhat = emulator.forward(wl)
         loss = loss_fn(yhat, target[indices])
