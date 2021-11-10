@@ -4,6 +4,7 @@
 \usepackage[caption=false]{subfig}
 \usepackage{booktabs}
 \usepackage{censor}
+\usepackage{mathtools}  
 
 \usepackage{outlines}
 \usepackage{amsmath,bm}
@@ -135,11 +136,19 @@ We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s
   \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}}  (1-a_j V(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )}
 \end{eqnarray}
 
-where $V(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is equal to the area under the curve of the line.
+where $V(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
 
-The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths,lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.
+The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths,lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar loss function, which we define as the sum of the squares of the residual vector, $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$:
 
-As seen in Figure XX, the number of lines can exceed $XX$ depending on the
+\begin{eqnarray}
+  \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
+\end{eqnarray}
+
+
+As seen in Figure XX, the number of lines can exceed $XX$, meaning the model has over $XX \times 3 = ZZ$ free parameters.  Fitting that large number of parameters is difficult with conventional optimizers, which struggle to converge after hundreds of parameters\authorcomment1{Citation to limits of optimizers}.
+
+Here we employ a variant of Stochastic Gradient Descent, an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, so for example %\frac{\partial \mathcal{L}}{\partial a}
+
 
 
 
