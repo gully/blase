@@ -173,60 +173,26 @@ The computational bottleneck occurs at the evaluation of Equation \ref{equation1
 
 Equation \ref{equation1} performs a type of tensor contraction, turning a $N_{\mathrm{lines}}\times N_{s}$ matrix into a $1\times N_{s}$ vector.  The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix, with a scalar prefactor for the cost of evaluating a single line profile at a single wavelength point.  Efficient GPU algorithms exist for tensor contractions such as this product along an axis of a matrix, allowing this computation to proceed quickly on modern machines\authorcomment1{add citation?}. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math, although the algorithms place restrictions on floating precision depending on the particular hardware and software available.  The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM.  The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix, since the CPU/GPU also has to store the computation graph for autodiff.  The computation graph takes up more memory than the matrix itself, so it is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop.  A remedy is needed.
 
-Minibatches offer a natural solution to the line-by-line computational
-bottleneck\footnote{The Machine Learning and Artificial Intelligence (ML/AI) community employs minibatches to handle similar situations, in which the dataset volume exceeds the available GPU RAM.  Our configuration departs slightly from the typical ML/AI situation, since their models are usually ``small'' relative to their datasets.  Here our model is ``big'' relative to our dataset.}.
-You can choose to assemble and evaluate only a portion of the matrix at a time.  The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at those points.  Instead we choose to evaluate only a subset $N_{\mathrm{subset}}$ of the total pixels $N_s$, so that the model is exact at those points.  All lines update at each glimpse of a minibatch, but many lines get little information about how the loss scalar changes for their parameters.  The value of $N_{\mathrm{subset}}$ should be set just below the threshold at which the computation runs out of memory.  At present, this threshold is determined experimentally.  The indices of the wavelength points can either be set to be contiguous in blocks, or random with possibly large gaps between indices, or else with some other scheme.  We chose random sampling with replacement, meaning that some pixels get revisited more often than others.
-
-Another solution to the computation problem could be to take advantage of the sparsity of the $\bm{\bar{V}}$ matrix: most of the entries are vanishingly close to zero.  Ideally we would only evaluate the model close to the line center position, some number of line cuts $N_{\mathrm{cut}}=\alpha \cdot \mathrm{FWHM}$ away.  These line cuts produce a speedup by a factor of $\frac{N_s}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra. Furthermore, efficient algorithms for assembling coalescing sparse matrices exist in \texttt{PyTorch}.  A few practical considerations make sparse matrices peskier to work with than their dense counterparts.  First, the $\alpha$ hyperparameter should be set large enough that the truncation effect is not seen for the deepest lines.  The $\alpha$ should be preselected before the training process.  If the FWHM initialization was poor enough, the question may arise how autodiff training will cope with the poor performance of a model, leading to the prospect of strange and difficult to diagnose artifacts near spurious line-cut truncation artifacts.  At the time of writing, we do not implement sparse matrices in \emph{blas\'e}, but we find them the most compelling route for transformative performance improvements.
-
-
-
-
-
-
-
-
-
-
-\begin{outline}
-  \1 Total number of parameters
-  \2 For the lines =  N-lines x 4 (lambda center, fwhm L, sigma G, Amplitude)
-  \2 For the continuum = Nth order polynomial = N+1 parameters, or Gaussian Process = 2 hyperparameters
-  \1 We assemble the product of all lines and all continuum sources, this is the computational bottleneck
-  \1 This becomes a matrix of size N-lines x N-wavelength points
-  \1 We take the element-wise product over the lines axis, contracting to 1 x N-wavelength points
-  \1 For N-lines = X and N-wavelength-points = Y, we expect X*Y*k primative operations.
-  \1 For N-lines = X and N-wavelength-points = Y, we expect X*Y*32 bits of memory => XX GB
-  \1 NVIDIA GPUs can handle 8 - 40 GB of memory depending on the model
-\end{outline}
-
 \subsection{Minibatches}
-\begin{outline}
-  \1 In the parlance of Machine Learning, we have a big model and small data
-  \1 Really our model is too big: most of the entries are zero, so we should use a sparse implementation
-  \1 If the model is too big to fit in memory, we have to train in mini-batches
-  \1 We hand-in some fraction f ~ 1/20th of the entire wavelength range as a mini-batch
-  \1 The model is only evaluated at that 5\% of pixels,  $N_{lines} \times N_{pix} \cdot 0.05$)
-  \1 Technically all lines are updated
-  \1 In practice, only lines that are sufficiently informed by those pixels will get large updates
-  \1 Causes some stochasticity--- Stochastic Gradient Descent "SGD"
-  \1 Analogous but different from the notion of minibatch in ML: not a distinct axis, like $N_{images}$
-  \1 We use random minibatches
-\end{outline}
+
+Minibatches offer a natural solution to the line-by-line computational bottleneck while also providing optimization performance improvements.  Minibatches act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent\authorcomment1{citation}.  The Machine Learning and Artificial Intelligence (ML/AI) community employs minibatches to handle similar situations, in which the dataset volume exceeds the available GPU RAM.  Our configuration departs slightly from the typical ML/AI situation, since their models are usually ``small'' relative to their datasets.  Here our model is ``big'' relative to our dataset.
+
+Here we choose to assemble and evaluate only a portion of the matrix at a time, in minibatches.  The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels.  Instead we choose to evaluate all lines, but only on a subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points.  All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters.  The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory.  At present, this threshold is determined experimentally.  The indices of the wavelength points can either be set to be contiguous in blocks, or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions.  We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.
+
+
+
+\subsection{Sparsity}
+
+Another solution to the computation problem could be to take advantage of the sparsity of the $\bm{\bar{V}}$ matrix: most of the entries are vanishingly close to zero.  Ideally we would only evaluate the model close to the line center position, some number of line cuts $N_{\mathrm{cut}}=\alpha \cdot \mathrm{FWHM}$ away.  These line cuts produce a speedup by a factor of $\frac{N_s}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra. Furthermore, efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}.  A few practical considerations make sparse matrices peskier to work with than their dense counterparts.  First, the $\alpha$ hyperparameter should be set large enough that the truncation effect is not seen for the deepest lines.  The $\alpha$ should be preselected before the training process.  If the FWHM initialization was poor enough, the question may arise how autodiff training will cope with the poor performance of a model, leading to the prospect of strange and difficult to diagnose artifacts near spurious line-cut truncation artifacts.  At the time of writing, we do not implement sparse matrices in \emph{blas\'e}, but we find them the most compelling route for transformative performance improvements.
+
 
 \subsection{Optimization and training}
-\begin{outline}
-  \1 Run the training:
-  \1 Set the optimizer: Adam with a LR=0.004
-  \1 Set the loss function: Chi-squared with no per-pixel uncertainty
-  \1 Set the "mini-batch" fraction f~1-5%
-  \1 Choice of epochs or steps $N_steps = 300-10000$
-  \1 The training process sees 20 minibatches per epoch, sees $N_pixels$, with some repeats some misses
-  \1 Monitor with Tensorboard: see the improvement
-  \1 The training takes X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU
-  \1 We save the model parameters, refer to them collectively as the pre-trained model
-\end{outline}
 
+We use the Adam optimizer\authorcomment1{citation} with a learning rate $LR=0.004$ and all the defaults for \texttt{PyTorch v1.11}.  We set the minibatch fraction to typically $f\sim1-5\%$.  We defined the number of training epochs $N_{epoch}=100-1000$.  The optimizer steps $N_{batch}$ times in each epoch, so that on average each epoch sees the entire dataset.  The minibatching indices may be chosen with replacement so that some pixels are repeated and some are not seen in a given epoch.  The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
+
+Figure XX shows a representative Loss curve (MSE versus epochs) for cloning the model in Figure ZZ.  The NN epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64.  That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
+
+We save the model parameters with \texttt{torch.save()} and refer to this collection of parameters as the \emph{pre-trained model}.
 
 \section{Cloning Performance}
 
