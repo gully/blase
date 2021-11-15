@@ -135,12 +135,12 @@ There does not exist a general-purpose, single-shot algorithm for obtaining the 
 We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s)$ for a flattened synthetic spectrum $\mathsf{S}$: it is the cumulative product of transmission through the sea of all overlapping spectral lines:
 
 \begin{eqnarray}
-  \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}}  (1-a_j V(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )} \label{equation1}
+  \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}}  (1-a_j \mathsf{V}(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )} \label{equation1}
 \end{eqnarray}
 
-where $V(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
+where $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
 
-The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar ``goodness-of-fit'' metric, \emph{aka}loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise, since the precomputed synthetic spectrum has no uncertainty:
+The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise, since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
   \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
@@ -153,14 +153,25 @@ Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization t
 
 The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously.  The Jacobian is calculated behind-the-scenes with automatic differentiation\authorcomment1{Citation} implemented as the so-called backwards-propagation algorithm or simply ``back-prop''.  We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primatives in our \texttt{blas\'e} implementation.
 
-In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  Futher, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation.  Still, the performance of an analytic Jacobian implementation over the autodiff route presented here presents an interesting avenue of future research.
+In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  Futher, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation.  Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
 
 \subsection{GPU and Autodiff specific considerations}
-We make a few tweaks to the implementation for numerical purposes.  First, we want all the parameters to be positive, forbidding negative amplitudes and negative widths.  We therefore tune the natural log of the parameters, and exponentiate them before inclusion in Equation \ref{equation1}.  Second, we found through iterative experimentation that the initialization amplitudes and widths were systematically shifted from the optimized values.  We built-in a three scalar tweaks to the initialization amplitudes, Gaussian width, and Lorentzian width, which dramatically accelerated the optimization step.
+We make a few tweaks to the implementation for numerical purposes.  First, we want all the parameters to be positive, forbidding negative amplitudes and negative widths.  We therefore tune the natural log of the parameters, and exponentiate them before inclusion in Equation \ref{equation1}.  Second, we found through iterative experimentation that the initialization amplitudes and widths were systematically shifted from the optimized values.  We built-in scalar tweaks to the initialization amplitudes, Gaussian width, and Lorentzian width, which dramatically accelerated the optimization step.
 
 We set the \texttt{requires\_grad=True} property for any Torch tensor that we want to vary.  This allows us to easily explore whether, say, allowing the $\lambda_c$ parameter to vary significantly improves the fit.  It also allows us to tune or freeze an experimental wavelength-dependent pre-factor to Equation \ref{equation1} to correct for lingering imperfections in the otherwise-fixed continuum flattening procedure.
 
-The computational bottleneck occurs at...
+The computational bottleneck occurs at the evaluation of Equation \ref{equation1}, which includes the assembly of a $N_{\mathrm{lines}}\times N_{s}$ matrix $\bm{\bar{V}}$ assembled by stacking each Voigt profile $\mathsf{V}_j(\bm{\lambda}_s)$ on top of each other:
+
+\begin{equation}
+  \begin{pmatrix}
+    \mathsf{V}_1(\bm{\lambda}_s)                    & \\
+    \mathsf{V}_2(\bm{\lambda}_s)                    & \\
+    \vdots                                          & \\
+    \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
+  \end{pmatrix}
+\end{equation}
+
+$\mathsf{V}_j(\bm{\lambda}_s)$ matrix  .
 
 
 
