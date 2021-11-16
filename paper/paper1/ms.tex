@@ -4,8 +4,7 @@
 \usepackage[caption=false]{subfig}
 \usepackage{booktabs}
 \usepackage{censor}
-\usepackage{mathtools}  
-
+\usepackage{mathtools}
 \usepackage{outlines}
 \usepackage{amsmath,bm}
 
@@ -124,7 +123,16 @@ Next we identify the spectral lines.  We apply a local-minimum-finding algorithm
 For this paper, we illustrate examples for two \'echelle spectrographs with particularly large spectral grasp: the Habitable Zone Planet Finder \citep[HPF,][]{2014SPIE.9147E..1GM} on the Hobby-Eberly Telescope at McDonald Observatory in Fort Davis, Texas; and the Immersion Grating Infrared Spectrograph \citep[IGRINS,][]{park14}
 currently on the Gemini South Telescope on Cerro Pach\'on in Chile.  The $R=55,000$ HPF has a native bandwidth of $x-y$, that we expand to $x-y^*$ including the edge buffers.  IGRINS has two cameras for $H$ and $K$ band, with the combined spectrum spanning $z-y$ including the edge buffers and the region in-between the two cameras, all at a resolving power of $(R=45,000)$.  The spectrograph acquisition, reduction, and post-processing steps yield data $\mathsf{D}(\bm{\lambda}_{d})$, where $\bm{\lambda}_{d}$ is the wavelength vector at the instrumental resolution and sampling of each instrument, generally much coarser than the resolution and sampling grid of the precomputed synthetic spectra.  The data wavelength vector may also contains gaps between \'echelle orders, whereas the precomputed grid is usually contiguous.  HPF may have up to $2048\times28=57,344$ pixels, and IGRINS has typically about $75,000$ pixels, after common truncation of noisy edge pixels.
 
-Figure XX shows how the number of detected lines $N_{\mathrm{lines}}$ scales with effective temperature and prominence threshold $P_{rom}$ for the \texttt{PHOENIX} grid, truncated to the bandwidths-plus-buffers for HPF and IGRINS.  The HPF-truncated spectra have $N_s=XX$ and the IGRINS-truncated spectra have $N_s=XX$.
+
+\begin{figure}[hbt!]
+  \centering
+  \includegraphics[width=0.5\textwidth]{example-image-a}
+  \caption{Number of prominent spectral lines versus effective temperature for PHOENIX models truncated to HPF (\emph{left}) and IGRINS (\emph{right}) bandwidths, for different prominence thresholds of $0.05$ and $0.01$.}
+  \label{fig_Nlines_vs_teff}
+\end{figure}
+
+
+Figure \ref{fig_Nlines_vs_teff} shows how the number of detected lines $N_{\mathrm{lines}}$ scales with effective temperature and prominence threshold $P_{rom}$ for the \texttt{PHOENIX} grid, truncated to the bandwidths-plus-buffers for HPF and IGRINS.  The HPF-truncated spectra have $N_s=XX$ and the IGRINS-truncated spectra have $N_s=XX$.
 
 So far we have only one piece of information about the peaks: their location.  Next, we derive coarse properties about each detected peak: its amplitude and width, again using the prominence algorithms implemented in \texttt{scipy} \citep{2020SciPy-NMeth}.
 
@@ -140,6 +148,13 @@ We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s
 
 where $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line.  The amplitude $a$ is always expected to be positive for absorption lines, and is equal to the area under the curve of the line since the Voigt profile is normalized.
 
+\subsection{Voigt profile evaluation}
+The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed form using the Fadeeva function\authorcomment1{citation}.  Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable.  Here we adopt the pseudo-Voigt approximation described in \censor{some paper}\authorcomment1{look up reference to PseudoVoigt}.
+
+Two sampled Voigt approaches could be feasible.  Direct convolution of a sampled Gaussian and Lorentzian profile may be too costly and inexact if pixels are coarsely sampled.  Analogously, the convolution can be achieved in the Fourier domain through multiplication of the Fast Fourier Transforms of the Gaussian and Lorentzian profiles, followed by the subsequent Inverse Fourier Transforms.  The main rationale for either of these two choices would be to anticipate and align with planned convolutions such as rotational broadening and instrumental kernels.  We do not currently implement these sampled convolutions in \emph{blas\'e} due to their prohibitive computational cost.
+
+
+\subsection{Goodness of fit metric}
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes.  Instead, we tune the parameters of the model, starting from these coarse initial values.  This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary.  We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise, since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
@@ -147,13 +162,13 @@ The model evaluated with its coarse initial values would have terrible performan
 \end{eqnarray}
 
 
-As seen in Figure XX, the number of lines can exceed $XX$, meaning the model has over $XX \times 3 = ZZ$ free parameters.  Fitting that large number of parameters is difficult with conventional optimizers, which struggle to converge after hundreds of parameters\authorcomment1{Citation to limits of optimizers}.
+As seen in Figure \ref{fig_Nlines_vs_teff}, the number of lines can exceed $XX$, meaning the model has over $XX \times 3 = ZZ$ free parameters.  Fitting that large number of parameters is difficult with conventional optimizers, which struggle to converge after hundreds of parameters\authorcomment1{Citation to limits of optimizers}.
 
 Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}.  This technique computes the derivative of the loss scalar with respect to each of the parameters, the Jacobian: $(\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \frac{\partial \mathcal{L}}{\partial \gamma_j})$.  The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply which-way and by-how-much you have to change the line properties to get a better fit.
 
 The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously.  The Jacobian is calculated behind-the-scenes with automatic differentiation\authorcomment1{Citation} implemented as the so-called backwards-propagation algorithm or simply ``back-prop''.  We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primatives in our \texttt{blas\'e} implementation.
 
-In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  Futher, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation.  Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
+In principle we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch.  Further, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting.  In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks.  The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation.  Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
 
 \subsection{GPU and Autodiff specific considerations}
 We make a few tweaks to the implementation for numerical purposes.  First, we want all the parameters to be positive, forbidding negative amplitudes and negative widths.  We therefore tune the natural log of the parameters, and exponentiate them before inclusion in Equation \ref{equation1}.  Second, we found through iterative experimentation that the initialization amplitudes and widths were systematically shifted from the optimized values.  We built-in scalar tweaks to the initialization amplitudes, Gaussian width, and Lorentzian width, which dramatically accelerated the optimization step.
@@ -190,7 +205,15 @@ Another solution to the computation problem could be to take advantage of the sp
 
 We use the Adam optimizer\authorcomment1{citation} with a learning rate $LR=0.004$ and all the defaults for \texttt{PyTorch v1.11}.  We set the minibatch fraction to typically $f\sim1-5\%$.  We defined the number of training epochs $N_{epoch}=100-1000$.  The optimizer steps $N_{batch}$ times in each epoch, so that on average each epoch sees the entire dataset.  The minibatching indices may be chosen with replacement so that some pixels are repeated and some are not seen in a given epoch.  The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
 
-Figure XX shows a representative Loss curve (MSE versus epochs) for cloning the model in Figure ZZ.  The NN epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64.  That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
+
+\begin{figure}[hbt!]
+  \centering
+  \includegraphics[width=0.6\textwidth]{example-image-golden}
+  \caption{PHOENIX spectrum cloned with blas\'e.}
+  \label{fig_cloned_spectrum_demo}
+\end{figure}
+
+Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas'e}.  The $NN$ epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64.  That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
 
 We save the model parameters with \texttt{torch.save()} and refer to this collection of parameters as the \emph{pre-trained model}.
 
@@ -198,13 +221,20 @@ We save the model parameters with \texttt{torch.save()} and refer to this collec
 
 \subsection{Results and scaling}
 
-We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure XX\authorcomment1{make this figure}.  We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$.  The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out.  Figure ZZ\authorcomment1{make this figure} zooms in on the XX\authorcomment1{todo} line at $\censor{10200}\;$\AA.
+We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}\authorcomment1{make this figure!}.  We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$.  The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out.  Figure \ref{fig_poor_cloning_performance}\authorcomment1{make this figure} zooms in on the \censor{XX} line at $\censor{10200}\;$\AA.
+
+\begin{figure}[hbt!]
+  \centering
+  \includegraphics[width=0.3\textwidth]{example-grid-100x100pt}
+  \caption{A \censor{Hydrogen} line with broad line wings exhibiting poor cloning performance.}
+  \label{fig_poor_cloning_performance}
+\end{figure}
 
 The other main source of large residuals is simply missing line opacity due to our finite prominence threshold.  Lines with prominence less than $P_{rom}$ yield residuals that scale with $P_{rom}$.  Including smaller prominence lines means smaller residuals, but more lines and higher computational cost.
 
 
 \subsection{Line data clustering and conspicuous flaws}
-We see some narrow lines devolve into missing continuum opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the the pain of a narrow-but-tolerably-small spike.  This problem can be seen in Figure XX where a line initialized at $\censor{10210}\;$\AA~ with an amplitude of ZZ and width of YY bloats to \censor{some other value}.  These devolved lines tend to appear at poorly immitated broad-and-deep line wings.  One can mitigate these devolved lines by adding more flexibility to the continuum or supporting more advanced line shapes.
+We see some narrow lines devolve into missing continuum opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the the pain of a narrow-but-tolerably-small spike.  This problem can be seen in Figure \ref{fig_poor_cloning_performance} where a line initialized at $\censor{10210}\;$\AA~ with an amplitude of ZZ and width of YY bloats to \censor{some other value}.  These devolved lines tend to appear at poorly immitated broad-and-deep line wings.  One can mitigate these devolved lines by adding more flexibility to the continuum or supporting more advanced line shapes.
 
 
 \begin{outline}
