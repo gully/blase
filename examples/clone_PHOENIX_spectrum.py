@@ -77,7 +77,7 @@ optimizer = optim.Adam(
     filter(lambda p: p.requires_grad, emulator.parameters()), 0.004, amsgrad=True
 )
 n_epochs = 100
-sub_divisions = 30
+sub_divisions = 50
 losses = []
 
 # Experiment: just optimize the line cores:
