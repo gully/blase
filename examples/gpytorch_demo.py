@@ -3,6 +3,7 @@ from torch import nn
 from tqdm import trange
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import torch.profiler
 from torch.utils.tensorboard import SummaryWriter
 import webbrowser
 import numpy as np
@@ -56,8 +57,8 @@ noise_free_signal = gp.sample()
 noise_draw = np.random.normal(scale=yerr)
 y_fake = noise_free_signal + noise_draw
 
-
-writer = SummaryWriter(log_dir="runs/gpytorch1")
+log_dir = "runs/gpytorch1"
+writer = SummaryWriter(log_dir=log_dir)
 webbrowser.open("http://localhost:6006/", new=2)
 
 
@@ -106,9 +107,15 @@ optimizer = torch.optim.Adam(
 # "Loss" for GPs - the marginal log likelihood
 mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
+prof = torch.profiler.profile(
+    schedule=torch.profiler.schedule(wait=1, warmup=3, active=6, repeat=2),
+    on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),
+    record_shapes=True,
+    with_stack=True,
+)
+prof.start()
 t_iter = trange(training_iterations, desc="Training", leave=True)
 for epoch in t_iter:
-    # gpytorch.settings.skip_logdet_forward(state=False) as W:
     optimizer.zero_grad()
     output = model(train_x)
     loss = -mll(output, train_y)
@@ -124,6 +131,7 @@ for epoch in t_iter:
     writer.add_scalar(
         "amplitude", model.covar_module.outputscale.item(), global_step=epoch
     )
+    prof.step()
     # with torch.no_grad():
     #    model.eval()
     #    prediction = likelihood(model(train_x))
@@ -134,7 +142,7 @@ for epoch in t_iter:
     #    writer.add_figure(
     #        "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch
     #    )
-
+prof.stop()
 
 torch.save(model.state_dict(), "gpytorch_demo.pt")
 
