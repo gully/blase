@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from tqdm import trange
 import torch.optim as optim
+import torch.profiler
 from blase.emulator import PhoenixEmulator
 import matplotlib.pyplot as plt
 from gollum.phoenix import PHOENIXSpectrum
@@ -43,7 +44,8 @@ def plot_spectrum(spectra):
     return fig
 
 
-writer = SummaryWriter(log_dir="runs/emulator1")
+log_dir = "runs/gpytorch1"
+writer = SummaryWriter(log_dir=log_dir)
 webbrowser.open("http://localhost:6006/", new=2)
 
 
@@ -86,6 +88,14 @@ indices = np.isin(emulator.wl_native.cpu(), emulator.lam_centers.detach().cpu())
 # dilated_inds = binary_dilation(indices, iterations=2)
 peak_indices = torch.tensor(indices).to(device)
 
+
+prof = torch.profiler.profile(
+    schedule=torch.profiler.schedule(wait=1, warmup=3, active=6, repeat=2),
+    on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),
+    record_shapes=True,
+    with_stack=True,
+)
+prof.start()
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     for i in range(sub_divisions):
@@ -102,6 +112,7 @@ for epoch in t_iter:
         optimizer.zero_grad()
         losses.append(loss.item())
         t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
+    prof.step()
 
     writer.add_scalar("loss", loss.item(), global_step=epoch)
     writer.add_scalar("a", emulator.a_coeff.item(), global_step=epoch)
@@ -121,5 +132,6 @@ for epoch in t_iter:
             "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
 
+prof.stop()
 torch.save(emulator.state_dict(), "native_res_0p1prom.pt")
 
