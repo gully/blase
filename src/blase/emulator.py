@@ -13,6 +13,7 @@ import torch
 from torch import nn
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
+from tqdm import tqdm
 
 
 class PhoenixEmulator(nn.Module):
@@ -32,11 +33,42 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
-            self.wl_native, self.flux_native, prominence=prominence
+        (
+            lam_centers,
+            amplitudes,
+            widths_angstroms,
+        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
+
+        self.n_pix = len(wl_native)
+
+        line_buffer = 30  # Angstroms
+        self.wl_min = wl_native.min()
+        self.wl_max = wl_native.max()
+
+        ## Set up "active area", where the region-of-interest is:
+        # active_buffer = 60  # Angstroms
+        # active_lower, active_upper = (
+        #    self.wl_min + active_buffer,
+        #    self.wl_max - active_buffer,
+        # )
+
+        # Set up line threshold, where lines are computed outside the active area
+        line_threshold_lower, line_threshold_upper = (
+            self.wl_min + line_buffer,
+            self.wl_max - line_buffer,
         )
 
-        # Experimentally determined scale factors tweaks
+        # Restrict the lines to the active region plus 30 A buffer region
+
+        mask = (lam_centers > line_threshold_lower) & (
+            lam_centers < line_threshold_upper
+        )
+        lam_centers = lam_centers[mask]
+        amplitudes = amplitudes[mask]
+        widths_angstroms = widths_angstroms[mask]
+        self.n_lines = len(lam_centers)
+
+        # Experimentally determined scale factor tweaks
         amp_tweak = 0.14
         sigma_width_tweak = 1.28
         gamma_width_tweak = 1.52
@@ -153,7 +185,7 @@ class PhoenixEmulator(nn.Module):
     def _compute_fwhm(self, fwhm_L, fwhm_G):
         """Compute the fwhm for pseudo Voigt using the approximation:
         :math:`f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}`
-        
+
         """
 
         return (
@@ -186,3 +218,56 @@ class PhoenixEmulator(nn.Module):
                 wavelengths.unsqueeze(0),
             )
         )
+
+
+class SparsePhoenixEmulator(PhoenixEmulator):
+    r"""
+    A sparse implementation of the PhoenixEmulator
+
+    wl_native (float vector): The input wavelength
+    flux_native (float vector): The native flux
+    prominence (int scalar): The threshold for detecting lines
+    """
+
+    def __init__(self, wl_native, flux_native, prominence=0.03):
+        super().__init__(wl_native, flux_native, prominence=prominence)
+
+        ## Define the wing cut
+        # Currently defined in *pixels*
+        wing_cut_pixels = 6000
+
+        with torch.no_grad():
+            list_of_nonzero_indices = []
+            for line_center in tqdm(self.lam_centers.detach().numpy()):
+                distance = np.abs(wl_native - line_center)
+                these_pixels = np.argsort(distance)[0:wing_cut_pixels]
+                list_of_nonzero_indices.append(sorted(these_pixels))
+
+            self.indices_2D = torch.tensor(list_of_nonzero_indices)
+            self.indices_1D = self.indices_2D.reshape(-1)
+            self.indices = self.indices_1D.unsqueeze(0)
+            self.wl_2D = self.wl_native[self.indices_2D]
+            self.wl_1D = self.wl_2D.reshape(-1)
+
+    def forward(self):
+        """The forward pass of the sparse implementation--- no wavelengths needed!
+
+        Returns:
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        """
+        flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * self.gaussian_line(
+            self.lam_centers.unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
+            self.wl_2D,
+        )
+
+        flux_1D = flux_2D.reshape(-1)
+        ln_term = torch.log(1 - flux_1D)
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, ln_term, size=(self.n_pix,), requires_grad=False
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return torch.exp(result_1D)
