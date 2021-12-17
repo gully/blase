@@ -265,7 +265,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         ln_term = torch.log(1 - flux_1D)
 
         sparse_matrix = torch.sparse_coo_tensor(
-            self.indices, ln_term, size=(self.n_pix,), requires_grad=False
+            self.indices, ln_term, size=(self.n_pix,), requires_grad=True
         )
 
         result_1D = sparse_matrix.to_dense()
