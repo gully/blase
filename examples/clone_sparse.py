@@ -66,7 +66,8 @@ emulator.to(device)
 
 n_pix = len(emulator.wl_native)
 wl_native = emulator.wl_native.clone().detach().to(device)
-target = emulator.flux_native.clone().detach().to(device)
+wl_active = wl_native[emulator.active_mask.numpy()]
+target = emulator.flux_native.clone().detach().to(device)[emulator.active_mask.numpy()]
 
 # Training Loop
 emulator.lam_centers.requires_grad = False
@@ -99,7 +100,7 @@ for epoch in t_iter:
     # writer.add_scalar("c", emulator.c_coeff.item(), global_step=epoch)
     if (epoch % plot_every_N_steps) == 0:
         # torch.save(model.state_dict(), "model_coeffs.pt")
-        wl_plot = wl_native.cpu()
+        wl_plot = wl_active.cpu()
         flux_clone = yhat.detach().cpu()
         flux_targ = target.cpu()
         to_plot = [
