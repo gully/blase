@@ -46,11 +46,13 @@ class PhoenixEmulator(nn.Module):
         self.wl_max = wl_native.max()
 
         ## Set up "active area", where the region-of-interest is:
-        # active_buffer = 60  # Angstroms
-        # active_lower, active_upper = (
-        #    self.wl_min + active_buffer,
-        #    self.wl_max - active_buffer,
-        # )
+        active_buffer = 60  # Angstroms
+        active_lower, active_upper = (
+            self.wl_min + active_buffer,
+            self.wl_max - active_buffer,
+        )
+        active_mask = (wl_native > active_lower) & (wl_native < active_upper)
+        self.active_mask = torch.tensor(active_mask)
 
         # Set up line threshold, where lines are computed outside the active area
         line_threshold_lower, line_threshold_upper = (
@@ -234,7 +236,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
 
         ## Define the wing cut
         # Currently defined in *pixels*
-        wing_cut_pixels = 6000
+        wing_cut_pixels = 1000
 
         with torch.no_grad():
             list_of_nonzero_indices = []
@@ -256,7 +258,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
         # return self.sparse_gaussian_model()
-        return self.sparse_pseudo_Voigt_model()
+        return self.sparse_pseudo_Voigt_model()[self.active_mask]
 
     def sparse_gaussian_model(self):
         """A sparse Gaussian-only model
