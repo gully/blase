@@ -255,10 +255,59 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
+        # return self.sparse_gaussian_model()
+        return self.sparse_pseudo_Voigt_model()
+
+    def sparse_gaussian_model(self):
+        """A sparse Gaussian-only model
+
+        Returns:
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        """
         flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * self.gaussian_line(
             self.lam_centers.unsqueeze(1),
             torch.exp(self.sigma_widths).unsqueeze(1),
             self.wl_2D,
+        )
+
+        flux_1D = flux_2D.reshape(-1)
+        ln_term = torch.log(1 - flux_1D)
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, ln_term, size=(self.n_pix,), requires_grad=True
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return torch.exp(result_1D)
+
+    def sparse_pseudo_Voigt_model(self):
+        """A sparse pseudo-Voigt model
+
+        Note:
+            Almost the same as the base class implementation, may want to refactor
+
+        Returns:
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        """
+        fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
+        fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
+        fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
+        eta = self._compute_eta(fwhm_L, fwhm)
+
+        flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
+            eta
+            * self.lorentzian_line(
+                self.lam_centers.unsqueeze(1),
+                torch.exp(self.gamma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
+            + (1 - eta)
+            * self.gaussian_line(
+                self.lam_centers.unsqueeze(1),
+                torch.exp(self.sigma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
         )
 
         flux_1D = flux_2D.reshape(-1)
