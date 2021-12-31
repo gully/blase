@@ -33,11 +33,9 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (
-            lam_centers,
-            amplitudes,
-            widths_angstroms,
-        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
+        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            self.wl_native, self.flux_native, prominence=prominence
+        )
 
         self.n_pix = len(wl_native)
 
@@ -229,14 +227,23 @@ class SparsePhoenixEmulator(PhoenixEmulator):
     wl_native (float vector): The input wavelength
     flux_native (float vector): The native flux
     prominence (int scalar): The threshold for detecting lines
+    device (Torch Device or str): GPU or CPU?
     """
 
-    def __init__(self, wl_native, flux_native, prominence=0.03):
+    def __init__(self, wl_native, flux_native, prominence=0.03, device=None):
         super().__init__(wl_native, flux_native, prominence=prominence)
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        device = torch.device(device)
 
         ## Define the wing cut
         # Currently defined in *pixels*
-        wing_cut_pixels = 1000
+        wing_cut_pixels = 6000
 
         with torch.no_grad():
             list_of_nonzero_indices = []
@@ -245,11 +252,12 @@ class SparsePhoenixEmulator(PhoenixEmulator):
                 these_pixels = np.argsort(distance)[0:wing_cut_pixels]
                 list_of_nonzero_indices.append(sorted(these_pixels))
 
-            self.indices_2D = torch.tensor(list_of_nonzero_indices)
-            self.indices_1D = self.indices_2D.reshape(-1)
-            self.indices = self.indices_1D.unsqueeze(0)
-            self.wl_2D = self.wl_native[self.indices_2D]
-            self.wl_1D = self.wl_2D.reshape(-1)
+        self.indices_2D = torch.tensor(list_of_nonzero_indices, device=device)
+        self.indices_1D = self.indices_2D.reshape(-1)
+        self.indices = self.indices_1D.unsqueeze(0)
+        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
+        self.wl_1D = self.wl_2D.reshape(-1)
+        self.active_mask = self.active_mask.to(device)
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
