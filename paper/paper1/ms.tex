@@ -199,7 +199,42 @@ Here we choose to assemble and evaluate only a portion of the matrix at a time, 
 
 \subsection{Sparsity}
 
-Another solution to the computation problem could be to take advantage of the sparsity of the $\bm{\bar{V}}$ matrix: most of the entries are vanishingly close to zero.  Ideally we would only evaluate the model close to the line center position, some number of line cuts $N_{\mathrm{cut}}=\alpha \cdot \mathrm{FWHM}$ away.  These line cuts produce a speedup by a factor of $\frac{N_s}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra. Furthermore, efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}.  A few practical considerations make sparse matrices peskier to work with than their dense counterparts.  First, the $\alpha$ hyperparameter should be set large enough that the truncation effect is not seen for the deepest lines.  The $\alpha$ should be preselected before the training process.  If the FWHM initialization was poor enough, the question may arise how autodiff training will cope with the poor performance of a model, leading to the prospect of strange and difficult to diagnose artifacts near spurious line-cut truncation artifacts.  At the time of writing, we do not implement sparse matrices in \emph{blas\'e}, but we find them the most compelling route for transformative performance improvements.
+Another solution to the computation problem is to take advantage of the sparsity of the $\bm{\bar{V}}$ matrix: most of the Voigt profile's entries far from the line center are vanishingly close to zero.  Ideally we would only evaluate the model close to the line center position, some number of line cuts $N_{\mathrm{cut}}=\alpha \cdot \mathrm{FWHM}$ away.  These line cuts produce a speedup by a factor of $\frac{N_s}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra. Furthermore, efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}.  A few practical considerations make sparse matrices peskier to work with than their dense counterparts.  First, the $\alpha$ hyperparameter should be set large enough that the truncation effect is not seen for the deepest lines, or in post-processing steps such as line broadening.  The $\alpha$ should be preselected before the training process.  If the FWHM initialization was poor enough, the question may arise how autodiff training will cope with the poor performance of a model, leading to the prospect of strange and difficult to diagnose artifacts near spurious line-cut truncation artifacts.
+
+We implemented sparse matrices in \emph{blas\'e} using the \texttt{sparse\_coo\_tensor} function in \emph{PyTorch}.
+
+There are a few standardization strategies for applying the wing cuts.  Here we coerce all wing cuts to be exactly 6000 pixels, with the middle pixel being at the line center position, and 3000 pixels to the red and blue side of the line.  Most spectral lines only appreciably affect the signal in the central $\sim5-50$ pixels, so such a large wing cut may seem over-zealous.  We emphasize that the line cut serves as the fixed pixel locations where the line will be evaluated with post-processing steps such as radial velocity shifts and line broadening.  So these 6000 pixels must be capable of handling the fastest-moving and fast-spinning stars you expect to see in your observed spectra of interest.
+
+The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 Angstroms.  We \emph{could have} demanded that the wingcut be exactly 30 Å, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths.  Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling.  Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time.  Instead, the choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster and handles more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
+
+Locating the indicies of these 6000 ``nearest-neighbor'' pixels involves a sorting algorithm that takes about 0.01 seconds per spectral line, so for 6500 spectral lines the preprocessing step takes about 90 seconds.  This initialization only occurs once and then is fixed, so we should not worry too much that it is slow.  Heuristics for finding these indices faster are also feasible.
+
+We rewrite Equation \ref{equation1} as a sum by taking the log of both sides
+
+\begin{eqnarray}
+  \ln{\mathsf{F}(\bm{\lambda})} = \sum_{i=1}^{N_{lines}} \ln{\left(1-V(\bm{\lambda};A_i, \lambda_{c,i}, \sigma_i) \right)}
+\end{eqnarray}
+
+Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices.    Each pixel gets computed on average about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.
+
+
+\subsection{Broad lines and advanced lineshapes}
+
+Some lines, such as Hydrogen, Sodium, potassium, neutral metal lines, and others have extremely broad line wings, approaching larger than the $\sim6000$ pixels we allocate for the sparse implementation. These special lines need to be handled separately from the weak lines, both from a computational performance perspective and an accuracy perspective.
+
+Extremely broad lines will exhibit truncation effects if the sparse window is small compared to the linewing size. The truncation effects will look like tophat functions severing the asymptotic wings, imbuing artificial step function kinks in the emulated spectrum.  We can afford to increase the sparse window on a few, say $N_{broad}\sim20$ of the broadest spectral lines. We then construct and evaluate the entire dense matrix for those lines: $\sim 330\;000 \times 20$. The number of FLOPS in each category scales as about 6 Million for the 20 broad lines versus about 36 Million for the sea of about 6500 narrow lines, depending on the exact choices for wingcuts and number of lines.
+
+We introduce advanced lineshapes for these $\sim20$ broad lines, perturbing the Voigt line-wings with a smooth wavelength-dependent correction term $\mathsf{G}$:
+
+\begin{eqnarray}
+  \mathsf{\tilde{V}(\bm{\lambda})} &=& \mathsf{V} \odot \mathsf{G}\\
+  \mathsf{G} &=& 1 + (e^{a_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
+\end{eqnarray}
+
+where $\odot$ is the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $a$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
+
+This functional form has a few advantages. It is smooth.  The smoothness of the transition is controlled by a tunable parameter, $b$.  It can handle either sub- or super-Lorentzian shapes.  It is roughly based on the $\chi$-factor\authorcomment1{citation to Hartmann et al. 1989, etc.}.  In the limit $\lim_{a\to0} \mathsf{G}$, the lineshape becomes exactly Lorentzian.  The sigmoid is efficiently implemented in PyTorch.
+It enforces that the perturbation only produces absorption and not emission profiles.
 
 
 \subsection{Optimization and training}
