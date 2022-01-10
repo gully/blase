@@ -230,7 +230,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
     device (Torch Device or str): GPU or CPU?
     """
 
-    def __init__(self, wl_native, flux_native, prominence=0.03, device=None):
+    def __init__(self, wl_native, flux_native, prominence=0.01, device=None):
         super().__init__(wl_native, flux_native, prominence=prominence)
 
         if device is None:
@@ -245,19 +245,26 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         # Currently defined in *pixels*
         wing_cut_pixels = 6000
 
+        print("-------------------------------------------------")
+        print("Initializing a sparse representation of the model")
         with torch.no_grad():
             list_of_nonzero_indices = []
             for line_center in tqdm(self.lam_centers.detach().numpy()):
                 distance = np.abs(wl_native - line_center)
                 these_pixels = np.argsort(distance)[0:wing_cut_pixels]
-                list_of_nonzero_indices.append(sorted(these_pixels))
+                list_of_nonzero_indices.append(np.sort(these_pixels))
 
-        self.indices_2D = torch.tensor(list_of_nonzero_indices, device=device)
-        self.indices_1D = self.indices_2D.reshape(-1)
-        self.indices = self.indices_1D.unsqueeze(0)
-        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
-        self.wl_1D = self.wl_2D.reshape(-1)
-        self.active_mask = self.active_mask.to(device)
+            print("Successfully initialized a sparse representation of the spectrum")
+            self.indices_2D = torch.tensor(
+                list_of_nonzero_indices, dtype=torch.long, device=device
+            )
+            self.indices_1D = self.indices_2D.reshape(-1)
+            self.indices = self.indices_1D.unsqueeze(0)
+            self.wl_2D = self.wl_native.to(device)[self.indices_2D]
+            self.wl_1D = self.wl_2D.reshape(-1)
+            self.active_mask = self.active_mask.to(device)
+            print("Successfully reshaped and stored the sparse representation")
+            print("-------------------------------------------------")
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
