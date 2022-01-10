@@ -243,28 +243,40 @@ class SparsePhoenixEmulator(PhoenixEmulator):
 
         ## Define the wing cut
         # Currently defined in *pixels*
-        wing_cut_pixels = 6000
+        wing_cut_pixels = 1000
 
+        lines = self.lam_centers.detach().cpu().numpy()
+        wl_native = self.wl_native.cpu().numpy()
         print("-------------------------------------------------")
-        print("Initializing a sparse representation of the model")
-        with torch.no_grad():
-            list_of_nonzero_indices = []
-            for line_center in tqdm(self.lam_centers.detach().numpy()):
-                distance = np.abs(wl_native - line_center)
-                these_pixels = np.argsort(distance)[0:wing_cut_pixels]
-                list_of_nonzero_indices.append(np.sort(these_pixels))
-
-            print("Successfully initialized a sparse representation of the spectrum")
-            self.indices_2D = torch.tensor(
-                list_of_nonzero_indices, dtype=torch.long, device=device
+        print(
+            "Initializing a sparse representation of the model with {:} spectral lines".format(
+                len(lines)
             )
-            self.indices_1D = self.indices_2D.reshape(-1)
-            self.indices = self.indices_1D.unsqueeze(0)
-            self.wl_2D = self.wl_native.to(device)[self.indices_2D]
-            self.wl_1D = self.wl_2D.reshape(-1)
-            self.active_mask = self.active_mask.to(device)
-            print("Successfully reshaped and stored the sparse representation")
-            print("-------------------------------------------------")
+        )
+
+        # Find the index position of each spectral line
+        center_indices = np.searchsorted(wl_native, lines)
+
+        # From that, determine the beginning and ending indices
+        zero_indices = center_indices - (wing_cut_pixels // 2)
+        too_low = zero_indices < 0
+        zero_indices[too_low] = 0
+        end_indices = zero_indices + wing_cut_pixels
+        too_high = end_indices > self.n_pix
+        zero_indices[too_high] = len(wl_native) - wing_cut_pixels
+        end_indices[too_high] = len(wl_native)
+
+        # Make a 2D array of the indices
+        indices_2D = np.linspace(
+            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
+        )
+
+        self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
+        self.indices_1D = self.indices_2D.reshape(-1)
+        self.indices = self.indices_1D.unsqueeze(0)
+        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
+        self.wl_1D = self.wl_2D.reshape(-1)
+        self.active_mask = self.active_mask.to(device)
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
