@@ -33,9 +33,11 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
-            self.wl_native, self.flux_native, prominence=prominence
-        )
+        (
+            lam_centers,
+            amplitudes,
+            widths_angstroms,
+        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
 
         self.n_pix = len(wl_native)
 
@@ -92,7 +94,7 @@ class PhoenixEmulator(nn.Module):
 
         # Fix the wavelength centers as gospel for now.
         self.lam_centers = nn.Parameter(
-            lam_centers.clone().detach().requires_grad_(False)
+            lam_centers.clone().detach().requires_grad_(True)
         )
 
         self.a_coeff = nn.Parameter(
@@ -228,9 +230,13 @@ class SparsePhoenixEmulator(PhoenixEmulator):
     flux_native (float vector): The native flux
     prominence (int scalar): The threshold for detecting lines
     device (Torch Device or str): GPU or CPU?
+    wing_cut_pixels (int scalar): the number of pixels centered on the line center
+        to evaluate in the sparse implementation, default: 1000 pixels
     """
 
-    def __init__(self, wl_native, flux_native, prominence=0.01, device=None):
+    def __init__(
+        self, wl_native, flux_native, prominence=0.01, device=None, wing_cut_pixels=None
+    ):
         super().__init__(wl_native, flux_native, prominence=prominence)
 
         if device is None:
@@ -243,16 +249,14 @@ class SparsePhoenixEmulator(PhoenixEmulator):
 
         ## Define the wing cut
         # Currently defined in *pixels*
-        wing_cut_pixels = 1000
+        if wing_cut_pixels is None:
+            wing_cut_pixels = 1000
+        else:
+            wing_cut_pixels = int(wing_cut_pixels)
 
         lines = self.lam_centers.detach().cpu().numpy()
         wl_native = self.wl_native.cpu().numpy()
-        print("-------------------------------------------------")
-        print(
-            "Initializing a sparse representation of the model with {:} spectral lines".format(
-                len(lines)
-            )
-        )
+        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
 
         # Find the index position of each spectral line
         center_indices = np.searchsorted(wl_native, lines)
