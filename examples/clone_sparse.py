@@ -61,8 +61,10 @@ wl_native = spectrum.wavelength.value
 flux_native = spectrum.flux.value
 
 # Create the emulator
-prominence = 0.01
-emulator = SparsePhoenixEmulator(wl_native, flux_native, prominence=prominence)
+prominence = 0.03
+emulator = SparsePhoenixEmulator(
+    wl_native, flux_native, prominence=prominence, device=None, wing_cut_pixels=100
+)
 emulator.to(device)
 
 n_pix = len(emulator.wl_native)
@@ -73,7 +75,7 @@ target = (
 )
 
 # Training Loop
-emulator.lam_centers.requires_grad = False
+emulator.lam_centers.requires_grad = True
 emulator.a_coeff.requires_grad = False
 emulator.b_coeff.requires_grad = False
 emulator.c_coeff.requires_grad = False
@@ -82,10 +84,10 @@ loss_fn = nn.MSELoss(reduction="mean")
 optimizer = optim.Adam(
     filter(lambda p: p.requires_grad, emulator.parameters()), 0.03, amsgrad=True
 )
-n_epochs = 1000
+n_epochs = 200
 losses = []
 
-plot_every_N_steps = 45
+plot_every_N_steps = 25
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     emulator.train()
@@ -107,11 +109,16 @@ for epoch in t_iter:
         flux_clone = yhat.detach().cpu()
         flux_targ = target.cpu()
         to_plot = [
-            {"wl": wl_plot, "flux": flux_clone,},
+            {
+                "wl": wl_plot,
+                "flux": flux_clone,
+            },
             {"wl": wl_plot, "flux": flux_targ},
         ]
         writer.add_figure(
-            "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
+            "predictions vs. actuals",
+            plot_spectrum(to_plot),
+            global_step=epoch,
         )
 
 torch.save(emulator.state_dict(), "sparse_T4700g4p5_prom0p02_HPF.pt")
