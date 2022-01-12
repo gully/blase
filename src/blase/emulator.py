@@ -154,7 +154,7 @@ class PhoenixEmulator(nn.Module):
             (tuple of tensors): The wavelength centers, prominences, and widths for all ID'ed spectral lines
         -----
         """
-        peaks, _ = find_peaks(-flux_native, distance=10, prominence=prominence)
+        peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
         prominence_data = peak_prominences(-flux_native, peaks)
         width_data = peak_widths(-flux_native, peaks, prominence_data=prominence_data)
         lam_centers = wl_native[peaks]
