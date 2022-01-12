@@ -9,6 +9,7 @@ from gollum.phoenix import PHOENIXSpectrum
 from torch.utils.tensorboard import SummaryWriter
 import webbrowser
 import numpy as np
+import pandas as pd
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -34,6 +35,8 @@ flux_native = spectrum.flux.value
 
 # Vary the prominence parameter
 prominences = [0.2, 0.1, 0.06, 0.03, 0.01, 0.006, 0.003, 0.001]
+final_stddev = [0.0] * len(prominences)
+total_nlines = [0.0] * len(prominences)
 for i, prominence in enumerate(prominences):
     emulator = SparsePhoenixEmulator(
         wl_native, flux_native, prominence=prominence, device=None, wing_cut_pixels=100
@@ -51,7 +54,7 @@ for i, prominence in enumerate(prominences):
     optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, emulator.parameters()), 0.03, amsgrad=True
     )
-    n_epochs = 100
+    n_epochs = 200
     losses = []
     std_devs = []
 
@@ -74,5 +77,11 @@ for i, prominence in enumerate(prominences):
         writer.add_scalar("prom", prominence, global_step=epoch + i * n_epochs)
         writer.add_scalar("n_lines", n_lines, global_step=epoch + i * n_epochs)
 
+    final_stddev[i] = std_dev.item()
+    total_nlines[i] = n_lines
     filename_out = "sparse_T4700g4p5_prom0p{:03d}_HPF.pt".format(int(prominence * 1000))
     torch.save(emulator.state_dict(), filename_out)
+    df = pd.DataFrame(
+        {"prominences": prominences, "n_lines": total_nlines, "std_dev": final_stddev}
+    )
+    df.to_csv("accuracy_vs_Prom.csv", index=False)
