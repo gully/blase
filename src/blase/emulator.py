@@ -384,6 +384,10 @@ class EchelleModel(nn.Module):
             torch.tensor(-2.3, requires_grad=True, dtype=torch.float64)
         )
 
+        self.ln_vsini = nn.Parameter(
+            torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
+        )
+
         self.vsini = nn.Parameter(
             torch.tensor(18.0, requires_grad=True, dtype=torch.float64)
         )
@@ -403,8 +407,12 @@ class EchelleModel(nn.Module):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
         high_res_model = self.emulator.sparse_pseudo_Voigt_model()
-        sigma_angs = torch.exp(self.ln_sigma_angs)
-        return self.instrumental_broaden(high_res_model, sigma_angs)
+        sigma_angs = 0.01 + torch.exp(
+            self.ln_sigma_angs
+        )  # It has a floor of 0.01 Angstroms
+        vsini = 0.2 + torch.exp(self.ln_vsini)  # It has a floor of 0.2 km/s
+        rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
+        return self.instrumental_broaden(rotationally_broadened, sigma_angs)
 
     def resample_to_data(self):
         """Resample the high resolution model to the data wavelength sampling"""
@@ -428,32 +436,27 @@ class EchelleModel(nn.Module):
         )
         return output.squeeze()
 
-    def rotational_broaden(self, input_wavelength, input_flux, vsini):
+    def rotational_broaden(self, input_flux, vsini):
         """Rotationally broaden the spectrum"""
         u1 = 0.0
         u2 = 0.0
-        velocity_grid = (
-            299792.458 * (input_wavelength - self.median_wl) / self.median_wl
-        )
+        velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
         x = velocity_grid / vsini
         x2 = x * x
         kernel = torch.where(
             x2 < 1.0,
-            np.pi / 2.0 * u1 * (1.0 - x2)
-            - 2.0 / 3.0 * np.sqrt(1.0 - x2) * (-3.0 + 3.0 * u1 + u2 * 2.0 * u2 * x2),
+            3.141592654 / 2.0 * u1 * (1.0 - x2)
+            - 2.0 / 3.0 * torch.sqrt(1.0 - x2) * (-3.0 + 3.0 * u1 + u2 * 2.0 * u2 * x2),
             0.0,
         )
-        kernel = kernel / np.sum(kernel, axis=0)
-        positive_elements = kernel > 0
-        if positive_elements.any():
-            kernel = kernel[positive_elements]
-            convolved_flux = (
-                np.convolve(input_flux, kernel, mode="same") * self.flux.unit
-            )
-            return self._copy(flux=convolved_flux)
-        else:
-            return self
-        raise NotImplementedError
+        weights = kernel / torch.sum(kernel, axis=0)
+
+        output = torch.nn.functional.conv1d(
+            input_flux.unsqueeze(0).unsqueeze(1),
+            weights.unsqueeze(0).unsqueeze(1),
+            padding="same",
+        )
+        return output.squeeze()
 
     def doppler_shift(self, RV):
         """Doppler shift the spectrum"""
