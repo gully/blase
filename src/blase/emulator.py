@@ -33,11 +33,9 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (
-            lam_centers,
-            amplitudes,
-            widths_angstroms,
-        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
+        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            self.wl_native, self.flux_native, prominence=prominence
+        )
 
         self.n_pix = len(wl_native)
 
@@ -353,3 +351,63 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         result_1D = sparse_matrix.to_dense()
 
         return torch.exp(result_1D)
+
+
+class EchelleModel(nn.Module):
+    r"""
+    A Model for Echelle Spectra based on the SparseEmulator
+
+    wl_data (float vector): The input wavelength
+    device (Torch Device or str): GPU or CPU?
+    pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
+    """
+
+    def __init__(self, wl_data, device=None, pretrained_emulator=None):
+        super().__init__()
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        device = torch.device(device)
+
+        self.emulator = pretrained_emulator.to(device)
+        self.wl_data = wl_data
+
+        self.resolving_power = nn.Parameter(
+            torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
+        )
+        self.vsini = nn.Parameter(
+            torch.tensor(18.0, requires_grad=True, dtype=torch.float64)
+        )
+        self.radial_velocity = nn.Parameter(
+            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+        )
+
+    def forward(self):
+        """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
+
+        Returns:
+            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        """
+        high_res_model = self.emulator.sparse_pseudo_Voigt_model()
+        return high_res_model
+
+    def resample_to_data(self):
+        """Resample the high resolution model to the data wavelength sampling"""
+        raise NotImplementedError
+
+    def instrumental_broaden(self, resolving_power):
+        """Instrumental broaden the spectrum"""
+        raise NotImplementedError
+
+    def rotational_broaden(self, vsini):
+        """Rotationally broaden the spectrum"""
+        raise NotImplementedError
+
+    def doppler_shift(self, RV):
+        """Doppler shift the spectrum"""
+        raise NotImplementedError
+
