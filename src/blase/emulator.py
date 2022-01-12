@@ -375,15 +375,25 @@ class EchelleModel(nn.Module):
 
         self.emulator = pretrained_emulator.to(device)
         self.wl_data = wl_data
+        self.median_wl = np.median(wl_data)
 
-        self.resolving_power = nn.Parameter(
-            torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
+        # self.resolving_power = nn.Parameter(
+        #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
+        # )
+        self.ln_sigma_angs = nn.Parameter(
+            torch.tensor(-2.3, requires_grad=True, dtype=torch.float64)
         )
+
         self.vsini = nn.Parameter(
             torch.tensor(18.0, requires_grad=True, dtype=torch.float64)
         )
         self.radial_velocity = nn.Parameter(
             torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+        )
+
+        # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
+        self.kernel_grid = torch.arange(
+            -4.5, 4.51, 0.01, dtype=torch.float64, device=device
         )
 
     def forward(self):
@@ -393,18 +403,56 @@ class EchelleModel(nn.Module):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
         high_res_model = self.emulator.sparse_pseudo_Voigt_model()
-        return high_res_model
+        sigma_angs = torch.exp(self.ln_sigma_angs)
+        return self.instrumental_broaden(high_res_model, sigma_angs)
 
     def resample_to_data(self):
         """Resample the high resolution model to the data wavelength sampling"""
         raise NotImplementedError
 
-    def instrumental_broaden(self, resolving_power):
-        """Instrumental broaden the spectrum"""
-        raise NotImplementedError
+    def instrumental_broaden(self, input_flux, sigma_angs):
+        """Instrumental broaden the spectrum
+        
+        sigma_angs (float scalar) The spectral resolution sigma in Angstroms
+        """
+        weights = (
+            1
+            / (sigma_angs * torch.sqrt(torch.tensor(2 * 3.1415926654)))
+            * torch.exp(-1.0 / 2.0 * self.kernel_grid ** 2 / sigma_angs ** 2)
+        )
 
-    def rotational_broaden(self, vsini):
+        output = torch.nn.functional.conv1d(
+            input_flux.unsqueeze(0).unsqueeze(1),
+            weights.unsqueeze(0).unsqueeze(1),
+            padding="same",
+        )
+        return output.squeeze()
+
+    def rotational_broaden(self, input_wavelength, input_flux, vsini):
         """Rotationally broaden the spectrum"""
+        u1 = 0.0
+        u2 = 0.0
+        velocity_grid = (
+            299792.458 * (input_wavelength - self.median_wl) / self.median_wl
+        )
+        x = velocity_grid / vsini
+        x2 = x * x
+        kernel = torch.where(
+            x2 < 1.0,
+            np.pi / 2.0 * u1 * (1.0 - x2)
+            - 2.0 / 3.0 * np.sqrt(1.0 - x2) * (-3.0 + 3.0 * u1 + u2 * 2.0 * u2 * x2),
+            0.0,
+        )
+        kernel = kernel / np.sum(kernel, axis=0)
+        positive_elements = kernel > 0
+        if positive_elements.any():
+            kernel = kernel[positive_elements]
+            convolved_flux = (
+                np.convolve(input_flux, kernel, mode="same") * self.flux.unit
+            )
+            return self._copy(flux=convolved_flux)
+        else:
+            return self
         raise NotImplementedError
 
     def doppler_shift(self, RV):
