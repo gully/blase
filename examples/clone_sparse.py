@@ -61,7 +61,7 @@ wl_native = spectrum.wavelength.value
 flux_native = spectrum.flux.value
 
 # Create the emulator
-prominence = 0.03
+prominence = 0.01
 emulator = SparsePhoenixEmulator(
     wl_native, flux_native, prominence=prominence, device=None, wing_cut_pixels=100
 )
@@ -121,4 +121,4 @@ for epoch in t_iter:
             global_step=epoch,
         )
 
-torch.save(emulator.state_dict(), "sparse_T4700g4p5_prom0p02_HPF.pt")
+torch.save(emulator.state_dict(), "sparse_T4700g4p5_prom0p01_HPF.pt")
