@@ -66,7 +66,7 @@ def train_emulator(emulator, target):
     t_iter = trange(n_epochs, desc="Training", leave=True)
     for epoch in t_iter:
         emulator.train()
-        yhat = emulator.forward()
+        yhat = emulator.forward()[emulator.active_mask]
         loss = loss_fn(yhat, target)
         loss.backward()
         optimizer.step()
@@ -148,45 +148,56 @@ else:
 # ---------------------------------------------------------
 from blase.emulator import EchelleModel
 
-model = EchelleModel(data.spectral_axis.bin_edges.value, pretrained_emulator=emulator)
+model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native)
 data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
-data_wavelength = data.wavelength.value
-
-# Turn off the line-center fine adjustments, turn on polynomials
-emulator.lam_centers.requires_grad = False
-emulator.a_coeff.requires_grad = False
-emulator.b_coeff.requires_grad = False
-emulator.c_coeff.requires_grad = False
-
-# Turn on Doppler shifting
-model.radial_velocity.requires_grad = True
+data_wavelength = torch.tensor(
+    data.wavelength.value, device=device, dtype=torch.float64
+)
 
 loss_fn = nn.MSELoss(reduction="mean")
+
 optimizer = optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()), 0.01, amsgrad=True
+    filter(lambda p: p.requires_grad, model.parameters()),
+    0.01,
+    amsgrad=True,
 )
 n_epochs = 200
 losses = []
 
-plot_every_N_steps = 15
+fake_sigma_angs = torch.tensor(0.18)
+fake_vsini = torch.tensor(9.1)
+
+with torch.no_grad():
+    fake_signal = model.rotational_broaden(emulator.flux_native, fake_sigma_angs)
+    fake_signal = model.rotational_broaden(fake_signal, fake_vsini)
+
+high_res_model = emulator.flux_native.clone().detach().to(device)
+
+plot_every_N_steps = 99999
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     model.train()
-    yhat = model.forward()
-    loss = loss_fn(yhat, data_target)
+    # high_res_model = emulator.forward()
+    yhat = model.forward(high_res_model)
+    # loss = loss_fn(yhat, data_target)
+    loss = loss_fn(yhat, fake_signal)
     loss.backward()
     optimizer.step()
+    for name, param in model.named_parameters():
+        print(name, param.grad)
     optimizer.zero_grad()
     losses.append(loss.item())
     t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
 
     writer.add_scalar("loss", loss.item(), global_step=epoch)
-    # writer.add_scalar("a", emulator.a_coeff.item(), global_step=epoch)
-    # writer.add_scalar("b", emulator.b_coeff.item(), global_step=epoch)
+    writer.add_scalar(
+        "sigma_angs", 0.01 + np.exp(model.ln_sigma_angs.item()), global_step=epoch
+    )
+    writer.add_scalar("vsini", 0.9 + np.exp(model.ln_vsini.item()), global_step=epoch)
     # writer.add_scalar("c", emulator.c_coeff.item(), global_step=epoch)
-    if (epoch % plot_every_N_steps) == 0:
+    if (epoch % plot_every_N_steps) == -90:
         # torch.save(model.state_dict(), "model_coeffs.pt")
-        wl_plot = data_wavelength
+        wl_plot = data_wavelength.cpu()
         flux_clone = yhat.detach().cpu()
         flux_targ = data_target.cpu()
         to_plot = [

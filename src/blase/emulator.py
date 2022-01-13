@@ -283,6 +283,10 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         self.wl_1D = self.wl_2D.reshape(-1)
         self.active_mask = self.active_mask.to(device)
 
+        self.radial_velocity = nn.Parameter(
+            torch.tensor(10.0, requires_grad=True, dtype=torch.float64)
+        )
+
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
 
@@ -290,7 +294,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
         # return self.sparse_gaussian_model()
-        return self.sparse_pseudo_Voigt_model()[self.active_mask]
+        return self.sparse_pseudo_Voigt_model()
 
     def sparse_gaussian_model(self):
         """A sparse Gaussian-only model
@@ -315,7 +319,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
 
         return torch.exp(result_1D)
 
-    def sparse_pseudo_Voigt_model(self, RV=0.0):
+    def sparse_pseudo_Voigt_model(self):
         """A sparse pseudo-Voigt model
 
         Note:
@@ -329,7 +333,9 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
 
-        rv_shifted_centers = self.lam_centers * (1 + RV / 299_792.458)
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
 
         flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
@@ -367,7 +373,7 @@ class EchelleModel(nn.Module):
     pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
     """
 
-    def __init__(self, wl_bin_edges, device=None, pretrained_emulator=None):
+    def __init__(self, wl_bin_edges, wl_native, device=None):
         super().__init__()
 
         if device is None:
@@ -378,7 +384,6 @@ class EchelleModel(nn.Module):
 
         device = torch.device(device)
 
-        self.emulator = pretrained_emulator.to(device)
         self.wl_bin_edges = wl_bin_edges
         self.median_wl = np.median(wl_bin_edges)
 
@@ -393,42 +398,37 @@ class EchelleModel(nn.Module):
             torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
         )
 
-        self.vsini = nn.Parameter(
-            torch.tensor(18.0, requires_grad=True, dtype=torch.float64)
-        )
-        self.radial_velocity = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
-        )
+        # self.radial_velocity = nn.Parameter(
+        #    torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+        # )
 
         # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
         self.kernel_grid = torch.arange(
             -4.5, 4.51, 0.01, dtype=torch.float64, device=device
         )
 
-        labels = np.searchsorted(wl_bin_edges, self.emulator.wl_native)
+        labels = np.searchsorted(wl_bin_edges, wl_native)
         indices = torch.tensor(labels)
         _idx, vals = torch.unique(indices, return_counts=True)
         self.label_spacings = tuple(vals)
 
-    def forward(self):
+    def forward(self, high_res_model):
         """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
 
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        high_res_model = self.emulator.sparse_pseudo_Voigt_model(
-            RV=self.radial_velocity
-        )
-        sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms
-        vsini = 0.2 + torch.exp(self.ln_vsini)  # Floor of 0.2 km/s
+        sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms...
+        vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
         convolved_flux = self.instrumental_broaden(rotationally_broadened, sigma_angs)
-        return self.resample_to_data(convolved_flux)
+        # return self.resample_to_data(convolved_flux)
+        return convolved_flux
 
     def resample_to_data(self, convolved_flux):
         """Resample the high resolution model to the data wavelength sampling"""
         vs = torch.split_with_sizes(convolved_flux, self.label_spacings)
-        resampled_model_flux = torch.tensor([v.mean() for v in vs], requires_grad=True)
+        resampled_model_flux = torch.stack([torch.mean(v) for v in vs])
 
         # Discard the first and last bins outside the spectrum extents
         return resampled_model_flux[1:-1]
@@ -453,22 +453,16 @@ class EchelleModel(nn.Module):
 
     def rotational_broaden(self, input_flux, vsini):
         """Rotationally broaden the spectrum"""
-        u1 = 0.0
-        u2 = 0.0
         velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
         x = velocity_grid / vsini
         x2 = x * x
-        kernel = torch.where(
-            x2 < 1.0,
-            3.141592654 / 2.0 * u1 * (1.0 - x2)
-            - 2.0 / 3.0 * torch.sqrt(1.0 - x2) * (-3.0 + 3.0 * u1 + u2 * 2.0 * u2 * x2),
-            0.0,
-        )
-        weights = kernel / torch.sum(kernel, axis=0)
+        x2 = torch.clamp(x2, max=1)
+        kernel = torch.where(x2 < 0.9999, 2.0 * torch.sqrt(1.0 - x2), 0.0)
+        kernel = kernel / torch.sum(kernel)
 
         output = torch.nn.functional.conv1d(
             input_flux.unsqueeze(0).unsqueeze(1),
-            weights.unsqueeze(0).unsqueeze(1),
+            kernel.unsqueeze(0).unsqueeze(1),
             padding="same",
         )
         return output.squeeze()
