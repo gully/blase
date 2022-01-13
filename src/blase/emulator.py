@@ -8,6 +8,7 @@ Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here
 PhoenixEmulator
 ###############
 """
+from importlib.util import resolve_name
 import math
 import torch
 from torch import nn
@@ -421,12 +422,13 @@ class EchelleModel(nn.Module):
         sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms
         vsini = 0.2 + torch.exp(self.ln_vsini)  # Floor of 0.2 km/s
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
-        return self.instrumental_broaden(rotationally_broadened, sigma_angs)
+        convolved_flux = self.instrumental_broaden(rotationally_broadened, sigma_angs)
+        return self.resample_to_data(convolved_flux)
 
     def resample_to_data(self, convolved_flux):
         """Resample the high resolution model to the data wavelength sampling"""
         vs = torch.split_with_sizes(convolved_flux, self.label_spacings)
-        resampled_model_flux = torch.tensor([v.mean() for v in vs])
+        resampled_model_flux = torch.tensor([v.mean() for v in vs], requires_grad=True)
 
         # Discard the first and last bins outside the spectrum extents
         return resampled_model_flux[1:-1]
@@ -440,7 +442,7 @@ class EchelleModel(nn.Module):
             1
             / (sigma_angs * torch.sqrt(torch.tensor(2 * 3.1415926654)))
             * torch.exp(-1.0 / 2.0 * self.kernel_grid ** 2 / sigma_angs ** 2)
-        )
+        ) * 0.01  # kernel step size!
 
         output = torch.nn.functional.conv1d(
             input_flux.unsqueeze(0).unsqueeze(1),
