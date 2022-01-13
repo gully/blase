@@ -33,9 +33,11 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
-            self.wl_native, self.flux_native, prominence=prominence
-        )
+        (
+            lam_centers,
+            amplitudes,
+            widths_angstroms,
+        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
 
         self.n_pix = len(wl_native)
 
@@ -92,7 +94,7 @@ class PhoenixEmulator(nn.Module):
 
         # Fix the wavelength centers as gospel for now.
         self.lam_centers = nn.Parameter(
-            lam_centers.clone().detach().requires_grad_(True)
+            lam_centers.clone().detach().requires_grad_(False)
         )
 
         self.a_coeff = nn.Parameter(
@@ -312,7 +314,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
 
         return torch.exp(result_1D)
 
-    def sparse_pseudo_Voigt_model(self):
+    def sparse_pseudo_Voigt_model(self, RV=0.0):
         """A sparse pseudo-Voigt model
 
         Note:
@@ -326,16 +328,18 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
 
+        rv_shifted_centers = self.lam_centers * (1 + RV / 299_792.458)
+
         flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
             * self.lorentzian_line(
-                self.lam_centers.unsqueeze(1),
+                rv_shifted_centers.unsqueeze(1),
                 torch.exp(self.gamma_widths).unsqueeze(1),
                 self.wl_2D,
             )
             + (1 - eta)
             * self.gaussian_line(
-                self.lam_centers.unsqueeze(1),
+                rv_shifted_centers.unsqueeze(1),
                 torch.exp(self.sigma_widths).unsqueeze(1),
                 self.wl_2D,
             )
@@ -406,11 +410,11 @@ class EchelleModel(nn.Module):
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        high_res_model = self.emulator.sparse_pseudo_Voigt_model()
-        sigma_angs = 0.01 + torch.exp(
-            self.ln_sigma_angs
-        )  # It has a floor of 0.01 Angstroms
-        vsini = 0.2 + torch.exp(self.ln_vsini)  # It has a floor of 0.2 km/s
+        high_res_model = self.emulator.sparse_pseudo_Voigt_model(
+            RV=self.radial_velocity
+        )
+        sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms
+        vsini = 0.2 + torch.exp(self.ln_vsini)  # Floor of 0.2 km/s
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
         return self.instrumental_broaden(rotationally_broadened, sigma_angs)
 
@@ -420,7 +424,7 @@ class EchelleModel(nn.Module):
 
     def instrumental_broaden(self, input_flux, sigma_angs):
         """Instrumental broaden the spectrum
-        
+
         sigma_angs (float scalar) The spectral resolution sigma in Angstroms
         """
         weights = (
@@ -457,8 +461,3 @@ class EchelleModel(nn.Module):
             padding="same",
         )
         return output.squeeze()
-
-    def doppler_shift(self, RV):
-        """Doppler shift the spectrum"""
-        raise NotImplementedError
-
