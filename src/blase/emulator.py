@@ -361,12 +361,12 @@ class EchelleModel(nn.Module):
     r"""
     A Model for Echelle Spectra based on the SparseEmulator
 
-    wl_data (float vector): The input wavelength
+    wl_bin_edges (float vector): The input wavelength
     device (Torch Device or str): GPU or CPU?
     pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
     """
 
-    def __init__(self, wl_data, device=None, pretrained_emulator=None):
+    def __init__(self, wl_bin_edges, device=None, pretrained_emulator=None):
         super().__init__()
 
         if device is None:
@@ -378,8 +378,8 @@ class EchelleModel(nn.Module):
         device = torch.device(device)
 
         self.emulator = pretrained_emulator.to(device)
-        self.wl_data = wl_data
-        self.median_wl = np.median(wl_data)
+        self.wl_bin_edges = wl_bin_edges
+        self.median_wl = np.median(wl_bin_edges)
 
         # self.resolving_power = nn.Parameter(
         #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
@@ -404,6 +404,11 @@ class EchelleModel(nn.Module):
             -4.5, 4.51, 0.01, dtype=torch.float64, device=device
         )
 
+        labels = np.searchsorted(wl_bin_edges, self.emulator.wl_native)
+        indices = torch.tensor(labels)
+        _idx, vals = torch.unique(indices, return_counts=True)
+        self.label_spacings = tuple(vals)
+
     def forward(self):
         """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
 
@@ -418,9 +423,13 @@ class EchelleModel(nn.Module):
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
         return self.instrumental_broaden(rotationally_broadened, sigma_angs)
 
-    def resample_to_data(self):
+    def resample_to_data(self, convolved_flux):
         """Resample the high resolution model to the data wavelength sampling"""
-        raise NotImplementedError
+        vs = torch.split_with_sizes(convolved_flux, self.label_spacings)
+        resampled_model_flux = torch.tensor([v.mean() for v in vs])
+
+        # Discard the first and last bins outside the spectrum extents
+        return resampled_model_flux[1:-1]
 
     def instrumental_broaden(self, input_flux, sigma_angs):
         """Instrumental broaden the spectrum
