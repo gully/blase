@@ -143,6 +143,11 @@ else:
     state_dict_post = torch.load("sparse_T4100g3p5_prom0p01_HPF.pt")
     emulator.load_state_dict(state_dict_post)
 
+emulator.lam_centers.requires_grad = False
+emulator.amplitudes.requires_grad = False
+emulator.sigma_widths.requires_grad = False
+emulator.gamma_widths.requires_grad = False
+
 # ---------------------------------------------------------
 # Data training
 # ---------------------------------------------------------
@@ -157,33 +162,28 @@ data_wavelength = torch.tensor(
 loss_fn = nn.MSELoss(reduction="mean")
 
 optimizer = optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()),
+    list(filter(lambda p: p.requires_grad, model.parameters()))
+    + list(filter(lambda p: p.requires_grad, emulator.parameters())),
     0.01,
     amsgrad=True,
 )
 n_epochs = 200
 losses = []
 
-fake_sigma_angs = torch.tensor(0.18)
-fake_vsini = torch.tensor(9.1)
+# high_res_model = emulator.flux_native.clone().detach().to(device)
 
-with torch.no_grad():
-    fake_signal = model.rotational_broaden(emulator.flux_native, fake_sigma_angs)
-    fake_signal = model.rotational_broaden(fake_signal, fake_vsini)
-
-high_res_model = emulator.flux_native.clone().detach().to(device)
-
-plot_every_N_steps = 99999
+plot_every_N_steps = 15
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     model.train()
-    # high_res_model = emulator.forward()
+    high_res_model = emulator.forward()
     yhat = model.forward(high_res_model)
-    # loss = loss_fn(yhat, data_target)
-    loss = loss_fn(yhat, fake_signal)
+    loss = loss_fn(yhat, data_target)
     loss.backward()
     optimizer.step()
     for name, param in model.named_parameters():
+        print(name, param.grad)
+    for name, param in emulator.named_parameters():
         print(name, param.grad)
     optimizer.zero_grad()
     losses.append(loss.item())
@@ -194,8 +194,8 @@ for epoch in t_iter:
         "sigma_angs", 0.01 + np.exp(model.ln_sigma_angs.item()), global_step=epoch
     )
     writer.add_scalar("vsini", 0.9 + np.exp(model.ln_vsini.item()), global_step=epoch)
-    # writer.add_scalar("c", emulator.c_coeff.item(), global_step=epoch)
-    if (epoch % plot_every_N_steps) == -90:
+    writer.add_scalar("RV", emulator.radial_velocity.item(), global_step=epoch)
+    if (epoch % plot_every_N_steps) == 0:
         # torch.save(model.state_dict(), "model_coeffs.pt")
         wl_plot = data_wavelength.cpu()
         flux_clone = yhat.detach().cpu()

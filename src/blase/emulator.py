@@ -422,8 +422,7 @@ class EchelleModel(nn.Module):
         vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
         convolved_flux = self.instrumental_broaden(rotationally_broadened, sigma_angs)
-        # return self.resample_to_data(convolved_flux)
-        return convolved_flux
+        return self.resample_to_data(convolved_flux)
 
     def resample_to_data(self, convolved_flux):
         """Resample the high resolution model to the data wavelength sampling"""
