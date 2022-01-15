@@ -99,7 +99,7 @@ def train_emulator(emulator, target):
     torch.save(emulator.state_dict(), "sparse_T4100g3p5_prom0p01_HPF.pt")
 
 
-retrain = False
+retrain = True
 log_dir = "runs/data1"
 writer = SummaryWriter(log_dir=log_dir)
 webbrowser.open("http://localhost:6006/", new=2)
@@ -133,11 +133,13 @@ emulator.to(device)
 
 wl_native = emulator.wl_native.clone().detach().to(device)
 wl_active = wl_native.to("cpu")[emulator.active_mask.to("cpu").numpy()]
-target = (
-    emulator.flux_native.clone().detach().to(device)[emulator.active_mask.cpu().numpy()]
-)
 
 if retrain:
+    target = (
+        emulator.flux_native.clone()
+        .detach()
+        .to(device)[emulator.active_mask.cpu().numpy()]
+    )
     train_emulator(emulator, target)
 else:
     state_dict_post = torch.load("sparse_T4100g3p5_prom0p01_HPF.pt")
