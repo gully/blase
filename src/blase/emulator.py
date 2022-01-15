@@ -352,6 +352,9 @@ class SparsePhoenixEmulator(PhoenixEmulator):
             )
         )
 
+        # Enforce that you cannot have negative flux or emission lines
+        flux_2D = torch.clamp(flux_2D, min=0.0, max=0.999999999)
+
         flux_1D = flux_2D.reshape(-1)
         ln_term = torch.log(1 - flux_1D)
 
@@ -428,6 +431,7 @@ class EchelleModel(nn.Module):
         """Resample the high resolution model to the data wavelength sampling"""
         vs = torch.split_with_sizes(convolved_flux, self.label_spacings)
         resampled_model_flux = torch.stack([torch.mean(v) for v in vs])
+        resampled_model_flux = torch.clamp(resampled_model_flux, min=0.0, max=1.0)
 
         # Discard the first and last bins outside the spectrum extents
         return resampled_model_flux[1:-1]
@@ -456,7 +460,7 @@ class EchelleModel(nn.Module):
         x = velocity_grid / vsini
         x2 = x * x
         x2 = torch.clamp(x2, max=1)
-        kernel = torch.where(x2 < 0.9999, 2.0 * torch.sqrt(1.0 - x2), 0.0)
+        kernel = torch.where(x2 < 0.99999999, 2.0 * torch.sqrt(1.0 - x2), 0.0)
         kernel = kernel / torch.sum(kernel)
 
         output = torch.nn.functional.conv1d(
