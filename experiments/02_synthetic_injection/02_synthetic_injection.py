@@ -73,7 +73,7 @@ flux_native = spectrum.flux.value
 # Create the emulator and load a pretrained model
 prominence = 0.01
 emulator = SparsePhoenixEmulator(
-    wl_native, flux_native, prominence=prominence, wing_cut_pixels=100
+    wl_native, flux_native, prominence=prominence, wing_cut_pixels=1000
 )
 emulator.to(device)
 
@@ -115,7 +115,7 @@ loss_fn = nn.MSELoss(reduction="mean")
 optimizer = optim.Adam(
     list(filter(lambda p: p.requires_grad, model.parameters()))
     + list(filter(lambda p: p.requires_grad, emulator.parameters())),
-    0.01,
+    0.05,
     amsgrad=True,
 )
 n_epochs = 5000
@@ -147,6 +147,9 @@ for epoch in t_iter:
     )
     writer.add_scalar("vsini", 0.9 + np.exp(model.ln_vsini.item()), global_step=epoch)
     writer.add_scalar("RV", emulator.radial_velocity.item(), global_step=epoch)
+    writer.add_scalar(
+        "Amplitude2308", emulator.amplitudes[2308].item(), global_step=epoch
+    )
     if (epoch % plot_every_N_steps) == 0:
         # torch.save(model.state_dict(), "model_coeffs.pt")
         wl_plot = data_wavelength.cpu()
@@ -160,4 +163,6 @@ for epoch in t_iter:
             "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
 
-torch.save(model.state_dict(), "model_T4100g3p5_prom0p01_HPF_recovery.pt")
+        torch.save(model.state_dict(), "model_T4100g3p5_prom0p01_HPF_recovery.pt")
+        torch.save(emulator.state_dict(), "emulator_T4100g3p5_prom0p01_HPF_recovery.pt")
+
