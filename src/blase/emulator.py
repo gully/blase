@@ -34,11 +34,9 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (
-            lam_centers,
-            amplitudes,
-            widths_angstroms,
-        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
+        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            self.wl_native, self.flux_native, prominence=prominence
+        )
 
         self.n_pix = len(wl_native)
 
@@ -283,10 +281,6 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         self.wl_1D = self.wl_2D.reshape(-1)
         self.active_mask = self.active_mask.to(device)
 
-        self.radial_velocity = nn.Parameter(
-            torch.tensor(10.0, requires_grad=True, dtype=torch.float64)
-        )
-
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
 
@@ -372,12 +366,58 @@ class EchelleModel(nn.Module):
     A Model for Echelle Spectra based on the SparseEmulator
 
     wl_bin_edges (float vector): The input wavelength
-    device (Torch Device or str): GPU or CPU?
     pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
+    device (Torch Device or str): GPU or CPU?
+    wing_cut_pixels (int): number of pixels for the wingcut
     """
 
-    def __init__(self, wl_bin_edges, wl_native, device=None):
+    def __init__(
+        self, wl_bin_edges, pretrained_emulator, device=None, wing_cut_pixels=None
+    ):
         super().__init__()
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        device = torch.device(device)
+
+        ## Define the wing cut
+        # Currently defined in *pixels*
+        if wing_cut_pixels is None:
+            wing_cut_pixels = 1000
+        else:
+            wing_cut_pixels = int(wing_cut_pixels)
+
+        lines = pretrained_emulator.lam_centers.detach().cpu().numpy()
+        wl_native = pretrained_emulator.wl_native.cpu().numpy()
+        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
+
+        # Find the index position of each spectral line
+        center_indices = np.searchsorted(wl_native, lines)
+
+        # From that, determine the beginning and ending indices
+        zero_indices = center_indices - (wing_cut_pixels // 2)
+        too_low = zero_indices < 0
+        zero_indices[too_low] = 0
+        end_indices = zero_indices + wing_cut_pixels
+        too_high = end_indices > self.n_pix
+        zero_indices[too_high] = len(wl_native) - wing_cut_pixels
+        end_indices[too_high] = len(wl_native)
+
+        # Make a 2D array of the indices
+        indices_2D = np.linspace(
+            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
+        )
+
+        self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
+        self.indices_1D = self.indices_2D.reshape(-1)
+        self.indices = self.indices_1D.unsqueeze(0)
+        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
+        self.wl_1D = self.wl_2D.reshape(-1)
+        self.active_mask = self.active_mask.to(device)
 
         if device is None:
             if torch.cuda.is_available():
@@ -399,6 +439,10 @@ class EchelleModel(nn.Module):
 
         self.ln_vsini = nn.Parameter(
             torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
+        )
+
+        self.radial_velocity = nn.Parameter(
+            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
         )
 
         # self.radial_velocity = nn.Parameter(
