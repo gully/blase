@@ -100,11 +100,11 @@ synthetic_spectrum = torch.load("./synthetic_perturbed_spectrum.pt")
 
 from blase.emulator import EchelleModel
 
-model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native)
+model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
 
 # Do not train on real data.  Train on Synthetic data with known properties!
 ## data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
-data_target = synthetic_spectrum
+data_target = synthetic_spectrum.to(device)
 
 data_wavelength = torch.tensor(
     data.wavelength.value, device=device, dtype=torch.float64
@@ -118,12 +118,12 @@ optimizer = optim.Adam(
     0.01,
     amsgrad=True,
 )
-n_epochs = 200
+n_epochs = 5000
 losses = []
 
 # high_res_model = emulator.flux_native.clone().detach().to(device)
 
-plot_every_N_steps = 1
+plot_every_N_steps = 100
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     model.train()
@@ -133,10 +133,10 @@ for epoch in t_iter:
     loss = loss_fn(yhat, data_target)
     loss.backward()
     optimizer.step()
-    for name, param in model.named_parameters():
-        print(name, param.grad)
-    for name, param in emulator.named_parameters():
-        print(name, param.grad)
+    # for name, param in model.named_parameters():
+    #    print(name, param.grad)
+    # for name, param in emulator.named_parameters():
+    #    print(name, param.grad)
     optimizer.zero_grad()
     losses.append(loss.item())
     t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
@@ -153,16 +153,11 @@ for epoch in t_iter:
         flux_clone = yhat.detach().cpu()
         flux_targ = data_target.cpu()
         to_plot = [
-            {
-                "wl": wl_plot,
-                "flux": flux_clone,
-            },
+            {"wl": wl_plot, "flux": flux_clone,},
             {"wl": wl_plot, "flux": flux_targ},
         ]
         writer.add_figure(
-            "predictions vs. actuals",
-            plot_spectrum(to_plot),
-            global_step=epoch,
+            "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
 
 torch.save(model.state_dict(), "model_T4100g3p5_prom0p01_HPF_recovery.pt")
