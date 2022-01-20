@@ -84,15 +84,15 @@ loss_fn = nn.MSELoss(reduction="mean")
 optimizer = optim.Adam(
     filter(lambda p: p.requires_grad, emulator.parameters()), 0.03, amsgrad=True
 )
-n_epochs = 200
+n_epochs = 10_000
 losses = []
 
-plot_every_N_steps = 25
+plot_every_N_steps = 1000
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     emulator.train()
     yhat = emulator.forward()
-    loss = loss_fn(yhat, target)
+    loss = loss_fn(yhat[emulator.active_mask], target)
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
@@ -106,19 +106,14 @@ for epoch in t_iter:
     if (epoch % plot_every_N_steps) == 0:
         # torch.save(model.state_dict(), "model_coeffs.pt")
         wl_plot = wl_active.cpu()
-        flux_clone = yhat.detach().cpu()
+        flux_clone = yhat[emulator.active_mask].detach().cpu()
         flux_targ = target.cpu()
         to_plot = [
-            {
-                "wl": wl_plot,
-                "flux": flux_clone,
-            },
+            {"wl": wl_plot, "flux": flux_clone,},
             {"wl": wl_plot, "flux": flux_targ},
         ]
         writer.add_figure(
-            "predictions vs. actuals",
-            plot_spectrum(to_plot),
-            global_step=epoch,
+            "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
 
 torch.save(emulator.state_dict(), "sparse_T4700g4p5_prom0p01_HPF.pt")
