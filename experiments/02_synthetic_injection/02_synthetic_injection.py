@@ -118,12 +118,12 @@ optimizer = optim.Adam(
     0.05,
     amsgrad=True,
 )
-n_epochs = 5000
+n_epochs = 1000
 losses = []
 
 # high_res_model = emulator.flux_native.clone().detach().to(device)
 
-plot_every_N_steps = 100
+plot_every_N_steps = 50
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     model.train()
@@ -148,7 +148,7 @@ for epoch in t_iter:
     writer.add_scalar("vsini", 0.9 + np.exp(model.ln_vsini.item()), global_step=epoch)
     writer.add_scalar("RV", emulator.radial_velocity.item(), global_step=epoch)
     writer.add_scalar(
-        "Amplitude2308", emulator.amplitudes[2308].item(), global_step=epoch
+        "Amplitude2085", emulator.amplitudes[2085].item(), global_step=epoch
     )
     if (epoch % plot_every_N_steps) == 0:
         # torch.save(model.state_dict(), "model_coeffs.pt")
