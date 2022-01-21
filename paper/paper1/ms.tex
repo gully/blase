@@ -207,11 +207,11 @@ Another solution to the computation problem is to take advantage of the sparsity
 
 We implemented sparse matrices in \emph{blas\'e} using the \texttt{sparse\_coo\_tensor} function in \emph{PyTorch}.
 
-There are a few standardization strategies for applying the wing cuts.  Here we coerce all wing cuts to be exactly 6000 pixels, with the middle pixel being at the line center position, and 3000 pixels to the red and blue side of the line.  Most spectral lines only appreciably affect the signal in the central $\sim5-50$ pixels, so such a large wing cut may seem over-zealous.  We emphasize that the line cut serves as the fixed pixel locations where the line will be evaluated with post-processing steps such as radial velocity shifts and line broadening.  So these 6000 pixels must be capable of handling the fastest-moving and fast-spinning stars you expect to see in your observed spectra of interest.
+There are a few standardization strategies for applying the wing cuts.  Here we coerce all wing cuts to be exactly the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line.  Most spectral lines only appreciably affect the signal in the central $\sim5-50$ pixels, so such a large wing cut may seem over-zealous.  We emphasize that the line cut serves as the fixed pixel locations where the line will be evaluated with post-processing steps such as radial velocity shifts and line broadening.  So these 6000 pixels must be capable of handling the fastest-moving and fastest-spinning stars you expect to see in your observed spectra of interest.
 
-The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 Angstroms.  We \emph{could have} demanded that the wingcut be exactly 30 Å, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths.  Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling.  Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time.  Instead, the choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster and handles more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
+The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 Angstroms.  We \emph{could have} demanded that the wingcut be exactly 30 Å, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths.  Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling.  Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time.  Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
 
-Locating the indicies of these 6000 ``nearest-neighbor'' pixels involves a sorting algorithm that takes about 0.01 seconds per spectral line, so for 6500 spectral lines the preprocessing step takes about 90 seconds.  This initialization only occurs once and then is fixed, so we should not worry too much that it is slow.  Heuristics for finding these indices faster are also feasible.
+Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
 
 We rewrite Equation \ref{equation1} as a sum by taking the log of both sides
 
@@ -219,7 +219,7 @@ We rewrite Equation \ref{equation1} as a sum by taking the log of both sides
   \ln{\mathsf{F}(\bm{\lambda})} = \sum_{i=1}^{N_{lines}} \ln{\left(1-V(\bm{\lambda};A_i, \lambda_{c,i}, \sigma_i) \right)}
 \end{eqnarray}
 
-Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices.    Each pixel gets computed on average about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.
+The argument of the natural logarithm approaches 1 far from the line core, making the terms outside of the matrix approximately zero, a sparse matrix representing the log of the flux.  Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices.  The coalescing operation is extremely fast and efficient on either CPU or GPU hardware.  We sum the logs and then exponentiate the result before comparing to the native linear flux.  We enforce that the argument of the natural log must be greater than zero through a simple truncation, which may approximately resemble the effect of saturation in line cores. This truncation would only be relevant for saturated lines.  Each pixel may get computed about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.
 
 
 \subsection{Broad lines and advanced lineshapes}
@@ -245,7 +245,7 @@ It enforces that the perturbation only produces absorption and not emission prof
 
 \subsection{Optimization and training}
 
-We use the Adam optimizer\authorcomment1{citation} with a learning rate $LR=0.004$ and all the defaults for \texttt{PyTorch v1.11}.  We set the minibatch fraction to typically $f\sim1-5\%$.  We defined the number of training epochs $N_{epoch}=100-1000$.  The optimizer steps $N_{batch}$ times in each epoch, so that on average each epoch sees the entire dataset.  The minibatching indices may be chosen with replacement so that some pixels are repeated and some are not seen in a given epoch.  The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
+We use the Adam optimizer\authorcomment1{citation} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}.  Minitbatch testing proceeded with batch fractions of typically $f\sim1-5\%$ of the available pixels, but was rapidly discontinued in favor of the much more performant and convenient sparse matrix method.  We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application.  The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
 
 
 \begin{figure}[hbt!]
@@ -257,7 +257,7 @@ We use the Adam optimizer\authorcomment1{citation} with a learning rate $LR=0.00
 
 Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas\'e}.  The $NN$ epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64.  That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
 
-We save the model parameters with \texttt{torch.save()} and refer to this collection of parameters as the \emph{pre-trained model}.
+We save the model parameters with \texttt{torch.save()} and refer to the entire collection of parameters as the \emph{pre-trained model}.
 
 \section{Cloning Performance}
 
