@@ -81,7 +81,7 @@ optimizer = optim.Adam(
     0.05,
     amsgrad=True,
 )
-n_epochs = 100
+n_epochs = 1000
 losses = []
 
 # high_res_model = emulator.flux_native.clone().detach().to(device)
