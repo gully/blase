@@ -1,5 +1,3 @@
-from mimetypes import init
-from os import stat
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,7 +21,13 @@ initialization = initialization[mask]
 
 # Figure 1: The initialization
 plt.figure(figsize=(6, 6))
-plt.plot(injected, initialization, "o", alpha=0.2)
+plt.plot(
+    np.exp(state_dict_injected["amplitudes"].cpu()[roi_mask]),
+    np.exp(state_dict_init["amplitudes"].cpu()[roi_mask]),
+    ".",
+    alpha=0.2,
+)
+plt.plot(injected, initialization, ".", alpha=0.5)
 plt.plot([1.0e-4, 1.0], [1.0e-4, 1.0], color="k", linestyle="dashed")
 plt.yscale("log")
 plt.xscale("log")
@@ -46,9 +50,26 @@ for i in range(5):
 mean_recovered = np.mean(recovered_array, axis=1)
 std_recovered = np.std(recovered_array, axis=1)
 
-plt.errorbar(injected, mean_recovered, yerr=std_recovered, alpha=0.2, linestyle="none")
-plt.plot(injected, mean_recovered, "o", alpha=0.2)
-plt.plot([1.0e-4, 1.0], [1.0e-4, 1.0], color="k", linestyle="dashed")
+plt.plot(
+    np.exp(state_dict_injected["amplitudes"].cpu()[roi_mask]),
+    np.exp(dict_of_recovered[0]["amplitudes"].cpu()[roi_mask]),
+    ".",
+    alpha=0.2,
+)
+
+plt.errorbar(
+    injected,
+    np.exp(dict_of_recovered[0]["amplitudes"].cpu()[mask]),
+    yerr=std_recovered,
+    alpha=0.5,
+    color="k",
+    linestyle="none",
+)
+plt.plot(
+    injected, np.exp(dict_of_recovered[0]["amplitudes"].cpu()[mask]), ".", alpha=0.5
+)
+
+plt.plot([1.0e-4, 1.0], [1.0e-4, 1.0], color="k", linestyle="dashed", alpha=0.5)
 plt.yscale("log")
 plt.xscale("log")
 plt.ylim(5e-4, 1)

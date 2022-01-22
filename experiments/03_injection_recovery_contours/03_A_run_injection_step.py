@@ -77,16 +77,6 @@ fn_out = "emulator_T4100g3p5_prom0p01_HPF_injection.pt"
 fake_sigma_angs = torch.tensor(0.07)
 fake_vsini = torch.tensor(4.1)
 
-with torch.no_grad():
-    rotationally_broadened = model.rotational_broaden(emulator.forward(), fake_vsini)
-    instrumentally_broadened = model.instrumental_broaden(
-        rotationally_broadened, fake_sigma_angs
-    )
-    noisefree_signal_perturbed = model.resample_to_data(instrumentally_broadened)
-
-torch.save(noisefree_signal_perturbed, "noisefree_signal_perturbed.pt")
-
-
 print("-" * 80)
 print("Injecting a known perturbation into {:0.1%} of lines".format(frac_perturbed))
 print("We are only perturbing amplitude in this experiment.")
@@ -96,4 +86,14 @@ perturbed_state_dict["amplitudes"] = perturbed_state_dict[
     "amplitudes"
 ] + offsets_perturbed.to(device)
 
+emulator.load_state_dict(perturbed_state_dict)
+
+with torch.no_grad():
+    rotationally_broadened = model.rotational_broaden(emulator.forward(), fake_vsini)
+    instrumentally_broadened = model.instrumental_broaden(
+        rotationally_broadened, fake_sigma_angs
+    )
+    noisefree_signal_perturbed = model.resample_to_data(instrumentally_broadened)
+
+torch.save(noisefree_signal_perturbed, "noisefree_signal_perturbed.pt")
 torch.save(perturbed_state_dict, fn_out)

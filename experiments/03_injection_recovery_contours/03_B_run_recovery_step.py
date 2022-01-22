@@ -65,6 +65,10 @@ from blase.emulator import EchelleModel
 
 model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
 model_init = copy.deepcopy(model.state_dict())
+model_injected = copy.deepcopy(model_init)
+model_injected["ln_vsini"] = torch.tensor(1.163, device=device)
+model_injected["ln_sigma_angs"] = torch.tensor(-2.8134, device=device)
+model.load_state_dict(model_injected)
 
 # Do not train on real data.  Train on Synthetic data with known properties!
 ## data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
@@ -78,10 +82,10 @@ loss_fn = nn.MSELoss(reduction="mean")
 optimizer = optim.Adam(
     list(filter(lambda p: p.requires_grad, model.parameters()))
     + list(filter(lambda p: p.requires_grad, emulator.parameters())),
-    0.05,
+    0.02,
     amsgrad=True,
 )
-n_epochs = 1000
+n_epochs = 200
 losses = []
 
 # high_res_model = emulator.flux_native.clone().detach().to(device)
@@ -92,12 +96,18 @@ dict_out2 = {}
 n_draws = 5
 for i in range(n_draws):
     # Draw a new noise vector each iteration
-    noise_draw = np.random.normal(loc=0, scale=0.01, size=len(noisefree_signal))
+    noise_draw = np.random.normal(loc=0, scale=0.004, size=len(noisefree_signal))
     data_target = noisefree_signal.to(device) + torch.tensor(noise_draw).to(device)
 
     # Reset the models and optimizer back to their starting place.
     emulator.load_state_dict(state_dict_post)
-    model.load_state_dict(model_init)
+    model.load_state_dict(model_injected)
+
+    emulator.radial_velocity.requires_grad = False
+    emulator.lam_centers.requires_grad = False
+    emulator.amplitudes.requires_grad = True
+    emulator.sigma_widths.requires_grad = False
+    emulator.gamma_widths.requires_grad = False
 
     optimizer = optim.Adam(
         list(filter(lambda p: p.requires_grad, model.parameters()))
