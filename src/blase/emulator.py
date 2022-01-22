@@ -34,11 +34,9 @@ class PhoenixEmulator(nn.Module):
         self.wl_native = torch.tensor(wl_native)
         self.flux_native = torch.tensor(flux_native)
 
-        (
-            lam_centers,
-            amplitudes,
-            widths_angstroms,
-        ) = self.detect_lines(self.wl_native, self.flux_native, prominence=prominence)
+        (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            self.wl_native, self.flux_native, prominence=prominence
+        )
 
         self.n_pix = len(wl_native)
 
@@ -394,7 +392,7 @@ class EchelleModel(nn.Module):
         #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
         # )
         self.ln_sigma_angs = nn.Parameter(
-            torch.tensor(-2.3, requires_grad=True, dtype=torch.float64)
+            torch.tensor(-2.8134, requires_grad=True, dtype=torch.float64)
         )
 
         self.ln_vsini = nn.Parameter(
