@@ -56,6 +56,7 @@ emulator.load_state_dict(state_dict_post)
 from blase.emulator import EchelleModel
 
 model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
+model.to(device)
 data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
 
 data_wavelength = torch.tensor(

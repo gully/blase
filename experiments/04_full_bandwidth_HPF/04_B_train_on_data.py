@@ -58,14 +58,15 @@ emulator.load_state_dict(state_dict_post)
 emulator.radial_velocity = nn.Parameter(torch.tensor(27.6, device=device))
 emulator.radial_velocity.requires_grad = True
 emulator.lam_centers.requires_grad = False
-emulator.amplitudes.requires_grad = False
-emulator.sigma_widths.requires_grad = False
-emulator.gamma_widths.requires_grad = False
+emulator.amplitudes.requires_grad = True
+emulator.sigma_widths.requires_grad = True
+emulator.gamma_widths.requires_grad = True
 
 
 from blase.emulator import EchelleModel
 
 model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
+model.to(device)
 model.ln_vsini = nn.Parameter(torch.log(torch.tensor(1.0, device=device)))
 
 data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
@@ -82,7 +83,7 @@ optimizer = optim.Adam(
     0.01,
     amsgrad=True,
 )
-n_epochs = 200
+n_epochs = 2000
 losses = []
 
 t_iter = trange(n_epochs, desc="Training", leave=True)
