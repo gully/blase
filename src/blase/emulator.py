@@ -419,20 +419,26 @@ class EchelleModel(nn.Module):
         # For this example, the output y is a linear function of (x, x^2, x^3... x^p), so
         # we can consider it as a linear layer neural network. Let's prepare the
         # tensor (x, x^2, x^3, ... x^p).
-        max_p = 5
-        p_exponents = torch.arange(1, max_p + 1)
+        max_p = 15
+        p_exponents = torch.arange(1, max_p + 1, device=device)
 
         self.wl_normed = torch.tensor(
             (self.wl_centers - self.median_wl) / self.bandwidth,
             device=device,
             dtype=torch.float64,
         )
-        self.design_matrix = self.wl_normed.unsqueeze(-1).pow(p_exponents)
-        self.linear_model = torch.nn.Linear(max_p, 1)
+        self.design_matrix = (
+            self.wl_normed.unsqueeze(-1).pow(p_exponents).to(torch.float64)
+        )
+        self.linear_model = torch.nn.Linear(
+            max_p, 1, device=device, dtype=torch.float64
+        )
         self.linear_model.weight = torch.nn.Parameter(
             torch.zeros((1, max_p), dtype=torch.float64)
         )
-        self.linear_model.bias = torch.nn.Parameter(torch.tensor([1.0]))
+        self.linear_model.bias = torch.nn.Parameter(
+            torch.tensor([1.0], dtype=torch.float64)
+        )
 
     def forward(self, high_res_model):
         """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
