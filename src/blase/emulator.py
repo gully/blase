@@ -386,7 +386,9 @@ class EchelleModel(nn.Module):
         device = torch.device(device)
 
         self.wl_bin_edges = wl_bin_edges
-        self.median_wl = np.median(wl_bin_edges)
+        self.wl_centers = (wl_bin_edges[1:] + wl_bin_edges[:-1]) / 2.0
+        self.median_wl = np.median(self.wl_centers)
+        self.bandwidth = self.wl_bin_edges[-1] + self.wl_bin_edges[0]
 
         # self.resolving_power = nn.Parameter(
         #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
@@ -413,6 +415,31 @@ class EchelleModel(nn.Module):
         _idx, vals = torch.unique(indices, return_counts=True)
         self.label_spacings = tuple(vals)
 
+        # Polynomial coefficients for the continuum
+        # For this example, the output y is a linear function of (x, x^2, x^3... x^p), so
+        # we can consider it as a linear layer neural network. Let's prepare the
+        # tensor (x, x^2, x^3, ... x^p).
+        max_p = 15
+        p_exponents = torch.arange(1, max_p + 1, device=device)
+
+        self.wl_normed = torch.tensor(
+            (self.wl_centers - self.median_wl) / self.bandwidth,
+            device=device,
+            dtype=torch.float64,
+        )
+        self.design_matrix = (
+            self.wl_normed.unsqueeze(-1).pow(p_exponents).to(torch.float64)
+        )
+        self.linear_model = torch.nn.Linear(
+            max_p, 1, device=device, dtype=torch.float64
+        )
+        self.linear_model.weight = torch.nn.Parameter(
+            torch.zeros((1, max_p), dtype=torch.float64)
+        )
+        self.linear_model.bias = torch.nn.Parameter(
+            torch.tensor([1.0], dtype=torch.float64)
+        )
+
     def forward(self, high_res_model):
         """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
 
@@ -423,7 +450,13 @@ class EchelleModel(nn.Module):
         vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
         rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
         convolved_flux = self.instrumental_broaden(rotationally_broadened, sigma_angs)
-        return self.resample_to_data(convolved_flux)
+        resampled_flux = self.resample_to_data(convolved_flux)
+
+        return resampled_flux * self.warped_continuum()
+
+    def warped_continuum(self):
+        """Warp the continuum by a smooth polynomial"""
+        return self.linear_model(self.design_matrix).squeeze()
 
     def resample_to_data(self, convolved_flux):
         """Resample the high resolution model to the data wavelength sampling"""

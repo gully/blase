@@ -1,13 +1,11 @@
 import os
 import torch
-from torch import nn
-from tqdm import trange
-import torch.optim as optim
 from blase.emulator import SparsePhoenixEmulator
 import matplotlib.pyplot as plt
 from gollum.phoenix import PHOENIXSpectrum
 import numpy as np
-from muler.hpf import HPFSpectrumList
+from torch import nn
+from muler.hpf import HPFSpectrum, HPFSpectrumList
 import copy
 
 if torch.cuda.is_available():
@@ -52,51 +50,26 @@ target = (
     emulator.flux_native.clone().detach().to(device)[emulator.active_mask.cpu().numpy()]
 )
 
-state_dict_post = torch.load("emulator_T4700g4p5_prom0p01_HPF.pt")
+state_dict_post = torch.load("emulator_T4700g4p5_prom0p01_HPF_MAP.pt")
 emulator.load_state_dict(state_dict_post)
-
-emulator.radial_velocity = nn.Parameter(torch.tensor(27.6, device=device))
-emulator.radial_velocity.requires_grad = True
-emulator.lam_centers.requires_grad = False
-emulator.amplitudes.requires_grad = True
-emulator.sigma_widths.requires_grad = True
-emulator.gamma_widths.requires_grad = True
-
 
 from blase.emulator import EchelleModel
 
 model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
 model.to(device)
-model.ln_vsini = nn.Parameter(torch.log(torch.tensor(1.0, device=device)))
-
 data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
 
 data_wavelength = torch.tensor(
     data.wavelength.value, device=device, dtype=torch.float64
 )
 
-loss_fn = nn.MSELoss(reduction="mean")
+model_state_dict = torch.load("extrinsic_MAP.pt")
+model.load_state_dict(model_state_dict)
 
-optimizer = optim.Adam(
-    list(filter(lambda p: p.requires_grad, model.parameters()))
-    + list(filter(lambda p: p.requires_grad, emulator.parameters())),
-    0.01,
-    amsgrad=True,
-)
-n_epochs = 2000
-losses = []
+with torch.no_grad():
+    processed_flux = model.forward(emulator.forward())
 
-t_iter = trange(n_epochs, desc="Training", leave=True)
-for epoch in t_iter:
-    model.train()
-    emulator.train()
-    high_res_model = emulator.forward()
-    yhat = model.forward(high_res_model)
-    loss = loss_fn(yhat, data_target)
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-    t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
-
-torch.save(emulator.state_dict(), "emulator_T4700g4p5_prom0p01_HPF_MAP.pt")
-torch.save(model.state_dict(), "extrinsic_MAP.pt")
+plt.step(data.wavelength.value, data.flux.value, label="Data")
+plt.step(data.wavelength.value, processed_flux.cpu().numpy(), label="Model")
+plt.legend()
+plt.savefig("data_model_comparison_rigid_emulator.png", bbox_inches="tight", dpi=300)
