@@ -1,5 +1,5 @@
 ---
-title: '`blasé`: a `PyTorch`-based modeling framework for astronomical échelle spectroscopy'
+title: '`blasé`: flexible models for astronomical échelle spectroscopy built on `PyTorch`'
 tags:
   - Python
   - astronomy
@@ -47,18 +47,19 @@ To our knowledge, no tool like this currently exists.  The `starfish` framework 
 
 The `wobble` framework [@Bedell2019] tunes a pixel-by-pixel model of shifting stellar spectral lines in the presence of static-in-wavelength-but-dynamic-in-amplitude telluric lines.  The `wobble` model is agnostic to spectral lines, and therefore cannot infer line-by-line properties, without an additional (not-implemented) post processing step.  Hypothetically, `blasé` could operate on the outputs of `wobble`, once the stellar templates have been sanitized of telluric lines and their SNR boosted.
 
-The `exojax` (cite XX) framework can handle tens of thousands of lines and autodifferentiate through the line properties.  But `exojax` currently makes no attempt to fit individual spectral lines independently of each other.  Only their collective changes are allowed to vary in conjunction with the bulk physical properties.
+The `exojax` [@exojax2022] framework can handle tens of thousands of lines and autodifferentiate through the line properties.  But `exojax` currently makes no attempt to fit individual spectral lines independently of each other.  Only their collective changes are allowed to vary in conjunction with the bulk physical properties.  The `exojax` approach may be preferred for many applications, and represents valid choice in the bias-variance tradeoff.
 
-`blasé` comes closest to the existing `FAL` framework (cite XX; cite YY in prep).  These two frameworks share the same goal, but achieve it with different approaches and different assumptions.
+`blasé` comes closest to the existing [FAL](https://github.com/pacargile/FAL) framework (Cargile *et al.* in prep.).  These two frameworks share the same goal, but achieve it with different approaches and different assumptions.
 
-`blasé` depends on `astropy` [@astropy13; @astropy18], `numpy` [@harris2020array], `scipy` [@scipy2020], and `PyTorch` (cite XX).
+`blasé` depends on `astropy` [@astropy13; @astropy18], `numpy` [@harris2020array], `scipy` [@scipy2020], and `PyTorch` [@NEURIPS2019pytorch].
+
 
 # Key innovations
 
-Three key innovations make `blasé` transformatively performant.  First, it supports end-to-end back-propagation (cite XX), since it is built entirely in `PyTorch`.  Even the radial velocity, polynomial warping, and rotational broadening terms can sense the backpropagation.  Second, it employs sparse matrices to isolate the effect of individual spectral lines to their central sphere of influence, producing a massive speedup compared to dense models.  Third, it supports GPUs, which makes the matrix manipulations up to two orders-of-magnitude faster than on CPU.
+Three key innovations make `blasé` transformatively performant.  First, it supports reverse mode automatic differentiation ("backprop"), since it is built entirely in `PyTorch`.  Even the radial velocity, polynomial warping, and rotational broadening terms can sense the backpropagation.  Second, it employs sparse matrices to isolate the effect of individual spectral lines to their central sphere of influence, producing a massive speedup compared to dense models.  Third, it supports GPUs, which makes the matrix manipulations up to two orders-of-magnitude faster than on CPU.
 
 # Acknowledgements
 
-This research has made use of NASA's Astrophysics Data System Bibliographic Services.  
+This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program.  This research has made use of NASA's Astrophysics Data System Bibliographic Services.  
 
 # References
