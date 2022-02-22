@@ -15,11 +15,13 @@
 \begin{document}
 \shorttitle{blas\'e}
 \shortauthors{Gully-Santiago}
-\title{Transfer learning for echelle spectroscopy}
+\title{Transfer learning for \'echelle spectroscopy with \texttt{blas\'e}}
 
 \author{Michael Gully-Santiago}
 \affiliation{University of Texas at Austin Department of Astronomy}
 
+\author{Caroline V. Morley}
+\affiliation{University of Texas at Austin Department of Astronomy}
 
 \begin{abstract}
 
@@ -33,7 +35,13 @@
 
 \subsection{Spectral fitting past and present}
 
-Below is a table exploring recent techniques for spectral fitting.
+Tens of thousands or more individial spectral lines give rise to a sea of undulations that imbue each stellar spectrum with its characteristic appearance.  The identification and understanding of these lines has consumed a chief discipline of astrophysics over the last century.  The field grew from by-eye catalogs of stellar templates (cite \censor{XX} Cecilia Payne, Cannon) to modern pre-computed synthetic forward models including millions or billions of lines (cite \censor{XX}, Husser, Marley, HITRAN, HITEMP, Exomol, radis, Hargraves).  But as technology has improved, our data and models have become more voluminous, more precise, and more complicated.  The mere act of comparing models to data has become a computational challenge as much as a scientific one.  Here we introduce a new state-of-the-art framework \texttt{blas\'e} aimed at solving computational, statistical, and scientific challenges associated with data-model comparisons for modern astronomical spectroscopy.
+
+The \texttt{blas\'e} framework aims to take in an observed astronomical spectrum and report back a semi-empirical noise-free template spectrum, replete with the postition, amplitude, width, and shape of all of its spectral lines, automatically.  Solving this problem is hard, for at least five reasons.  First, the spectral lines may overlap, and so the assignment of one line may be partially degenerate with the assignment of some other adjacent line.  Second, the lines exhibit a large dynamic range in their allowed extents, with extremely wide line wings such as Sodium or Hydrogen lines blending into the continuum, such that the placement of the continuum level may become ill-defined.  Third, the extent of line blending and realized line shape depends strongly on the spectral resolution of the spectrograph, the rotational broadening of the star, and possibly the instrumental configuration at the time of observation.  Fourth, telluric absorption lines commingle with the astronomical spectral lines of interest, censoring some spectral regions entirely, or partially confounding other lines with chance allignments.  And finally, our prediction for where lines should be located may be incomplete, and the decision of where to place lines becomes an uncertain choice that depends on the conditions and assumptions of the surrounding lines.
+
+Luckily, many scientific applications in astrophysics do not need the technically demanding noise-free template, nor catalog-of-all-spectral-lines.  A few lines suffice.  For those applications, human inspection of isolated lines and semi-automated equivalent width determination has been and will remain adequate.  But many new and important questions in the fields of stars and exoplanets aspire to reach the margins of what the data can inform.  For example, exoplanet cross-correlation spectroscopy (cite \censor{xx} Jayne Birkby, etc.) hinges on accurate templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features.  In precision-RV applications, the joint modeling of microtellurics may require an accurate semi-empirical model of both the star and the Earth's atmospheric absorption at for that exact moment in time.  In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures such as polar spots (cite \censor{XX} Vogt, Roettenbacher) or zonal bands (cite \censor{XX}, Crossfield, Apai).  The \texttt{blas\'e} framework is aimed at these and many other applications for which an accurate noise-free template is desired.
+
+
 
 \movetabledown=13mm
 \begin{rotatetable}
@@ -209,7 +217,7 @@ We implemented sparse matrices in \emph{blas\'e} using the \texttt{sparse\_coo\_
 
 There are a few standardization strategies for applying wing cuts. Here we coerce all wing cuts to be the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line. Most spectral lines only appreciably affect the signal in the central $\sim5-50$ pixels, so such a large wing cut may seem over-zealous. We emphasize that the line cut serves as the fixed pixel locations where the line will be evaluated with post-processing steps such as radial velocity shifts and line broadening. So these 6000 pixels must be capable of handling the fastest-moving and fastest-spinning stars you expect to see in your observed spectra of interest.
 
-The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 Angstroms. We \emph{could have} demanded that the wing cut be exactly 30 $\AA$, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
+The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
 
 Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
 
