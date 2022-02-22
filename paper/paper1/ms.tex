@@ -25,7 +25,8 @@
 
 \begin{abstract}
 
- We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.
+ We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.  \texttt{blas\'e} produces extensible models that are both physically informed and highly accurate when compared to data. These models can be evaluated quickly for use in likelihood calculations. It works on data with large spectral grasp: simultaneously wide bandwidth and high spectral resolution.
+
 
 \end{abstract}
 
@@ -37,62 +38,22 @@
 
 Tens of thousands or more individial spectral lines give rise to a sea of undulations that imbue each stellar spectrum with its characteristic appearance.  The identification and understanding of these lines has consumed a chief discipline of astrophysics over the last century.  The field grew from by-eye catalogs of stellar templates (cite \censor{XX} Cecilia Payne, Cannon) to modern pre-computed synthetic forward models including millions or billions of lines (cite \censor{XX}, Husser, Marley, HITRAN, HITEMP, Exomol, radis, Hargraves).  But as technology has improved, our data and models have become more voluminous, more precise, and more complicated.  The mere act of comparing models to data has become a computational challenge as much as a scientific one.  Here we introduce a new state-of-the-art framework \texttt{blas\'e} aimed at solving computational, statistical, and scientific challenges associated with data-model comparisons for modern astronomical spectroscopy.
 
-The \texttt{blas\'e} framework aims to take in an observed astronomical spectrum and report back a semi-empirical noise-free template spectrum, replete with the postition, amplitude, width, and shape of all of its spectral lines, automatically.  Solving this problem is hard, for at least five reasons.  First, the spectral lines may overlap, and so the assignment of one line may be partially degenerate with the assignment of some other adjacent line.  Second, the lines exhibit a large dynamic range in their allowed extents, with extremely wide line wings such as Sodium or Hydrogen lines blending into the continuum, such that the placement of the continuum level may become ill-defined.  Third, the extent of line blending and realized line shape depends strongly on the spectral resolution of the spectrograph, the rotational broadening of the star, and possibly the instrumental configuration at the time of observation.  Fourth, telluric absorption lines commingle with the astronomical spectral lines of interest, censoring some spectral regions entirely, or partially confounding other lines with chance allignments.  And finally, our prediction for where lines should be located may be incomplete, and the decision of where to place lines becomes an uncertain choice that depends on the conditions and assumptions of the surrounding lines.
+The \texttt{blas\'e} framework aims to take in an observed astronomical spectrum and report back an extensible semi-empirical spectral forward model, replete with the postition, amplitude, width, and shape of all of its spectral lines, automatically.  Solving this problem is hard, for at least five reasons.  First, the spectral lines may overlap, and so the assignment of one line may be partially degenerate with the assignment of some other adjacent line.  Second, the lines exhibit a large dynamic range in their allowed extents, with extremely wide line wings such as Sodium or Hydrogen lines blending into the continuum, such that the placement of the continuum level may become ill-defined.  Third, the extent of line blending and realized line shape depends strongly on the spectral resolution of the spectrograph, the rotational broadening of the star, and possibly the instrumental configuration at the time of observation.  Fourth, telluric absorption lines commingle with the astronomical spectral lines of interest, censoring some spectral regions entirely, or partially confounding other lines with chance allignments.  And finally, our prediction for where lines should be located may be incomplete, and the decision of where to place lines becomes an uncertain choice that depends on the conditions and assumptions of the surrounding lines.
 
-Luckily, many scientific applications in astrophysics do not need the technically demanding noise-free template, nor catalog-of-all-spectral-lines.  A few lines suffice.  For those applications, human inspection of isolated lines and semi-automated equivalent width determination has been and will remain adequate.  But many new and important questions in the fields of stars and exoplanets aspire to reach the margins of what the data can inform.  For example, exoplanet cross-correlation spectroscopy (cite \censor{xx} Jayne Birkby, etc.) hinges on accurate templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features.  In precision-RV applications, the joint modeling of microtellurics may require an accurate semi-empirical model of both the star and the Earth's atmospheric absorption at for that exact moment in time.  In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures such as polar spots (cite \censor{XX} Vogt, Roettenbacher) or zonal bands (cite \censor{XX}, Crossfield, Apai).  The \texttt{blas\'e} framework is aimed at these and many other applications for which an accurate noise-free template is desired.
+Addressing these challenges forms the backbone of spectral calibration, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.  Luckily, many scientific applications in astrophysics do not need the technically demanding noise-free template, nor catalog-of-all-spectral-lines.  A few lines suffice.  For those applications, human inspection of isolated lines and semi-automated equivalent width determination has been and will remain adequate.  
 
+But many new and important questions in the fields of stars and exoplanets aspire to reach the margins of what the data can inform.  For example, exoplanet cross-correlation spectroscopy (cite \censor{xx} Jayne Birkby, etc.) hinges on accurate templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features.  In extreme-precision-RV (EPRV) applications, the joint modeling of microtellurics may require an accurate semi-empirical model of both the star and the Earth's atmospheric absorption at that fleeting moment in time.  In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures such as polar spots (cite \censor{XX} Vogt, Roettenbacher) or zonal bands (cite \censor{XX}, Crossfield, Apai).  The \texttt{blas\'e} framework is suitable for these and many other applications for which an accurate noise-free template is desired, or for which the properties of a large number of individual spectral lines is sought.
 
+Existing frameworks have already overcome aspects of these challenges, or have been purpose-built for specific applications.  The \texttt{specmatch} template matching tool produces noise-free nearest neighbor templates given an input spectrum \citep{2015PhDT........82P}.  Several practical barriers limit the accuracy of using precomputed synthetic spectral models. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions than specified. Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere is challenging.
 
-\movetabledown=13mm
-\begin{rotatetable}
- \begin{deluxetable}{chc}
- \tablecaption{Annotated bibliography for intro\label{table1}}
- \tablehead{
- \colhead{Reference} & \nocolhead{two} & \colhead{Key idea}
- }
- \startdata
- \citet{2015PhDT........82P} & - & \texttt{specmatch-syn} Synthetic spectral template matching \\
- \citet{czekala15} & - & \texttt{starfish} robust spectral inference on precomputed models \\
- \citet{2016ApJS..223....8C} & - & \texttt{sick} Spectral Inference Crank, similar to \texttt{Starfish}\\
- \citet{2017ApJ...836..200G} & - & Modular extensions to \texttt{starfish}: starspots \\
- \citet{2018ApJ...862...85G} & - & Modular extensions to \texttt{starfish}: veiling \\
- \citet{2017ApJ...836...77Y} & - & \texttt{specmatch-emp} Empirical template matching for visible\\
- \citet{exoplanet:astropy18} & - & \texttt{astropy} General purpose tools for spectral manipulation\\
- \citet{2019AJ....158..164B} & - & \texttt{wobble}: data driven stellar and telluric models
- \enddata
- \end{deluxetable}
+The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but was still too rigid for some applications and required the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates has not yet been established in the near infrared.
 
-\end{rotatetable}
+The \texttt{wobble} framework \citep{2019AJ....158..164B}modernized the construction of high-SNR templates to account for temporally variable telluric lines. The tool requires dozens of high-SNR spectra acquired at a range of Barycentric Earth Radial Velocities (BERVs).  The final telluric-free combined spectrum would still have to be compared to models for absolute calibration, or can be used out-of-the-box for precision relative RVs.  The \texttt{wobble} framework also pioneered the off-label application of automatic differentiation frameworks---in this case \texttt{TensorFlow}---towards their physically-motivated use in stellar spectra.  \texttt{blas\'e} can be viewed as an evaluable and interpretable super-resolution version of \texttt{wobble}, that accepts more bias in the bias-variance tradeoff.
 
+The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons, and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with imperfect models.  In particular, it addressed the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models (cite \censor{ZJ BD paper}).  The Spectral Inference Crank, \texttt{sick}, shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.  
 
+For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.  
 
-\subsection{Seeking physical self-consistency and high predictive accuracy}
-Ideally, we seek models that are both physically self-consistent and highly accurate when compared to data. We want tunable models that can be evaluated quickly for use in likelihood calculations. We want posterior inference to accurately explore correlations among parameters. We want unbiased, noise-free templates for use in cross-correlation spectroscopy. We want accuracy over a large spectral grasp: simultaneously wide bandwidth and high spectral resolution. We want high out-of-band prediction accuracy. Ideally, we also want precision and accuracy in the separation of affiliated telluric and instrumental signals.
-
-These goals form the backbone of spectral calibration, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.
-
-\subsection{Current limitations to our spectral models}
-
-Several practical barriers limit the accuracy of spectral models. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions than specified. Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere and High latent dimensionality: Many effects matter at the precision level of the data...
-
-Second, Degeneracy among parameters
-
-\begin{itemize}
- \item Underlying atomic and molecular data may be wrong or approximate or missing
- \item Underlying radiative transfer may be inaccurate or approximate (T-P profile / T-Tau)
- \item Time is a dimension: Star is changing
- \item Stellar surface inhomogeneities become important: Doppler Imaging and limb darkening
- \item We do not know how to accurately parameterize some dimensions
-\end{itemize}
-
-\subsection{High dynamic range is both a blessing and a curse:}
-\begin{itemize}
- \item Feeding back locations of model imperfections becomes unwieldy for many lines
- \item Many lines essentially becomes a book-keeping and continuum assignment problem
- \item Computational problem
- \item Some lines have large line wings, blurring continuum and line
- \item Line blanketing has almost no continuum
-\end{itemize}
 
 \subsection{This paper: towards semi-empirical models}
 \begin{itemize}
