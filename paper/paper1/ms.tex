@@ -203,7 +203,7 @@ It enforces that the perturbation only produces absorption and not emission prof
 
 \subsection{Optimization and training}
 
-We use the Adam optimizer\authorcomment1{citation} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}. Minitbatch testing proceeded with batch fractions of typically $f\sim1-5\%$ of the available pixels but was rapidly discontinued in favor of the much more performant and convenient sparse matrix method. We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
+We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}. Minitbatch testing proceeded with batch fractions of typically $f\sim1-5\%$ of the available pixels but was rapidly discontinued in favor of the much more performant and convenient sparse matrix method. We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
 
 
 \begin{figure}[hbt!]
