@@ -1,4 +1,5 @@
 \documentclass[modern]{aastex631}
+\usepackage{hyperref}
 \bibliographystyle{aasjournal}
 \turnoffedit
 \usepackage[caption=false]{subfig}
@@ -7,8 +8,6 @@
 \usepackage{mathtools}
 \usepackage{outlines}
 \usepackage{amsmath,bm}
-\usepackage{hyperref}
-\Urlmuskip=0mu  plus 10mu
 
 \def\Teff{T_{\rm eff}}
 \def\vsini{v\sin{i}}
@@ -47,11 +46,12 @@ Addressing these and other challenges forms the backbone of \emph{spectral calib
 But many new and important questions in the fields of stars and exoplanets aspire to reach the margins of what the entire dataset can inform.  In particular, data from high-\emph{grasp} \'echelle spectrographs possess simultaneously high spectral resolving power and high bandwidth, yielding tens of thousands or possibly millions of independent spectral resolution elements for each star, substar, or exoplanet.  Those applications that seek to gain signal by ``stacking'' spectral lines or cross-correlating templates can hypothetically gain huge boosts in the accessible signal-to-noise ratio compared to a single or few lines.  Most manual and semi-automated methods cannot take advantage of the entire spectral bandwidth, or rely on exact knowledge of the underlying templates and may fail to achieve the hypothetical promise of these high-bandwidth spectrographs \citep{2020AJ....160..198H}.
 
 For example, exoplanet cross-correlation spectroscopy \citep{2013MNRAS.436L..35B} hinges on accurate molecular spectral templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features \citep{2015A&A...575A..20H}.  
-In extreme precision radial velocity (EPRV) applications, cross-correlation methods work, but addressing telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption before convolution with an instrumental kernel\footnote{\url{https://speakerdeck.com/dwhgg/telluric-line-hack-week-wrap-up}}.  
+In extreme precision radial velocity (EPRV) applications, cross-correlation methods work, but addressing telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption before convolution with an instrumental kernel \authorcomment1{speakerdeck.com/dwhgg/telluric-line-hack-week-wrap-up}).
+
 In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures such as polar spots \citep{1983PASP...95..565V, roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.  
 
 Existing open-source frameworks have overcome some of these challenges, or have been purpose-built for specialized applications. 
-These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL}\footnote{\url{https://github.com/pacargile/FAL}}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.  
+These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} \authorcomment1{Cargile et al. in prep}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.  
 The design of these frameworks necessarily have to make a choice in the bias-variance tradeoff: is the tool more \emph{data}-driven or more \emph{model}-driven?  The statistical tradeoff can be viewed as a concession in physical self-consistency for model flexibility: more or fewer parameters.
 
 A key new enabling technology breaks the historic limits of data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and the backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, \texttt{wobble} \citep{2019AJ....158..164B} and \texttt{ExoJAX} \citep{2022ApJS..258...31K} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
