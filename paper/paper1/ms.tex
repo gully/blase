@@ -208,8 +208,8 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
 
 \begin{figure}[hbt!]
  \centering
- \includegraphics[width=0.6\textwidth]{example-image-golden}
- \caption{PHOENIX spectrum cloned with blas\'e.}
+ \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
+ \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4100\;$K,  $\log{g}=3.5$ solar metallicity model has over 5,000 individual cloned spectral lines.  The figure zooms in on a $0.7\%$ portion of the large spectral bandwidth that was cloned.  Some conspicuous flaws can be seen near the wings of broad lines, or surrounding blended lines.  Some initialization effects can be seen in this example, suggesting that the cloning procedure requires additional training iterations to achieve the best performance.}
  \label{fig_cloned_spectrum_demo}
 \end{figure}
 
@@ -225,8 +225,8 @@ We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus clo
 
 \begin{figure}[hbt!]
  \centering
- \includegraphics[width=0.3\textwidth]{example-grid-100x100pt}
- \caption{A \censor{Hydrogen} line with broad line wings exhibiting poor cloning performance.}
+ \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
+ \caption{A zoom in of the region from Figure \ref{fig_cloned_spectrum_demo}.}
  \label{fig_poor_cloning_performance}
 \end{figure}
 
