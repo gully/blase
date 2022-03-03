@@ -26,12 +26,12 @@
 
 \begin{abstract}
 
- We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.  \texttt{blas\'e} produces extensible models that are both physically informed and highly accurate when compared to data. These models can be evaluated quickly for use in likelihood calculations. It works on data with large spectral grasp: simultaneously wide bandwidth and high spectral resolution.
+    We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.  \texttt{blas\'e} produces extensible models that are both physically informed and highly accurate when compared to data. These models can be evaluated quickly for use in likelihood calculations. It works on data with large spectral grasp: simultaneously wide bandwidth and high spectral resolution.
 
 
 \end{abstract}
 
-\keywords{High resolution spectroscopy (2096), Stellar spectral lines (1630), Astronomy data modeling(1859), GPU Computing (1969), Calibration (2179), Radial Velocity (1332), Maximum likelihood estimation (1901), Deconvolution (1910), Atomic spectroscopy (2099), Stellar photospheres (1237)}, 
+\keywords{High resolution spectroscopy (2096), Stellar spectral lines (1630), Astronomy data modeling(1859), GPU Computing (1969), Calibration (2179), Radial Velocity (1332), Maximum likelihood estimation (1901), Deconvolution (1910), Atomic spectroscopy (2099), Stellar photospheres (1237)},
 
 \section{Introduction}\label{sec:intro}
 
@@ -41,18 +41,18 @@ Tens of thousands or more individual spectral lines give rise to a sea of undula
 
 The metaphorical holy grail of astronomical spectroscopy is a function that takes in an observed astronomical spectrum and reports back the postition, amplitude, width, and shape of all of its spectral lines, automatically, accurately, and precisely.  The function would go further. It would report back the systemic radial velocity (RV) and rotational broadening ($v\sin{i}$).  Finally the function would---in an \emph{Inception}-like manner---provide what it believes to be the interpretable generating function that produced the data, so that we may gain insights on future examples of this or other stars.  Solving this problem is hard, for at least four reasons.  First, the spectral lines may overlap, and so the assignment of one line may be partially degenerate with the assignment of some other adjacent line.  Second, extremely wide line wings blend into the continuum, such that the placement of the continuum level may become ill-defined.  Third, the extent of line blending and realized line shape depends strongly on the spectral resolution of the spectrograph, the rotational broadening of the star, and possibly the instrumental configuration at the time of observation.  Finally, telluric absorption lines commingle with the astronomical spectral lines of interest, censoring some spectral regions entirely, or partially confounding other lines with chance allignments.
 
-Addressing these and other challenges forms the backbone of \emph{spectral calibration}, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.  Luckily, many scientific applications in astrophysics do not need the technically demanding noise-free template, nor catalog-of-all-spectral-lines.  A few lines suffice.  For those applications, human inspection of isolated lines and semi-automated equivalent width determination have been and will remain adequate.  
+Addressing these and other challenges forms the backbone of \emph{spectral calibration}, an increasingly valuable specialty as the deficits in our models become intolerable with greater data quantity and quality.  Luckily, many scientific applications in astrophysics do not need the technically demanding noise-free template, nor catalog-of-all-spectral-lines.  A few lines suffice.  For those applications, human inspection of isolated lines and semi-automated equivalent width determination have been and will remain adequate.
 
 But many new and important questions in the fields of stars and exoplanets aspire to reach the margins of what the entire dataset can inform.  In particular, data from high-\emph{grasp} \'echelle spectrographs possess simultaneously high spectral resolving power and high bandwidth, yielding tens of thousands or possibly millions of independent spectral resolution elements for each star, substar, or exoplanet.  Those applications that seek to gain signal by ``stacking'' spectral lines or cross-correlating with templates can hypothetically gain huge boosts in the accessible signal-to-noise ratio compared to a single or few lines.  Most manual and semi-automated methods cannot take advantage of the entire spectral bandwidth, or rely on exact knowledge of the underlying templates and may fail to achieve the hypothetical promise of these high-bandwidth spectrographs \citep{2020AJ....160..198H}.
 
-For example, exoplanet cross-correlation spectroscopy \citep{2013MNRAS.436L..35B} hinges on accurate molecular spectral templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features \citep{2015A&A...575A..20H}.  
+For example, exoplanet cross-correlation spectroscopy \citep{2013MNRAS.436L..35B} hinges on accurate molecular spectral templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features \citep{2015A&A...575A..20H}.
 
 In extreme precision radial velocity (EPRV) applications, cross-correlation methods work \citep{2018A_A...620A..47D}, but have many limitations \citep{2022arXiv220110639Z}.  Addressing telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption before convolution with an instrumental kernel\authorcomment1{speakerdeck.com/dwhgg/telluric-line-hack-week-wrap-up}.  This telluric joint modeling capability does not yet exist at a precision that can meet these strenuous demands.
 
-In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.  
+In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.
 
-Existing open-source frameworks have overcome some of these challenges, or have been purpose-built for specialized applications. 
-These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} \authorcomment1{Cargile et al. in prep}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.  
+Existing open-source frameworks have overcome some of these challenges, or have been purpose-built for specialized applications.
+These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} \authorcomment1{Cargile et al. in prep}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.
 The design of these frameworks necessarily have to make a choice in the bias-variance tradeoff: is the tool more \emph{data}-driven or more \emph{model}-driven?  The statistical tradeoff can be viewed as a concession in physical self-consistency for model flexibility: more or fewer parameters; more \emph{accurate} or more \emph{precise}.
 
 A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
@@ -87,10 +87,10 @@ currently on the Gemini South Telescope on Cerro Pach\'on in Chile. The $R=55,00
 
 
 \begin{figure}[hbt!]
- \centering
- \includegraphics[width=0.5\textwidth]{figures/N_lines_vs_Teff_prom.png}
- \caption{Number of prominent spectral lines versus effective temperature for PHOENIX models truncated to IGRINS (\emph{blue, connected} points) and HPF (\emph{orange, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.}
- \label{fig_Nlines_vs_teff}
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/N_lines_vs_Teff_prom.png}
+    \caption{Number of prominent spectral lines versus effective temperature for PHOENIX models truncated to IGRINS (\emph{blue, connected} points) and HPF (\emph{orange, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.}
+    \label{fig_Nlines_vs_teff}
 \end{figure}
 
 
@@ -106,7 +106,7 @@ There does not exist a general-purpose, single-shot algorithm for obtaining the 
 We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s)$ for a flattened synthetic spectrum $\mathsf{S}$: it is the cumulative product of transmission through the sea of all overlapping spectral lines:
 
 \begin{eqnarray}
- \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \mathsf{P} \prod_{j=1}^{N_{\mathrm{lines}}} (1-a_j \mathsf{V}(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )} \label{equation1}
+    \mathsf{M}(\bm{\lambda}_s) = {\displaystyle \mathsf{P} \prod_{j=1}^{N_{\mathrm{lines}}} (1-a_j \mathsf{V}(\bm{\lambda}_s-\lambda_{c,j}, \sigma_j, \gamma_j) )} \label{equation1}
 \end{eqnarray}
 
 where $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line. The amplitude $a$ is always expected to be positive for absorption lines and is equal to the area under the curve of the line since the Voigt profile is normalized. The optional Prefactor term $\mathsf{P}$ is fixed at $1$ by default but can be allowed to vary to fine-adjust imperfections leftover from the polynomial-based continuum flattening procedure.
@@ -121,7 +121,7 @@ Two sampled Voigt approaches could be feasible. Direct convolution of a sampled 
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes. Instead, we tune the parameters of the model, starting from these coarse initial values. This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary. We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
- \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
+    \mathcal{L} = \sum_i^{N_s} (S_i - M_i)^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
 \end{eqnarray}
 
 
@@ -141,12 +141,12 @@ We set the \texttt{requires\_grad=True} property for any Torch tensor that we wa
 The computational bottleneck occurs at the evaluation of Equation \ref{equation1}, which includes the assembly of a $N_{\mathrm{lines}}\times N_{s}$ matrix $\bm{\bar{V}}$ assembled by stacking each Voigt profile $\mathsf{V}_j(\bm{\lambda}_s)$ on top of each other:
 
 \begin{equation}
- \begin{pmatrix}
- \mathsf{V}_1(\bm{\lambda}_s) & \\
- \mathsf{V}_2(\bm{\lambda}_s) & \\
- \vdots & \\
- \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
- \end{pmatrix}
+    \begin{pmatrix}
+        \mathsf{V}_1(\bm{\lambda}_s)                    & \\
+        \mathsf{V}_2(\bm{\lambda}_s)                    & \\
+        \vdots                                          & \\
+        \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
+    \end{pmatrix}
 \end{equation}
 
 Equation \ref{equation1} performs a type of tensor contraction, turning a $N_{\mathrm{lines}}\times N_{s}$ matrix into a $1\times N_{s}$ vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix, with a scalar prefactor for the cost of evaluating a single line profile at a single wavelength point. Efficient GPU algorithms exist for tensor contractions such as this product along an axis of a matrix, allowing this computation to proceed quickly on modern machines\authorcomment1{add citation?}. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math, although the algorithms place restrictions on floating precision depending on the particular hardware and software available. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. The computation graph takes up more memory than the matrix itself, so it is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
@@ -174,7 +174,7 @@ Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, onl
 We rewrite Equation \ref{equation1} as a sum by taking the log of both sides
 
 \begin{eqnarray}
- \ln{\mathsf{F}(\bm{\lambda})} = \sum_{i=1}^{N_{lines}} \ln{\left(1-V(\bm{\lambda};A_i, \lambda_{c,i}, \sigma_i) \right)}
+    \ln{\mathsf{F}(\bm{\lambda})} = \sum_{i=1}^{N_{lines}} \ln{\left(1-V(\bm{\lambda};A_i, \lambda_{c,i}, \sigma_i) \right)}
 \end{eqnarray}
 
 The argument of the natural logarithm approaches 1 far from the line core, making the terms outside of the matrix approximately zero, a sparse matrix representing the log of the flux. Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices. The coalescing operation is extremely fast and efficient on either CPU or GPU hardware. We sum the logs and then exponentiate the result before comparing it to the native linear flux. We enforce that the argument of the natural log must be greater than zero through a simple truncation, which may approximately resemble the effect of saturation in line cores. This truncation would only be relevant for saturated lines. Each pixel may get computed about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.
@@ -189,8 +189,8 @@ Extremely broad lines will exhibit truncation effects if the sparse window is sm
 We introduce advanced lineshapes for these $\sim20$ broad lines, perturbing the Voigt line-wings with a smooth wavelength-dependent correction term $\mathsf{G}$:
 
 \begin{eqnarray}
- \mathsf{\tilde{V}(\bm{\lambda})} &=& \mathsf{V} \odot \mathsf{G}\\
- \mathsf{G} &=& 1 + (e^{a_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
+    \mathsf{\tilde{V}(\bm{\lambda})} &=& \mathsf{V} \odot \mathsf{G}\\
+    \mathsf{G} &=& 1 + (e^{a_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
 \end{eqnarray}
 
 where $\odot$ is the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $a$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
@@ -207,10 +207,10 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
 
 
 \begin{figure}[hbt!]
- \centering
- \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
- \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4100\;$K,  $\log{g}=3.5$ solar metallicity model has over 5,000 individual cloned spectral lines.  The figure zooms in on a $0.7\%$ portion of the large spectral bandwidth that was cloned.  Some conspicuous flaws can be seen near the wings of broad lines, or surrounding blended lines.  Some initialization effects can be seen in this example, suggesting that the cloning procedure requires additional training iterations to achieve the best performance.}
- \label{fig_cloned_spectrum_demo}
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
+    \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4100\;$K,  $\log{g}=3.5$ solar metallicity model has 11,759 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 25 \AA chunk contains 73 spectral lines and represents a mere $<0.7\%$ portion of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
+    \label{fig_cloned_spectrum_demo}
 \end{figure}
 
 Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas\'e}. The $NN$ epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64. That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
@@ -224,10 +224,10 @@ We save the model parameters with \texttt{torch.save()} and refer to the entire 
 We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}\authorcomment1{make this figure!}. We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$. The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out. Figure \ref{fig_poor_cloning_performance}\authorcomment1{make this figure} zooms in on the \censor{XX} line at $\censor{10200}\;$\AA.
 
 \begin{figure}[hbt!]
- \centering
- \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
- \caption{A zoom in of the region from Figure \ref{fig_cloned_spectrum_demo}.}
- \label{fig_poor_cloning_performance}
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
+    \caption{A zoom in of the region from Figure \ref{fig_cloned_spectrum_demo}.}
+    \label{fig_poor_cloning_performance}
 \end{figure}
 
 The other main source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residuals that scale with $P_{rom}$. Including smaller prominence lines means smaller residuals, but more lines and higher computational cost.
@@ -238,44 +238,44 @@ We see some narrow lines devolve into missing continuum opacity, the favored tra
 
 
 \begin{outline}
- \1 We see some lines that devolve into missing continuum opacity
- \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
- \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
- \1 Does the pre-trained model round-trip effectively (model saved at end of training = model from loaded params)?
+    \1 We see some lines that devolve into missing continuum opacity
+    \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
+    \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
+    \1 Does the pre-trained model round-trip effectively (model saved at end of training = model from loaded params)?
 \end{outline}
 
 
 \section{Refining the model from data with transfer learning}
 \begin{outline}
- \1 Augment the pre-trained model with extrinsic parameters:
- \2 vsini and RV
- \1 How to re-sample into the data space?
- \1 Option 1: Convolve the Pseudo-Voigt with a Instrumental Gaussian
- \2 The convolution of a Gaussian with a Pseudo-Voigt is simply a new Pseudo-Voigt!
- \2 Simply evaluate on a new coarse wavelength grid! Saves computation!
- \1 Option 2: Numerically convolve output on a fine grid and sum pixels
- \2 Computationally wasteful
- \2 Requires generating full bandwidth spectrum at native resolution
- \1 Both options should give the same answer (right?)
- \2 Need to double-check commutativity of convolution and element-wise product...
- \1 Ideally you need wavelength-dependent resolution, not just a single stock resolving power
- \1 Need accurate per-pixel uncertainties
- \1 We have to apply some amount of regularization to the pre-trained model
- \2 Regularization tunes how much to trust the data versus the model in the semi-empirical model
- \2 No Regularization means likely to overfit noise in the data
- \2 Too much regularization resembles a static (fixed) PHOENIX model
+    \1 Augment the pre-trained model with extrinsic parameters:
+    \2 vsini and RV
+    \1 How to re-sample into the data space?
+    \1 Option 1: Convolve the Pseudo-Voigt with a Instrumental Gaussian
+    \2 The convolution of a Gaussian with a Pseudo-Voigt is simply a new Pseudo-Voigt!
+    \2 Simply evaluate on a new coarse wavelength grid! Saves computation!
+    \1 Option 2: Numerically convolve output on a fine grid and sum pixels
+    \2 Computationally wasteful
+    \2 Requires generating full bandwidth spectrum at native resolution
+    \1 Both options should give the same answer (right?)
+    \2 Need to double-check commutativity of convolution and element-wise product...
+    \1 Ideally you need wavelength-dependent resolution, not just a single stock resolving power
+    \1 Need accurate per-pixel uncertainties
+    \1 We have to apply some amount of regularization to the pre-trained model
+    \2 Regularization tunes how much to trust the data versus the model in the semi-empirical model
+    \2 No Regularization means likely to overfit noise in the data
+    \2 Too much regularization resembles a static (fixed) PHOENIX model
 \end{outline}
 
 \section{Performance of transfer learning}
 \begin{outline}
- \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
- \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
- \2 Should be near-zero except for missing lines
- \2 What should we do about missing lines?
- \1 What is the residual level with modest regularization? What is the typical change to the line?
- \2 Plot of cloned FWHM versus FWHM transferred
- \2 The pseudo-Voigt line properties can be analytically integrated to give an equivalent width
- \2 Plot of cloned EW (before) versus transfer EW (after)
+    \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
+    \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
+    \2 Should be near-zero except for missing lines
+    \2 What should we do about missing lines?
+    \1 What is the residual level with modest regularization? What is the typical change to the line?
+    \2 Plot of cloned FWHM versus FWHM transferred
+    \2 The pseudo-Voigt line properties can be analytically integrated to give an equivalent width
+    \2 Plot of cloned EW (before) versus transfer EW (after)
 \end{outline}
 
 \section{Discussion}
@@ -288,40 +288,40 @@ The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matche
 
 The \texttt{wobble} framework \citep{2019AJ....158..164B} modernized the construction of high-SNR templates to account for temporally variable telluric lines. The tool requires dozens of high-SNR spectra acquired at a range of Barycentric Earth Radial Velocities (BERVs).  The final telluric-free combined spectrum would still have to be compared to models for absolute calibration, or can be used out-of-the-box for precision relative RVs.  The \texttt{wobble} framework also pioneered the off-label application of automatic differentiation frameworks---in this case \texttt{TensorFlow}---towards their physically-motivated use in stellar spectra.  \texttt{blas\'e} can be viewed as an evaluable and interpretable super-resolution version of \texttt{wobble}, that accepts more bias in the bias-variance tradeoff.
 
-The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons, and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with resilience to model imperfections by addressing the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models \citep{2021ApJ...921...95Z}.  The Spectral Inference Crank \citep[\texttt{sick},][]{2016ApJS..223....8C} shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.  
+The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons, and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with resilience to model imperfections by addressing the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models \citep{2021ApJ...921...95Z}.  The Spectral Inference Crank \citep[\texttt{sick},][]{2016ApJS..223....8C} shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.
 
-For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.  
+For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
 
 \subsection{Lineshapes choice and tradeoffs}
 \begin{outline}
- \1 Faced with a question: what lineshape to use
- \2 To First order the lines are Gaussian or Lorentzian
- \2 To Second-order the lines are Voigt Profiles
- \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
- \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
- \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
- \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
- \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
+    \1 Faced with a question: what lineshape to use
+    \2 To First order the lines are Gaussian or Lorentzian
+    \2 To Second-order the lines are Voigt Profiles
+    \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
+    \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
+    \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
+    \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
+    \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
 \end{outline}
 
 \subsection{Questioning the assumptions of the method}
 
 \begin{outline}
- \1 Is PseudoVoigt Adequate?
- \1 What performance level is adequate? (depends on your application)
- \1 What about PRV applications
- \1 What about the choice of minibatch size?
- \1 How would a sparse tensor change the computational performance?
- \1 Are we using the GPU effectively? Are we memory bandwidth limited?
- \1 Should we update the line center positions?
+    \1 Is PseudoVoigt Adequate?
+    \1 What performance level is adequate? (depends on your application)
+    \1 What about PRV applications
+    \1 What about the choice of minibatch size?
+    \1 How would a sparse tensor change the computational performance?
+    \1 Are we using the GPU effectively? Are we memory bandwidth limited?
+    \1 Should we update the line center positions?
 \end{outline}
 
 \subsection{Limitations}
 \begin{outline}
- \1 What to do when continuum is absent even in at the native resolution of precomputed synthetic model?
- \1 Relevant to brown dwarfs and possibly M dwarfs molecular bands
- \1 Bandwidth limitations
- \1 Interplay with tellurics
+    \1 What to do when continuum is absent even in at the native resolution of precomputed synthetic model?
+    \1 Relevant to brown dwarfs and possibly M dwarfs molecular bands
+    \1 Bandwidth limitations
+    \1 Interplay with tellurics
 \end{outline}
 
 
@@ -333,7 +333,7 @@ More placeholder text...
 \
 
 \begin{acknowledgements}
- The author acknowledges the Texas Advanced Computing Center (TACC, \url{http://www.tacc.utexas.edu}) at The University of Texas at Austin for providing HPC resources that have contributed to the research results reported within this paper.
+    The author acknowledges the Texas Advanced Computing Center (TACC, \url{http://www.tacc.utexas.edu}) at The University of Texas at Austin for providing HPC resources that have contributed to the research results reported within this paper.
 \end{acknowledgements}
 
 \clearpage
@@ -342,15 +342,15 @@ More placeholder text...
 \facilities{HET (HPF)}
 
 \software{ pandas \citep{mckinney10},
- matplotlib \citep{hunter07},
- astropy \citep{exoplanet:astropy13,exoplanet:astropy18},
- exoplanet \citep{exoplanet:joss}, %celerite?
- numpy \citep{harris2020array},
- scipy \citep{2020SciPy-NMeth},
- ipython \citep{perez07},
- starfish \citep{czekala15},
- seaborn \citep{Waskom2021},
- pytorch \citep{2019arXiv191201703P}}
+    matplotlib \citep{hunter07},
+    astropy \citep{exoplanet:astropy13,exoplanet:astropy18},
+    exoplanet \citep{exoplanet:joss}, %celerite?
+    numpy \citep{harris2020array},
+    scipy \citep{2020SciPy-NMeth},
+    ipython \citep{perez07},
+    starfish \citep{czekala15},
+    seaborn \citep{Waskom2021},
+    pytorch \citep{2019arXiv191201703P}}
 
 
 \bibliography{ms}
@@ -368,17 +368,17 @@ Here are some more details about autodiff
 
 % Table
 \begin{deluxetable}{cc}
- \tablecaption{Notation used in this paper\label{table2}}
- \tablehead{
- \colhead{Symbol} & \nocolhead{Meaning}
- }
- \startdata
- $N_{pix}$ & Number of pixels in the precomputed spectrum \\
- $N_{lines}$ & Number of spectral lines \\
- $\sigma_G$ & Gaussian line profile scale and standard deviation \\
- $\gamma_L$ & Lorentzian line profile half width\\
- $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of data spectrum
- \enddata
+    \tablecaption{Notation used in this paper\label{table2}}
+    \tablehead{
+        \colhead{Symbol} & \nocolhead{Meaning}
+    }
+    \startdata
+    $N_{pix}$ & Number of pixels in the precomputed spectrum \\
+    $N_{lines}$ & Number of spectral lines \\
+    $\sigma_G$ & Gaussian line profile scale and standard deviation \\
+    $\gamma_L$ & Lorentzian line profile half width\\
+    $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of data spectrum
+    \enddata
 \end{deluxetable}
 
 \end{document}

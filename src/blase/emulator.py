@@ -282,7 +282,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         self.active_mask = self.active_mask.to(device)
 
         self.radial_velocity = nn.Parameter(
-            torch.tensor(10.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
         )
 
     def forward(self):
