@@ -7,13 +7,28 @@ from blase.emulator import SparsePhoenixEmulator
 import matplotlib.pyplot as plt
 from gollum.phoenix import PHOENIXSpectrum
 import numpy as np
-from muler.hpf import HPFSpectrumList
+from muler.hpf import HPFSpectrumList, HPFSpectrum
 import copy
+import astropy.units as u
 
 if torch.cuda.is_available():
     device = "cuda"
 else:
     device = "cpu"
+
+from astropy.io import fits
+
+# Fetch the real HPF data
+# We will demo on WASP 69
+hdus = fits.open("../../data/WASP_69_hpf_stack.fits")
+
+# Numpy arrays: 1 x N_pix
+data = HPFSpectrum(
+    flux=hdus[1].data["flux"] * u.dimensionless_unscaled,
+    spectral_axis=hdus[1].data["wavelength"] * u.Angstrom,
+)
+data = data.remove_nans()
+
 
 # Pre-process the model as described in the paper
 spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
@@ -22,22 +37,9 @@ spectrum = spectrum.normalize()
 continuum_fit = spectrum.fit_continuum(polyorder=5)
 spectrum = spectrum.divide(continuum_fit, handle_meta="ff")
 
-# Fetch the real HPF data
-# For now we will use some data from another project
-fn = "Goldilocks_20191022T014138_v1.0_0004.spectra.fits"
-dir = "/home/gully/GitHub/blase/test/data/"
-dir = os.path.expanduser(dir)
-raw_data = HPFSpectrumList.read(file=dir + fn)  # Just one order for now
-raw_data = raw_data.sky_subtract().deblaze().normalize().trim_edges((8, 2040))
-raw_data = raw_data.stitch().mask_tellurics().normalize()
-
-mask = (raw_data.wavelength.value > 8450) & (raw_data.wavelength.value < 8900)
-data = raw_data.apply_boolean_mask(mask).normalize()
-
-
-# Numpy arrays: 1 x N_pix
 wl_native = spectrum.wavelength.value
 flux_native = spectrum.flux.value
+
 
 # Create the emulator and load a pretrained model
 prominence = 0.01
@@ -55,7 +57,7 @@ target = (
 state_dict_post = torch.load("emulator_T4700g4p5_prom0p01_HPF.pt")
 emulator.load_state_dict(state_dict_post)
 
-emulator.radial_velocity = nn.Parameter(torch.tensor(27.6, device=device))
+emulator.radial_velocity = nn.Parameter(torch.tensor(-9.628, device=device))
 emulator.radial_velocity.requires_grad = True
 emulator.lam_centers.requires_grad = False
 emulator.amplitudes.requires_grad = True
@@ -65,14 +67,18 @@ emulator.gamma_widths.requires_grad = True
 
 from blase.emulator import EchelleModel
 
-model = EchelleModel(data.spectral_axis.bin_edges.value, wl_native.cpu())
+model = EchelleModel(
+    data.spectral_axis.bin_edges.value.astype(np.float64), wl_native.cpu()
+)
 model.to(device)
 model.ln_vsini = nn.Parameter(torch.log(torch.tensor(1.0, device=device)))
 
-data_target = torch.tensor(data.flux.value, device=device, dtype=torch.float64)
+data_target = torch.tensor(
+    data.flux.value.astype(np.float64), device=device, dtype=torch.float64
+)
 
 data_wavelength = torch.tensor(
-    data.wavelength.value, device=device, dtype=torch.float64
+    data.wavelength.value.astype(np.float64), device=device, dtype=torch.float64
 )
 
 loss_fn = nn.MSELoss(reduction="mean")
@@ -83,7 +89,7 @@ optimizer = optim.Adam(
     0.01,
     amsgrad=True,
 )
-n_epochs = 2000
+n_epochs = 1000
 losses = []
 
 t_iter = trange(n_epochs, desc="Training", leave=True)

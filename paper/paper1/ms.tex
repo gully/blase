@@ -246,6 +246,21 @@ We see some narrow lines devolve into missing continuum opacity, the favored tra
 
 
 \section{Refining the model from data with transfer learning}
+
+\begin{figure}[hbt!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_demo.png}
+    \caption{WASP 69 observed with HPF, compared to a $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity PHOENIX model warped to $v\sin{i}=2.2$~km/s, $RV=-9.6$~km/s, and HPF resolving power.}
+    \label{fig_WASP69_demo}
+\end{figure}
+
+\begin{figure}[hbt!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_transfer_learned.png}
+    \caption{Semi-empirical model of WASP 69 transfer-learned with \texttt{blas\'e}. }
+    \label{fig_WASP69_transferred}
+\end{figure}
+
 \begin{outline}
     \1 Augment the pre-trained model with extrinsic parameters:
     \2 vsini and RV
