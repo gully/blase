@@ -52,7 +52,7 @@ webbrowser.open("http://localhost:6006/", new=2)
 
 
 # Pre-process the model as described in the paper
-spectrum = PHOENIXSpectrum(teff=4100, logg=3.5)
+spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
 spectrum = spectrum.divide_by_blackbody()
 spectrum = spectrum.normalize()
 continuum_fit = spectrum.fit_continuum(polyorder=5)
@@ -122,5 +122,5 @@ for epoch in t_iter:
             "predictions vs. actuals", plot_spectrum(to_plot), global_step=epoch,
         )
 
-        torch.save(emulator.state_dict(), "emulator_T4100g3p5_prom0p01_HPF_recovery.pt")
+        torch.save(emulator.state_dict(), "emulator_T4700g4p5_prom0p01_HPF_recovery.pt")
 

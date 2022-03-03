@@ -16,7 +16,7 @@
 \begin{document}
 \shorttitle{blas\'e}
 \shortauthors{Gully-Santiago}
-\title{Transfer learning for \'echelle spectroscopy with \texttt{blas\'e} yes}
+\title{Transfer learning for \'echelle spectroscopy with \texttt{blas\'e}}
 
 \author{Michael Gully-Santiago}
 \affiliation{University of Texas at Austin Department of Astronomy}
@@ -209,7 +209,7 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
-    \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4100\;$K,  $\log{g}=3.5$ solar metallicity model has 11,759 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 25 \AA~ chunk contains 73 spectral lines and represents a mere $<0.7\%$ portion of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
+    \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity model has 9,028 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 50 \AA~ chunk contains 121 spectral lines and represents about 1$\%$ of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
     \label{fig_cloned_spectrum_demo}
 \end{figure}
 
@@ -221,20 +221,20 @@ We save the model parameters with \texttt{torch.save()} and refer to the entire 
 
 \subsection{Results and scaling}
 
-We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}\authorcomment1{make this figure!}. We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$. The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out. Figure \ref{fig_poor_cloning_performance}\authorcomment1{make this figure} zooms in on the \censor{XX} line at $\censor{10200}\;$\AA.
+We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}\authorcomment1{make this figure!}. We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$. The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out. Figure \ref{fig_zoom_cloning_performance}\authorcomment1{make this figure} zooms in on the \censor{XX} line at $\censor{10200}\;$\AA.
 
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
-    \caption{A zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. There are 9 spectral lines in this view.}
-    \label{fig_poor_cloning_performance}
+    \caption{Zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. The cloned model has 7 spectral lines describing the 400 pixels in this 4 \AA~ chunk.  The native PHOENIX pixel sampling can be see as the boxy steps in both the native and cloned model.  }
+    \label{fig_zoom_cloning_performance}
 \end{figure}
 
 The other main source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residuals that scale with $P_{rom}$. Including smaller prominence lines means smaller residuals, but more lines and higher computational cost.
 
 
 \subsection{Line data clustering and conspicuous flaws}
-We see some narrow lines devolve into missing continuum opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This problem can be seen in Figure \ref{fig_poor_cloning_performance} where a line initialized at $\censor{10210}\;$\AA~ with an amplitude of ZZ and width of YY bloats to \censor{some other value}. These devolved lines tend to appear at poorly imitated broad-and-deep line wings. One can mitigate these devolved lines by adding more flexibility to the continuum or supporting more advanced line shapes.
+We see some narrow lines devolve into missing continuum opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This problem can be seen in Figure \ref{fig_zoom_cloning_performance} where a line initialized at $\censor{10210}\;$\AA~ with an amplitude of ZZ and width of YY bloats to \censor{some other value}. These devolved lines tend to appear at poorly imitated broad-and-deep line wings. One can mitigate these devolved lines by adding more flexibility to the continuum or supporting more advanced line shapes.
 
 
 \begin{outline}
