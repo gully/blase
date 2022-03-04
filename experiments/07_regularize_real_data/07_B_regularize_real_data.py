@@ -89,7 +89,7 @@ optimizer = optim.Adam(
     0.01,
     amsgrad=True,
 )
-n_epochs = 1000
+n_epochs = 300
 losses = []
 
 with torch.no_grad():
@@ -104,13 +104,17 @@ def ln_prior(amplitude_vector):
     return 0.5 * torch.sum((amplitude_difference ** 2) / (0.01 ** 2))
 
 
+# We need uncertainty to be able to compute the posterior
+# Assert fixed per-pixel uncertainty for now
+per_pixel_uncertainty = torch.tensor(0.004, device=device, dtype=torch.float64)
+
 t_iter = trange(n_epochs, desc="Training", leave=True)
 for epoch in t_iter:
     model.train()
     emulator.train()
     high_res_model = emulator.forward()
     yhat = model.forward(high_res_model)
-    loss = loss_fn(yhat, data_target)
+    loss = loss_fn(yhat / per_pixel_uncertainty, data_target / per_pixel_uncertainty)
     loss += ln_prior(emulator.amplitudes)
     loss.backward()
     optimizer.step()
