@@ -203,7 +203,7 @@ It enforces that the perturbation only produces absorption and not emission prof
 
 \subsection{Optimization and training}
 
-We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}. Minitbatch testing proceeded with batch fractions of typically $f\sim1-5\%$ of the available pixels but was rapidly discontinued in favor of the much more performant and convenient sparse matrix method. We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
+We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}. Minibatch testing proceeded with batch fractions of typically $f\sim1-5\%$ of the available pixels but was rapidly discontinued in favor of the much more performant and convenient sparse matrix method. We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
 
 
 \begin{figure}[hbt!]
@@ -213,15 +213,19 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
     \label{fig_cloned_spectrum_demo}
 \end{figure}
 
-Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas\'e}. The $NN$ epochs of training took X minutes on an RTX2070 GPU with PyTorch v1.11.x, CUDA v11.x, and Intel X CPU, with all tensors as FP64. That benchmark works out to X seconds per epoch, or about Z seconds per minibatch.
+Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
 
-We save the model parameters with \texttt{torch.save()} and refer to the entire collection of parameters as the \emph{pre-trained model}.
+We store the model parameters to disk and refer to the entire collection of parameters as the \emph{pre-trained model}.
 
 \section{Cloning Performance}
 
-\subsection{Results and scaling}
+We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residuals of 1.2\%/pixel at native resolution. We see three main categories of cloning flaws.
 
-We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}\authorcomment1{make this figure!}. We see an RMS of $\blackout{1}\%$ residuals at native resolution, with a long tail of residuals up to $\blackout{20}\%$. The greatest residuals surround the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines---for which the non-Voigt lineshapes stand out. Figure \ref{fig_zoom_cloning_performance}\authorcomment1{make this figure} zooms in on the \censor{XX} line at $\censor{10200}\;$\AA.
+The first, and expected, source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residual notches with strengths comparable to $P_{rom}$. Including smaller prominence lines by lowering $P_{rom}$ produces smaller residuals, at the tradeoff of more computing more lines and yielding higher computational cost.  But at some point, turning down $P_{rom}$ yields diminishing returns, as other imperfections provide a noise floor.  We have experimentally determined this noise floor to occur near $P_{rom}=0.01$.
+
+Second, another anticipated flaw occurs in the line cores of relatively narrow lines, where the pseudo-Voigt profile becomes a poor approximation of the exact Voigt profile.  The cloned model tends to overestimate the flux at the core and underestimate the flux alone the slopes of the lines.
+
+Finally, and most perniciously, a large category of residuals stems from conspicuous residuals appear near the wings of the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines.  The true lines exhibit advanced lineshapes, such as non-Lorentzian line-wings that are not captured with the overly simplistic Voigt line profile.  Figure \ref{fig_zoom_cloning_performance} highlights super-Lorentzian line wings around a line at 8691~\AA.  Narrow lines devolve into missing linewing opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This flaw can be seen  where a line initialized at 8692.5~\AA and another pair of lines at 8690.0 all melt into linewings.
 
 \begin{figure}[hbt!]
     \centering
@@ -229,20 +233,6 @@ We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus clo
     \caption{Zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. The cloned model has 7 spectral lines describing the 400 pixels in this 4 \AA~ chunk.  The native PHOENIX pixel sampling can be see as the boxy steps in both the native and cloned model.  }
     \label{fig_zoom_cloning_performance}
 \end{figure}
-
-The other main source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residuals that scale with $P_{rom}$. Including smaller prominence lines means smaller residuals, but more lines and higher computational cost.
-
-
-\subsection{Line data clustering and conspicuous flaws}
-We see some narrow lines devolve into missing continuum opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This problem can be seen in Figure \ref{fig_zoom_cloning_performance} where a line initialized at $\censor{10210}\;$\AA~ with an amplitude of ZZ and width of YY bloats to \censor{some other value}. These devolved lines tend to appear at poorly imitated broad-and-deep line wings. One can mitigate these devolved lines by adding more flexibility to the continuum or supporting more advanced line shapes.
-
-
-\begin{outline}
-    \1 We see some lines that devolve into missing continuum opacity
-    \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
-    \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
-    \1 Does the pre-trained model round-trip effectively (model saved at end of training = model from loaded params)?
-\end{outline}
 
 
 \section{Refining the model from data with transfer learning}
@@ -313,6 +303,13 @@ The \texttt{wobble} framework \citep{2019AJ....158..164B} modernized the constru
 The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons, and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with resilience to model imperfections by addressing the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models \citep{2021ApJ...921...95Z}.  The Spectral Inference Crank \citep[\texttt{sick},][]{2016ApJS..223....8C} shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.
 
 For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
+
+\begin{outline}
+    \1 We see some lines that devolve into missing continuum opacity
+    \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
+    \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
+\end{outline}
+
 
 \subsection{Lineshapes choice and tradeoffs}
 \begin{outline}
