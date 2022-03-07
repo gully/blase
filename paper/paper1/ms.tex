@@ -221,11 +221,11 @@ We store the model parameters to disk and refer to the entire collection of para
 
 We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residuals of 1.2\%/pixel at native resolution. We see three main categories of cloning flaws.
 
-The first, and expected, source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residual notches with strengths comparable to $P_{rom}$. Including smaller prominence lines by lowering $P_{rom}$ produces smaller residuals, at the tradeoff of more computing more lines and yielding higher computational cost.  But at some point, turning down $P_{rom}$ yields diminishing returns, as other imperfections provide a noise floor.  We have experimentally determined this noise floor to occur near $P_{rom}=0.01$.
+The first, and expected, source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{rom}$ yield residual notches with strengths comparable to $P_{rom}$. Including smaller prominence lines by lowering $P_{rom}$ produces smaller residuals, at the tradeoff of computing more lines and yielding higher computational cost.  But at some point, turning down $P_{rom}$ yields diminishing returns, as other imperfections provide a noise floor.  We have experimentally determined this noise floor to occur near $P_{rom}=0.01$.
 
-Second, another anticipated flaw occurs in the line cores of relatively narrow lines, where the pseudo-Voigt profile becomes a poor approximation of the exact Voigt profile.  The cloned model tends to overestimate the flux at the core and underestimate the flux alone the slopes of the lines.
+Second, another anticipated flaw occurs in the line cores of relatively narrow lines, where the pseudo-Voigt profile becomes a poor approximation of the exact Voigt profile.  The cloned model tends to overestimate the flux at the core and underestimate the flux along the slopes of the lines.
 
-Finally, and most perniciously, a large category of residuals stems from conspicuous residuals appear near the wings of the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines.  The true lines exhibit advanced lineshapes, such as non-Lorentzian line-wings that are not captured with the overly simplistic Voigt line profile.  Figure \ref{fig_zoom_cloning_performance} highlights super-Lorentzian line wings around a line at 8691~\AA.  Narrow lines devolve into missing linewing opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This flaw can be seen  where a line initialized at 8692.5~\AA and another pair of lines at 8690.0 all melt into linewings.
+Finally, and most perniciously, a large category of residuals appear near the wings of the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines.  The true lines exhibit advanced lineshapes, such as non-Lorentzian line-wings that are not captured with the overly simplistic Voigt line profile.  Figure \ref{fig_zoom_cloning_performance} highlights super-Lorentzian line wings around a line at 8691~\AA.  Narrow lines devolve into missing linewing opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This flaw can be seen  where a line initialized at 8692.5~\AA~ and another pair of lines at 8690.0 all melt into linewings.
 
 \begin{figure}[hbt!]
     \centering
@@ -235,7 +235,7 @@ Finally, and most perniciously, a large category of residuals stems from conspic
 \end{figure}
 
 
-\section{Refining the model from data with transfer learning}
+\section{Semi-empirical models with transfer learning techniques}
 
 \begin{figure}[hbt!]
     \centering
@@ -257,6 +257,24 @@ Finally, and most perniciously, a large category of residuals stems from conspic
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
 \end{figure}
+
+
+The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
+
+\subsection{Augmenting the cloned model to match data}
+Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g}, and [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
+
+\begin{eqnarray}
+    \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
+\end{eqnarray}
+
+where $\zeta$ is the convolution kernel for rigid body rotation \censorbox{cite ExoJAX} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
+
+Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
+
+The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=$\censorbox{todo}.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
+
+The pixel resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates.
 
 \begin{outline}
     \1 Augment the pre-trained model with extrinsic parameters:
