@@ -9,6 +9,8 @@
 \usepackage{outlines}
 \usepackage{amsmath,bm}
 
+\DeclareMathOperator{\resample}{resample}
+
 \def\Teff{T_{\rm eff}}
 \def\vsini{v\sin{i}}
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
@@ -237,6 +239,43 @@ Finally, and most perniciously, a large category of residuals appear near the wi
 
 \section{Semi-empirical models with transfer learning techniques}
 
+
+The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
+
+\subsection{Augmenting the cloned model to match data}
+Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g}, and [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
+
+\begin{eqnarray}
+    \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
+\end{eqnarray}
+
+where $\zeta$ is the convolution kernel for rigid body rotation \censorbox{cite ExoJAX} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
+
+Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
+
+The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=$\censorbox{todo}.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
+
+The pixel resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixels.  The final forward model for \emph{blas\'e} is designated the ``pixel-level'' model to emphasize that we have achieved a model for each datum in the 1D observed spectrum:
+
+\begin{eqnarray}
+    \mathsf{F}_{p}(\bm{\lambda}) = \resample{\Big[\mathsf{F}_{ex} * g(R) \Big]} \label{eqn_final_model}
+\end{eqnarray}
+
+where $g$ is the Gaussian instrumental convolution kernel and the \texttt{resample[]} operation indicates the average of pixels within the data boundaries.
+
+\subsection{Regularization}
+
+Equation \ref{eqn_final_model} has all the same conceivably tunable parameters as the cloned model, \emph{plus} $v\sin{i}$ and $RV$.  The resolving power may also be treated as tunable if it is not known or varies with \emph{e.g.} seeing or instrumental configuration.
+
+It may appear desirable to simply optimize all of these parameters in a \emph{laissez-faire} manner, allowing them all to take on whatever value the data dictates.  Such a stratagem would overfit the data, resulting in unphysically perverse lineshapes that do not reflect the air of reality we attempt to impose on our synthetic spectral models.  Lines would haphazardly fit noise-spikes, and conspire together to warp spectral shapes in unexpected ways.  This overfit model may suit some rare purposes.  But most of the time, we prefer to strike a better balance in the bias-variance tradeoff.
+
+So instead, we have to apply some amount of \emph{regularization}, a restiction on the allowed values the model parameters can take on.  Fortunately we have a firm theoretical basis to justify this regularization.  We believe our precomputed synthetic spectral models are \emph{quasi-statically correct}: the predicted spectra resemble the unobserved ``latent spectrum'' with lines in the correct place, but just with the wrong amplitudes.  This statement may stem from the fact that it is easier to predict the mere existence of some energy transition of atoms and molecules than it is to predict their transition rates, abundances, temperature and pressure effects, and all the other line strength effects that flow down to how much light a line ultimately absorbs in a stellar atmosphere.
+
+Even still, the regularization step is in some ways the most subjective, since the degree of regularization will control the degree of overfitting or underfitting. The most extreme regularization---the antithesis of the \emph{laissez-faire} scenario---would yield a model too rigid to respond to the data at all, yielding a model entirely unchanged from the cloned PHOENIX model.  So setting the regularization parameter constitutes the only hyperparameter worthy of tuning in \texttt{blas\'e}.  The choice of how to set the regularization is problem-specific.  We default to the following choice. We fix all line parameters except for amplitude, which receives a regularization of 0.01, meaning that its ampltidue should be within about 1\% of its cloned value.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice they need to be initialized close to their plausible values.
+
+Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the closest PHOENIX template, post-processed to the HPF resolution and sampling.  Figure \ref{fig_WASP69_transferred} shows the same data spectrum compared to a pixel-level \emph{blas\'e} model regularized to the clone in Figure \ref{fig_cloned_spectrum_demo}.  The latent high-resolution model for WASP 69 is therefore the transfer-learned model, unadjusted for the extrinsic and instrumental properties.  This semi-empirical model is shown in Figure \ref{fig_WASP69_regularized}.
+
+
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_demo.png}
@@ -257,44 +296,6 @@ Finally, and most perniciously, a large category of residuals appear near the wi
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
 \end{figure}
-
-
-The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
-
-\subsection{Augmenting the cloned model to match data}
-Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g}, and [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
-
-\begin{eqnarray}
-    \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
-\end{eqnarray}
-
-where $\zeta$ is the convolution kernel for rigid body rotation \censorbox{cite ExoJAX} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
-
-Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
-
-The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=$\censorbox{todo}.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
-
-The pixel resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates.
-
-\begin{outline}
-    \1 Augment the pre-trained model with extrinsic parameters:
-    \2 vsini and RV
-    \1 How to re-sample into the data space?
-    \1 Option 1: Convolve the Pseudo-Voigt with a Instrumental Gaussian
-    \2 The convolution of a Gaussian with a Pseudo-Voigt is simply a new Pseudo-Voigt!
-    \2 Simply evaluate on a new coarse wavelength grid! Saves computation!
-    \1 Option 2: Numerically convolve output on a fine grid and sum pixels
-    \2 Computationally wasteful
-    \2 Requires generating full bandwidth spectrum at native resolution
-    \1 Both options should give the same answer (right?)
-    \2 Need to double-check commutativity of convolution and element-wise product...
-    \1 Ideally you need wavelength-dependent resolution, not just a single stock resolving power
-    \1 Need accurate per-pixel uncertainties
-    \1 We have to apply some amount of regularization to the pre-trained model
-    \2 Regularization tunes how much to trust the data versus the model in the semi-empirical model
-    \2 No Regularization means likely to overfit noise in the data
-    \2 Too much regularization resembles a static (fixed) PHOENIX model
-\end{outline}
 
 \section{Performance of transfer learning}
 \begin{outline}
