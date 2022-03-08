@@ -16,8 +16,8 @@
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
 
 \begin{document}
-\shorttitle{blas\'e}
-\shortauthors{Gully-Santiago}
+\shorttitle{Blas\'e}
+\shortauthors{Gully \& Morley}
 \title{Transfer learning for \'echelle spectroscopy with \texttt{blas\'e}}
 
 \author{Michael Gully-Santiago}
@@ -151,7 +151,7 @@ The computational bottleneck occurs at the evaluation of Equation \ref{equation1
     \end{pmatrix}
 \end{equation}
 
-Equation \ref{equation1} performs a type of tensor contraction, turning a $N_{\mathrm{lines}}\times N_{s}$ matrix into a $1\times N_{s}$ vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix, with a scalar prefactor for the cost of evaluating a single line profile at a single wavelength point. Efficient GPU algorithms exist for tensor contractions such as this product along an axis of a matrix, allowing this computation to proceed quickly on modern machines\authorcomment1{add citation?}. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math, although the algorithms place restrictions on floating precision depending on the particular hardware and software available. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. The computation graph takes up more memory than the matrix itself, so it is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
+Equation \ref{equation1} performs a matrix contraction, turning a $N_{\mathrm{lines}}\times N_{s}$ matrix into a $1\times N_{s}$ vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix, with a scalar prefactor for the cost of evaluating a single line profile at a single wavelength point. Efficient GPU algorithms exist for tensor contractions such as this product along an axis of a matrix, allowing this computation to proceed quickly on modern machines\authorcomment1{add citation?}. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math, although the algorithms place restrictions on floating precision depending on the particular hardware and software available. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. The computation graph takes up more memory than the matrix itself, so it is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
 
 \subsection{Minibatches}
 
@@ -243,7 +243,7 @@ Finally, and most perniciously, a large category of residuals appear near the wi
 The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
 
 \subsection{Augmenting the cloned model to match data}
-Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g}, and [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
+Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g},\mathrm{and\,} [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
 
 \begin{eqnarray}
     \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
@@ -251,7 +251,7 @@ Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i
 
 where $\zeta$ is the convolution kernel for rigid body rotation \citep{2022ApJS..258...31K} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
 
-Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
+Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{\lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
 
 The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
 
@@ -374,7 +374,7 @@ More placeholder text...
 \
 
 \begin{acknowledgements}
-    The author acknowledges the Texas Advanced Computing Center (TACC, \url{http://www.tacc.utexas.edu}) at The University of Texas at Austin for providing HPC resources that have contributed to the research results reported within this paper.
+    This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program, and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.  We acknowledge the National Science Foundation, which supported the work presented here under Grant No. 1910969.  This research has made use of NASA's Astrophysics Data System Bibliographic Services.
 \end{acknowledgements}
 
 \clearpage
