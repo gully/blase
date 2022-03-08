@@ -57,9 +57,9 @@ Existing open-source frameworks have overcome some of these challenges, or have 
 These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} \authorcomment1{Cargile et al. in prep}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.
 The design of these frameworks necessarily have to make a choice in the bias-variance tradeoff: is the tool more \emph{data}-driven or more \emph{model}-driven?  The statistical tradeoff can be viewed as a concession in physical self-consistency for model flexibility: more or fewer parameters; more \emph{accurate} or more \emph{precise}.
 
-A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \censorbox{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
+A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
 
-In this paper we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed from self-consistent models, but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \cite{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  In Section \censorbox{XX} we describe how to fine-adjust the cloned models to data in a transfer-learning step.  Section \censorbox{XX} exhibits some injection-recovery type tests on simulated data of known properties.  In Section \censorbox{XX} we show real-world data from high-grasp near-IR spectrographs.  Finally we discuss many conceivable extensions to the framework, and directions for future work in Section \censorbox{XX}.
+In this paper we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed from self-consistent models, but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \cite{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  In Section \ref{transferLearn} we describe how to fine-adjust the cloned models to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.  Section \ref{secInjRec} exhibits injection-recovery tests on simulated data of known properties, revealing the scalability and fundamental limits of the technique.  Finally we discuss many conceivable extensions to the framework, and directions for future work in Section \ref{secDiscuss}.
 
 
 \section{Methodology}\label{methodology}
@@ -114,7 +114,7 @@ We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s
 where $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line. The amplitude $a$ is always expected to be positive for absorption lines and is equal to the area under the curve of the line since the Voigt profile is normalized. The optional Prefactor term $\mathsf{P}$ is fixed at $1$ by default but can be allowed to vary to fine-adjust imperfections leftover from the polynomial-based continuum flattening procedure.
 
 \subsection{Voigt profile evaluation}
-The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Fadeeva function\authorcomment1{citation}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation described in \censor{some paper}\authorcomment1{look up reference to PseudoVoigt}.
+The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Fadeeva function\authorcomment1{citation}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation \citep{Ida:nt0146}.
 
 Two sampled Voigt approaches could be feasible. Direct convolution of a sampled Gaussian and Lorentzian profile may be too costly and inexact if pixels are coarsely sampled. Analogously, the convolution can be achieved in the Fourier domain through the multiplication of the Fast Fourier Transforms of the Gaussian and Lorentzian profiles, followed by the subsequent Inverse Fourier Transforms. The main rationale for either of these two choices would be to anticipate and align with planned convolutions such as rotational broadening and instrumental kernels. We do not currently implement these sampled convolutions in \emph{blas\'e} due to their prohibitive computational cost.
 
@@ -237,7 +237,7 @@ Finally, and most perniciously, a large category of residuals appear near the wi
 \end{figure}
 
 
-\section{Semi-empirical models with transfer learning techniques}
+\section{Semi-empirical models with transfer learning techniques}\label{transferLearn}
 
 
 The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
@@ -249,11 +249,11 @@ Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i
     \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
 \end{eqnarray}
 
-where $\zeta$ is the convolution kernel for rigid body rotation \censorbox{cite ExoJAX} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
+where $\zeta$ is the convolution kernel for rigid body rotation \citep{2022ApJS..258...31K} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
 
 Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
 
-The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=$\censorbox{todo}.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
+The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
 
 The pixel resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixels.  The final forward model for \emph{blas\'e} is designated the ``pixel-level'' model to emphasize that we have achieved a model for each datum in the 1D observed spectrum:
 
@@ -311,7 +311,10 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the close
     \2 Plot of cloned EW (before) versus transfer EW (after)
 \end{outline}
 
-\section{Discussion}
+\section{Injection/recovery tests}\label{secInjRec}
+Here we conduct injection/recovery tests.
+
+\section{Discussion}\label{secDiscuss}
 
 \subsection{Comparison to existing frameworks}
 
@@ -350,15 +353,13 @@ For very large bandwidths and very many spectral lines, the problem of identifyi
     \1 Is PseudoVoigt Adequate?
     \1 What performance level is adequate? (depends on your application)
     \1 What about PRV applications
-    \1 What about the choice of minibatch size?
-    \1 How would a sparse tensor change the computational performance?
     \1 Are we using the GPU effectively? Are we memory bandwidth limited?
     \1 Should we update the line center positions?
 \end{outline}
 
 \subsection{Limitations}
 \begin{outline}
-    \1 What to do when continuum is absent even in at the native resolution of precomputed synthetic model?
+    \1 What to do when continuum is absent even at the native resolution of precomputed synthetic model?
     \1 Relevant to brown dwarfs and possibly M dwarfs molecular bands
     \1 Bandwidth limitations
     \1 Interplay with tellurics
