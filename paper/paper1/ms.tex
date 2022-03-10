@@ -49,7 +49,7 @@ But many new and important questions in the fields of stars and exoplanets aspir
 
 For example, exoplanet cross-correlation spectroscopy \citep{2013MNRAS.436L..35B} hinges on accurate molecular spectral templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features \citep{2015A&A...575A..20H}.
 
-In extreme precision radial velocity (EPRV) applications, cross-correlation methods work \citep{2018A_A...620A..47D}, but have many limitations \citep{2022arXiv220110639Z}.  Addressing telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption before convolution with an instrumental kernel\authorcomment1{speakerdeck.com/dwhgg/telluric-line-hack-week-wrap-up}.  This telluric joint modeling capability does not yet exist at a precision that can meet these strenuous demands.
+In extreme precision radial velocity (EPRV) applications, cross-correlation methods work \citep{2018A_A...620A..47D}, but have many limitations \citep{2022arXiv220110639Z}.  Addressing telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption before convolution with an instrumental kernel.  This telluric joint modeling capability does not yet exist at a precision that can meet these strenuous demands.
 
 In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.
 
@@ -122,7 +122,7 @@ Two sampled Voigt approaches could be feasible. Direct convolution of a sampled 
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width=0.98\textwidth]{figures/blase_flowchart01.png}
-    \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought before investing fine-adjusting the spectra cutouts.} }
+    \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought.} }
     \label{blase_flowchart}
 \end{figure}
 
@@ -415,7 +415,7 @@ Here are some more details about autodiff
 
 
 % Table
-\begin{deluxetable}{cl}
+\begin{deluxetable}{cp{12cm}}
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
         \colhead{Symbol} & \colhead{Meaning}
@@ -427,37 +427,52 @@ Here are some more details about autodiff
     $\bm{\lambda}_S$ & Native wavelength coordinates of the precomputed stellar spectrum\\
     $\bm{\lambda}_T$ & Native wavelength coordinates of the telluric spectrum\\
     $\bm{\lambda}_D$ & Native wavelength coordinates of the data spectrum\\
-    $\mathsf{S}$ & Flux values of the precomputed synthetic stellar spectral model $\bm{\lambda}_S$\\
+    $\mathsf{S}_{\rm abs}$ & Flux values of the precomputed synthetic stellar spectral model $\bm{\lambda}_S$\\
+    $\mathsf{B}$ & Blackbody of temperature $T_{\mathrm{eff}}$ to coarsely normalize $\mathsf{S}_{\rm native}$\\
+    $\mathsf{P}$ & Smooth polynomial to refine continuum-normalization\\
+    $\mathsf{S}$ & Continuum normalized augmentation of $\mathsf{S}_{\rm native}$\\ 
     $\mathsf{T}$ & Transmission values of the precomputed synthetic telluric model \\
     $\mathsf{D}$ & The observed data spectrum flux values\\
-    $\mathsf{B}$ & Blackbody of temperature $T_{\mathrm{eff}}$ to coarsely normalize $\mathsf{S}$\\
-    $\mathsf{P}$ & Smooth polynomial to refine continuum-normalization of $\mathsf{S/B}$\\
+    $\bm{\epsilon}$ & The estimated uncertainties in the data spectrum\\
     $\mathsf{S}_{\rm clone}$ & Evaluable and tunable cloned flux model of $\mathsf{S}$\\
     $\mathsf{T}_{\rm clone}$ & Evaluable and tunable cloned transmission model of $\mathsf{T}$\\
-    $\mathsf{T}_{\rm resamp}$ & The cloned telluric model resampled from $\bm{\lambda}_T$ to $\bm{\lambda}_S$\\
+    %$\mathsf{T}_{\rm resamp}$ & The cloned telluric model resampled from $\bm{\lambda}_T$ to $\bm{\lambda}_S$\\
     $\mathsf{S}_{\rm ext}$ & An augmentation of $\mathsf{S}_{\rm clone}$ with $v\sin{i}$ convolution and $RV$ translation\\
-    $\mathsf{M}_{\rm joint}$ & The joint stellar and telluric model: $\mathsf{S}_{\rm ext} \cdot \mathsf{T}_{\rm resamp}$  \\
-    $\mathsf{M}$ & Joint model convolved with instrument resolving power and resampled to $\bm{\lambda}_D$\\
+    $\mathsf{M}_{\rm joint}$ & The joint stellar and telluric model: $\mathsf{S}_{\rm ext} \odot \mathsf{T}_{\rm clone}(\bm{\lambda}_S)$  \\
+    $\mathsf{M}$ & Joint model convolved 
+    with instrumental kernel and resampled to $\bm{\lambda}_D$\\
+    $\mathsf{R}$ & The residual spectrum between a pair of inputs, \emph{e.g.} $\mathsf{D} - \mathsf{M}$\\
+    $\bm{v}$ & The spectral coordinate axis $\bm{\lambda}$ expressed as a velocity difference\\
     \hline
     \multicolumn{2}{c}{Line properties}\\
     \hline
-    $\lambda_{c,i}$ & Line center position of the $i^{th}$ spectral line\\
-    $a_i$ & Gaussian line profile amplitude of the $i^{th}$ spectral line \\
-    $\sigma_i$ & Gaussian line profile scale of the $i^{th}$ spectral line\\
-    $\gamma_i$ & Lorentzian line profile half width of the $i^{th}$ spectral line\\
-    $\mathsf{V}_i$ & The Voigt profile of the $i^{th}$ spectral line \\
-    $\bar{\bm{V}}$ & The dense $(N_{\rm lines} \times N_{\rm pix})$ matrix of all Voigt profiles stacked vertically \\
+    $\lambda_{c,j}$ & Line center position of the $j^{th}$ spectral line\\
+    $a_j$ & Gaussian line profile amplitude of the $j^{th}$ spectral line \\
+    $\sigma_j$ & Gaussian line profile scale of the $j^{th}$ spectral line\\
+    $\gamma_j$ & Lorentzian line profile half width of the $j^{th}$ spectral line\\
+    $\mathsf{V}_j$ & The Voigt profile of the $j^{th}$ spectral line \\
+    $\bar{\bm{V}}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all Voigt profiles stacked vertically \\
     $\hat{\bm{V}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all Voigt profiles stacked vertically \\
+    $\zeta$ & The rotational broadening convolution kernel\\
+    $g$ & The instrumental broadening convolution kernel, typically a Gaussian\\
     \hline
     \multicolumn{2}{c}{Scalars}\\
     \hline
     $N_{\rm lines}$ & Number of spectral lines \\
-    $N_{\rm pix}$ & Number of pixel coordinates in the precomputed spectrum \\
+    $N_{x}$ & Number of pixel coordinates in the precomputed spectrum $\bm{\lambda}_x$\\
     $N_{\rm sparse}$ & Number of non-zero pixels computed in the sparse implementation\\
     $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of the data spectrum\\
     $P_{\rm rom}$ & The prominence threshold of spectral lines to include in cloning \\
-    $v\sin{i}$ & Stellar projected rotational broadening at inclination $i$ and equatorial velocity $v$\\
+    $v\sin{i}$ & Rotational broadening for stellar inclination $i$ and equatorial velocity $v$\\
     $RV$ & Radial velocity of the star\\
+    $R$ & Spectrograph resolving power $\lambda/\delta\lambda$\\
+    $\mathcal{L}$ & The loss scalar, usually the sum of the squares of the residuals\\
+    \hline
+    \multicolumn{2}{c}{Operators}\\
+    \hline
+    $\resample \big[ \mathsf{F}_x \big]_z$ & The resample operator, takes in a flux spectrum $\mathsf{F}$ evaluated at $\bm{\lambda}_x$ coordinates and returns the mean flux within the pixel boundaries of coordinate $\bm{\lambda}_z$\\
+    $*$& The convolution operator\\
+    $\odot$& \emph{Hadamard product}, an elementwise product of two same-length vectors\\
     \enddata
 \end{deluxetable}
 
