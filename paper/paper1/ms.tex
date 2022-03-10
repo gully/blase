@@ -1,7 +1,7 @@
 \documentclass[modern]{aastex631}
 \usepackage{hyperref}
 \bibliographystyle{aasjournal}
-\turnoffedit
+%\turnoffedit
 \usepackage[caption=false]{subfig}
 \usepackage{booktabs}
 \usepackage{censor}
@@ -54,7 +54,7 @@ In extreme precision radial velocity (EPRV) applications, cross-correlation meth
 In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.
 
 Existing open-source frameworks have overcome some of these challenges, or have been purpose-built for specialized applications.
-These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} \authorcomment1{Cargile et al. in prep}, CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.
+These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} (Cargile et al. \emph{in prep}), CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.
 The design of these frameworks necessarily have to make a choice in the bias-variance tradeoff: is the tool more \emph{data}-driven or more \emph{model}-driven?  The statistical tradeoff can be viewed as a concession in physical self-consistency for model flexibility: more or fewer parameters; more \emph{accurate} or more \emph{precise}.
 
 A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
@@ -114,10 +114,17 @@ We have now arrived at the \emph{blas\'e} clone model $\mathsf{M}(\bf{\lambda}_s
 where $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ is the normalized Voigt profile with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line. The amplitude $a$ is always expected to be positive for absorption lines and is equal to the area under the curve of the line since the Voigt profile is normalized. The optional Prefactor term $\mathsf{P}$ is fixed at $1$ by default but can be allowed to vary to fine-adjust imperfections leftover from the polynomial-based continuum flattening procedure.
 
 \subsection{Voigt profile evaluation}
-The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Fadeeva function\authorcomment1{citation}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation \citep{Ida:nt0146}.
+The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Voigt-Hjerting function \citep{1938ApJ....88..508H} as the real part of the complex Fadeeva function \citep[\emph{e.g.}][]{2011arXiv1106.0151Z}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation \citep{Ida:nt0146}.
 
 Two sampled Voigt approaches could be feasible. Direct convolution of a sampled Gaussian and Lorentzian profile may be too costly and inexact if pixels are coarsely sampled. Analogously, the convolution can be achieved in the Fourier domain through the multiplication of the Fast Fourier Transforms of the Gaussian and Lorentzian profiles, followed by the subsequent Inverse Fourier Transforms. The main rationale for either of these two choices would be to anticipate and align with planned convolutions such as rotational broadening and instrumental kernels. We do not currently implement these sampled convolutions in \emph{blas\'e} due to their prohibitive computational cost.
 
+
+\begin{figure}[hbt!]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/blase_flowchart01.png}
+    \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought before investing fine-adjusting the spectra cutouts.} }
+    \label{blase_flowchart}
+\end{figure}
 
 \subsection{Goodness of fit metric}
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes. Instead, we tune the parameters of the model, starting from these coarse initial values. This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary. We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{M}$ but has no notion of per-pixel noise since the precomputed synthetic spectrum has no uncertainty:
@@ -131,9 +138,9 @@ As seen in Figure \ref{fig_Nlines_vs_teff}, the number of lines can exceed 7,000
 
 Here we employ a variant of Stochastic Gradient Descent (SGD), an optimization technique that can scale to a virtually unlimited number of parameters\authorcomment1{provide a citation}. This technique computes the derivative of the loss scalar with respect to each of the parameters, the Jacobian: $(\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \frac{\partial \mathcal{L}}{\partial \gamma_j})$. The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply which-way and by-how-much you have to change the line properties to get a better fit.
 
-The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously. The Jacobian is calculated behind the scenes with automatic differentiation\authorcomment1{Citation} implemented as the so-called backpropagation algorithm or simply ``backprop''. We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primitives in our \texttt{blas\'e} implementation.
+The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate LR---towards the direction that would improve the fit, for all $N_{\mathrm{lines}} \times 3$ parameters simultaneously. The Jacobian is calculated behind the scenes with automatic differentiation implemented as the so-called backpropagation algorithm or simply ``backprop'' \citep{2015arXiv150205767G}. We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primitives in our \texttt{blas\'e} implementation.
 
-In principle, we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch. Further, an autodiff-aware implementation of the \emph{celerit\'e} algorithm\authorcomment1{add DFM citation} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting. In practice, PyTorch also offers hardware acceleration (on GPU or TPU)\authorcomment1{citation needed}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks. The GPyTorch framework\authorcomment1{add citation} may offer a workaround to the absence of a \emph{celerit\'e} implementation. Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
+In principle, we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch. Further, an autodiff-aware implementation of the \emph{celerit\'e} algorithm \citep{2017AJ....154..220F} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting. In practice, PyTorch also offers hardware acceleration on GPU or TPU \citep{10.1145/3079856.3080246}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks. The GPyTorch framework \citep{2018arXiv180911165G} may offer a workaround to the absence of a \emph{celerit\'e} implementation. Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
 
 \subsection{GPU and Autodiff specific considerations}
 We make a few tweaks to the implementation for numerical purposes. First, we want all the parameters to be positive, forbidding negative amplitudes and negative widths. We, therefore, tune the natural log of the parameters and exponentiate them before inclusion in Equation \ref{equation1}. Second, we found through iterative experimentation that the initialization amplitudes and widths were systematically shifted from the optimized values. We built-in scalar tweaks to the initialization amplitudes, Gaussian width, and Lorentzian width, which dramatically accelerated the optimization step.
@@ -155,7 +162,7 @@ Equation \ref{equation1} performs a matrix contraction, turning a $N_{\mathrm{li
 
 \subsection{Minibatches}
 
-Minibatches offer a natural solution to the line-by-line computational bottleneck while also providing optimization performance improvements. Minibatches act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent\authorcomment1{citation}. The Machine Learning/Artificial Intelligence (ML/AI) community employs minibatches to handle similar situations, in which the dataset volume exceeds the available GPU RAM. Our configuration departs slightly from the typical ML/AI situation since their models are usually ``small'' relative to their datasets. Here our model is ``big'' relative to our dataset.
+Minibatches offer a natural solution to the line-by-line computational bottleneck while also providing optimization performance improvements. Minibatches act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}. The Machine Learning/Artificial Intelligence (ML/AI) community employs minibatches to handle similar situations, in which the dataset volume exceeds the available GPU RAM. Our configuration departs slightly from the typical ML/AI situation since their models are usually ``small'' relative to their datasets. Here our model is ``big'' relative to our dataset.
 
 Here we choose to assemble and evaluate only a portion of the matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters. The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks, or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.
 
@@ -408,17 +415,49 @@ Here are some more details about autodiff
 
 
 % Table
-\begin{deluxetable}{cc}
+\begin{deluxetable}{cl}
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
-        \colhead{Symbol} & \nocolhead{Meaning}
+        \colhead{Symbol} & \colhead{Meaning}
     }
     \startdata
-    $N_{pix}$ & Number of pixels in the precomputed spectrum \\
-    $N_{lines}$ & Number of spectral lines \\
-    $\sigma_G$ & Gaussian line profile scale and standard deviation \\
-    $\gamma_L$ & Lorentzian line profile half width\\
-    $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of data spectrum
+    \hline
+    \multicolumn{2}{c}{Spectra}\\
+    \hline
+    $\bm{\lambda}_S$ & Native wavelength coordinates of the precomputed stellar spectrum\\
+    $\bm{\lambda}_T$ & Native wavelength coordinates of the telluric spectrum\\
+    $\bm{\lambda}_D$ & Native wavelength coordinates of the data spectrum\\
+    $\mathsf{S}$ & Flux values of the precomputed synthetic stellar spectral model $\bm{\lambda}_S$\\
+    $\mathsf{T}$ & Transmission values of the precomputed synthetic telluric model \\
+    $\mathsf{D}$ & The observed data spectrum flux values\\
+    $\mathsf{B}$ & Blackbody of temperature $T_{\mathrm{eff}}$ to coarsely normalize $\mathsf{S}$\\
+    $\mathsf{P}$ & Smooth polynomial to refine continuum-normalization of $\mathsf{S/B}$\\
+    $\mathsf{S}_{\rm clone}$ & Evaluable and tunable cloned flux model of $\mathsf{S}$\\
+    $\mathsf{T}_{\rm clone}$ & Evaluable and tunable cloned transmission model of $\mathsf{T}$\\
+    $\mathsf{T}_{\rm resamp}$ & The cloned telluric model resampled from $\bm{\lambda}_T$ to $\bm{\lambda}_S$\\
+    $\mathsf{S}_{\rm ext}$ & An augmentation of $\mathsf{S}_{\rm clone}$ with $v\sin{i}$ convolution and $RV$ translation\\
+    $\mathsf{M}_{\rm joint}$ & The joint stellar and telluric model: $\mathsf{S}_{\rm ext} \cdot \mathsf{T}_{\rm resamp}$  \\
+    $\mathsf{M}$ & Joint model convolved with instrument resolving power and resampled to $\bm{\lambda}_D$\\
+    \hline
+    \multicolumn{2}{c}{Line properties}\\
+    \hline
+    $\lambda_{c,i}$ & Line center position of the $i^{th}$ spectral line\\
+    $a_i$ & Gaussian line profile amplitude of the $i^{th}$ spectral line \\
+    $\sigma_i$ & Gaussian line profile scale of the $i^{th}$ spectral line\\
+    $\gamma_i$ & Lorentzian line profile half width of the $i^{th}$ spectral line\\
+    $\mathsf{V}_i$ & The Voigt profile of the $i^{th}$ spectral line \\
+    $\bar{\bm{V}}$ & The dense $(N_{\rm lines} \times N_{\rm pix})$ matrix of all Voigt profiles stacked vertically \\
+    $\hat{\bm{V}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all Voigt profiles stacked vertically \\
+    \hline
+    \multicolumn{2}{c}{Scalars}\\
+    \hline
+    $N_{\rm lines}$ & Number of spectral lines \\
+    $N_{\rm pix}$ & Number of pixel coordinates in the precomputed spectrum \\
+    $N_{\rm sparse}$ & Number of non-zero pixels computed in the sparse implementation\\
+    $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of the data spectrum\\
+    $P_{\rm rom}$ & The prominence threshold of spectral lines to include in cloning \\
+    $v\sin{i}$ & Stellar projected rotational broadening at inclination $i$ and equatorial velocity $v$\\
+    $RV$ & Radial velocity of the star\\
     \enddata
 \end{deluxetable}
 
