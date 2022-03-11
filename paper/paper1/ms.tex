@@ -149,7 +149,7 @@ We make a few tweaks to the implementation for numerical purposes. First, we wan
 
 The autodiff machinery has a convenient way to set which parameters are held fixed and which are iteratively fine-tuned.  One simply disables the Jacobian computations for the fixed parameters.  We set the \texttt{requires\_grad=True} property for any Torch tensor that we want to vary. This allows us to easily explore whether, say, allowing the $\lambda_\mathrm{c}$ parameter to vary significantly improves the fit.
 
-The computational bottleneck occurs at the evaluation of Equation \ref{equation1}, which can be viewed as having a $N_{\mathrm{lines}}\times N_{S}$ matrix $\bm{\bar{V}}$ assembled by stacking each Voigt absoption profile $\mathsf{V}_j(\bm{\lambda}_s)$ on top of each other:
+The computational bottleneck occurs at the evaluation of Equation \ref{equation1}, which can be viewed as having a $N_{\mathrm{lines}}\times N_{S}$ matrix $\bm{\bar{F}}$ assembled by stacking each Voigt absoption profile $\mathsf{V}_j(\bm{\lambda}_s)$ on top of each other:
 
 \begin{equation}
     \begin{pmatrix}
@@ -160,48 +160,26 @@ The computational bottleneck occurs at the evaluation of Equation \ref{equation1
     \end{pmatrix}
 \end{equation}
 
-Equation \ref{equation1} performs a type of matrix contraction, turning a $N_{\mathrm{lines}}\times N_{S}$ matrix into a $1\times N_{S}$ vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix. Efficient GPU algorithms exist for matrix manipulations such as this one, allowing this computation to proceed quickly on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. It is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
+An element of this matrix, $F_{j\lambda}$, will have the flux value for a given line at a given wavelength coordinate. Equation \ref{equation1} performs a type of matrix contraction, turning a $N_{\mathrm{lines}}\times N_{S}$ matrix into a length $N_{S}$ row vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix. We can rewrite Equation \ref{equation1} as a sum by taking the log of both sides and dropping in this $\bm{\bar{F}}$ matrix:
+
+\begin{eqnarray}
+    \ln{\mathsf{S}_{\rm clone}} = \sum_{j=1}^{N_{lines}} \ln{F_{j\lambda}} = \mathbf{1} \cdot \ln{\bm{\bar{F}}}
+\end{eqnarray}
+
+
+where $\mathbf{1}$ is a $1\times N_{\rm lines}$ row vector. Efficient GPU algorithms exist for matrix manipulations such as this one, allowing this computation to proceed quickly on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. It is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
 
 
 \subsection{Sparsity}
 
-Another solution to the computation problem is to take advantage of the sparsity of the $\bm{\bar{V}}$ matrix: most of the Voigt profile's entries far from the line center are vanishingly close to zero. Ideally, we would only evaluate the model close to the line center position, some number of line cuts $N_{\mathrm{cut}}=\alpha \cdot \mathrm{FWHM}$ away. These line cuts produce a speedup by a factor of $\frac{N_s}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra. Furthermore, efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}. A few practical considerations make sparse matrices peskier to work with than their dense counterparts. First, the $\alpha$ hyperparameter should be set large enough that the truncation effect is not seen for the deepest lines, or in post-processing steps such as line broadening. The $\alpha$ should be preselected before the training process. If the FWHM initialization was poor enough, the question may arise how autodiff training will cope with the poor performance of a model, leading to the prospect of strange and difficult-to-diagnose artifacts near spurious line-cut truncation artifacts.
+The $\ln{\bm{\bar{F}}}$ matrix is sparsely populated: most of the entries far from the line center are vanishingly close to zero. Here we take advantage of that mostly empty matrix using the mathematics of sparse matrices \citep{saad03:IMS}.
 
-We implemented sparse matrices in \emph{blas\'e} using the \texttt{sparse\_coo\_tensor} function in \emph{PyTorch}.
-
-There are a few standardization strategies for applying wing cuts. Here we coerce all wing cuts to be the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line. Most spectral lines only appreciably affect the signal in the central $\sim5-50$ pixels, so such a large wing cut may seem over-zealous. We emphasize that the line cut serves as the fixed pixel locations where the line will be evaluated with post-processing steps such as radial velocity shifts and line broadening. So these 6000 pixels must be capable of handling the fastest-moving and fastest-spinning stars you expect to see in your observed spectra of interest.
-
-The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.
-
-Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
-
-We rewrite Equation \ref{equation1} as a sum by taking the log of both sides
-
-\begin{eqnarray}
-    \ln{\mathsf{F}(\bm{\lambda})} = \sum_{i=1}^{N_{lines}} \ln{\left(1-V(\bm{\lambda};A_i, \lambda_{c,i}, \sigma_i) \right)}
-\end{eqnarray}
-
-The argument of the natural logarithm approaches 1 far from the line core, making the terms outside of the matrix approximately zero, a sparse matrix representing the log of the flux. Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices. The coalescing operation is extremely fast and efficient on either CPU or GPU hardware. We sum the logs and then exponentiate the result before comparing it to the native linear flux. We enforce that the argument of the natural log must be greater than zero through a simple truncation, which may approximately resemble the effect of saturation in line cores. This truncation would only be relevant for saturated lines. Each pixel may get computed about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.
+We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line center. Setting this wing cut produces a speedup by a factor of $\frac{N_S}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra.The choice of $N_{\rm cut}$ is nuanced.  It should be set large enough that truncation effects are not seen for the broadest lines.  But even more, $N_{\rm cut}$ has to be future-proofed for Doppler-shifting. Extreme Doppler shifts could hypothetically send line cores entirely outside the extents of $N_{\rm cut}$.  We therefore typically set wingcuts comparable to the buffer size $\pm \Delta \lambda_{\mathrm{buffer}}$, even though most weak lines only perceptibly affect $<1\;$\AA. We coerce all wing cuts to be the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line. We refer to this approximate sparse matrix as $\ln{\bm{\hat{F}}}$.
 
 
-\subsection{Broad lines and advanced lineshapes}
+The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.  Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
 
-Some lines, such as Hydrogen, Sodium, potassium, neutral metal lines, and others have extremely broad line wings, approaching larger than the $\sim6000$ pixels we allocate for the sparse implementation. These special lines need to be handled separately from the weak lines, both from a computational performance perspective and an accuracy perspective.
-
-Extremely broad lines will exhibit truncation effects if the sparse window is small compared to the line wing size. The truncation effects will look like tophat functions severing the asymptotic wings, imbuing artificial step function kinks in the emulated spectrum. We can afford to increase the sparse window on a few, say $N_{broad}\sim20$ of the broadest spectral lines. We then construct and evaluate the entire dense matrix for those lines: $\sim 330\;000 \times 20$. The number of FLOPS in each category scales as about 6 Million for the 20 broad lines versus about 36 Million for the sea of about 6500 narrow lines, depending on the exact choices for wing cuts and number of lines.
-
-We introduce advanced lineshapes for these $\sim20$ broad lines, perturbing the Voigt line-wings with a smooth wavelength-dependent correction term $\mathsf{G}$:
-
-\begin{eqnarray}
-    \mathsf{\tilde{V}(\bm{\lambda})} &=& \mathsf{V} \odot \mathsf{G}\\
-    \mathsf{G} &=& 1 + (e^{a_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
-\end{eqnarray}
-
-where $\odot$ is the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $a$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
-
-This functional form has a few advantages. It is smooth. The smoothness of the transition is controlled by a tunable parameter, $b$. It can handle either sub- or super-Lorentzian shapes. It is roughly based on the $\chi$-factor\authorcomment1{citation to Hartmann et al. 1989, etc.}. In the limit $\lim_{a\to0} \mathsf{G}$, the lineshape becomes exactly Lorentzian. The sigmoid is efficiently implemented in PyTorch.
-It enforces that the perturbation only produces absorption and not emission profiles.
-
+Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices.  We sum the logs and then exponentiate the result before comparing it to the native linear flux. We enforce that the argument of the natural log must be greater than zero through a simple truncation, which may approximately resemble the effect of saturation in line cores. This truncation would only be relevant for saturated lines. Each pixel may get computed about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.  Efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}
 
 
 
@@ -352,6 +330,24 @@ We could also tune or freeze an experimental wavelength-dependent pre-factor to 
 Minibatches offer a natural solution to the line-by-line computational bottleneck while also providing optimization performance improvements. Minibatches act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}. The Machine Learning/Artificial Intelligence (ML/AI) community employs minibatches to handle similar situations, in which the dataset volume exceeds the available GPU RAM. Our configuration departs slightly from the typical ML/AI situation since their models are usually ``small'' relative to their datasets. Here our model is ``big'' relative to our dataset.
 
 Here we choose to assemble and evaluate only a portion of the matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters. The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks, or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.
+
+\subsection{Broad lines and advanced lineshapes}
+
+Some lines, such as Hydrogen, Sodium, potassium, neutral metal lines, and others have extremely broad line wings, approaching larger than the $\sim6000$ pixels we allocate for the sparse implementation. These special lines should be handled separately from the weak lines, both from a computational performance perspective and an accuracy perspective.
+
+Extremely broad lines will exhibit truncation effects if the sparse window is small compared to the line wing size. The truncation effects will look like tophat functions severing the asymptotic wings, imbuing artificial step function kinks in the emulated spectrum. We can afford to increase the sparse window on a few, say $N_{broad}\sim20$ of the broadest spectral lines. We then construct and evaluate the entire dense matrix for those lines: $\sim 330\;000 \times 20$. The number of FLOPS in each category scales as about 6 Million for the 20 broad lines versus about 36 Million for the sea of about 6500 narrow lines, depending on the exact choices for wing cuts and number of lines.
+
+We introduce advanced lineshapes for these $\sim20$ broad lines, perturbing the Voigt line-wings with a smooth wavelength-dependent correction term $\mathsf{G}$:
+
+\begin{eqnarray}
+    \mathsf{\tilde{V}(\bm{\lambda})} &=& \mathsf{V} \odot \mathsf{G}\\
+    \mathsf{G} &=& 1 + (e^{a_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
+\end{eqnarray}
+
+where $\odot$ is the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $a$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
+
+This functional form has a few advantages. It is smooth. The smoothness of the transition is controlled by a tunable parameter, $b$. It can handle either sub- or super-Lorentzian shapes. It is roughly based on the $\chi$-factor\authorcomment1{citation to Hartmann et al. 1989, etc.}. In the limit $\lim_{a\to0} \mathsf{G}$, the lineshape becomes exactly Lorentzian. The sigmoid is efficiently implemented in PyTorch.
+It enforces that the perturbation only produces absorption and not emission profiles.
 
 
 
