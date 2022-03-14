@@ -79,6 +79,7 @@ We initialize the cloned model with a series of preprocessing steps. We divide t
 \begin{eqnarray}
     %\mathsf{S} = \frac{\mathsf{S}_{\rm abs}}{\mathsf{B} \; \mathsf{P}}
     \mathsf{S} = \mathsf{S}_{\rm abs}/\mathsf{B} / \mathsf{P}
+    \label{eqnFlattening}
 \end{eqnarray}
 
 
@@ -217,11 +218,16 @@ Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum clon
 We store the model parameters to disk and refer to the entire collection of parameters as a \emph{pre-trained model}.  More specifically this fine-tuned model represents an evaluable and interpretable clone of the original static pixel values flux values.
 
 \section{Methodology II: Cloning Telluric Spectra}
-Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing this \emph{hybrid} data- and model-driven approach.  
+Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing such a \emph{hybrid} approach.  
 
-\subsection{Adjustments from the stellar model}
-The Telluric clone model proceeds almost identically to the stellar model, with the following modifications.  
+\subsection{The \texttt{blas\'e} Telluric Clone Model}
+We start with a precomputed synthetic telluric model, $\mathsf{T}$ with associated wavelength coordinates $\bm{\lambda}_T$.  We employ a \texttt{TelFit} model, though any precomputed synthetic telluric model will work.  The \texttt{TelFit} model does not contain any continuum sources of opacity, and so we can skip the flattening procedure described in Equation \ref{eqnFlattening}.  We orchestrate the same initialization and line finding as in the stellar models, and obtain a coarse clone.  
 
+The number of pixels in the telluric model can be chosen at the time of running a \texttt{TelFit} model.  Here we choose a spectral resolution \censorbox{$R\sim1\times10^6$}, adequate for resolving telluric lines, and yielding \censorbox{xx} pixels across the HPF bandwidth.  This pixel sampling is slightly \censorbox{finer} than the native PHOENIX pixel sampling.  The number of telluric lines depends on the atmospheric properties, in particular the Earth surface temperature and relative humidity $RH$.  For a \censorbox{T=x}, \censorbox{RH=y}, we detect \censorbox{zz} telluric lines across the entire HPF bandwidth.  
+
+One guiding principle departs from the stellar case: telluric lines do not require future-proofing for large radial velocity shifts, hypothetically allowing us to reduce the number of pixels needed for a wingcut.  Small radial velocity shifts are possible due to bulk motions in the Earth's atmosphere, but those bulk motions should be much smaller than the speeds of stars towards and away from Earth.  So we can hypothetically tolerate a much smaller wing cut for telluric lines.  In practice, telluric lines can be extremely broad, and accurately cloning these broad telluric lines requires about $N_{\rm cut}\sim6000$ pixels, comparable to the stellar case.
+
+We optimize the sparse telluric clone, achieving comparable computational speed as the PHOENIX cloning task.  We are left with $\mathsf{T}_{\rm clone}(\bm{\lambda}_T)$, the tunable telluric clone model evaluated at its original native coordinates.
 
 
 \section{Cloning Performance}
@@ -240,6 +246,10 @@ Finally, and most perniciously, a large category of residuals appear near the wi
     \caption{Zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. The cloned model has 7 spectral lines describing the 400 pixels in this 4 \AA~ chunk.  The native PHOENIX pixel sampling can be see as the boxy steps in both the native and cloned model.  }
     \label{fig_zoom_cloning_performance}
 \end{figure}
+
+Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I$, $J$, $H$, and $K$- bands.  The \texttt{blas\'e} method cannot cope with these saturated lines, and often it treats nearby blended saturated lines as one single line.  The underfit model flounders.  
+
+But overall, the telluric model cloning performs adequately, with \censorbox{X percentage} error-per-pixel overall, and only \censorbox{zz} error-per-pixel when restricted to the atmospheric windows.  We therefore urge some caution when applying \texttt{blas\'e} to telluric modeling in the most saturated regions.  \authorcomment1{An obvious and good solution is to intialize the model in log flux.  We may revise the scheme to do so.}  
 
 
 \section{Semi-empirical models with transfer learning techniques}\label{transferLearn}
