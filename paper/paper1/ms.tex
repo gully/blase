@@ -62,7 +62,7 @@ A key new enabling technology breaks these classical tradeoffs in data-model com
 In this paper we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed from self-consistent models, but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \cite{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  In Section \ref{transferLearn} we describe how to fine-adjust the cloned models to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.  Section \ref{secInjRec} exhibits injection-recovery tests on simulated data of known properties, revealing the scalability and fundamental limits of the technique.  Finally we discuss many conceivable extensions to the framework, and directions for future work in Section \ref{secDiscuss}.
 
 
-\section{Methodology}\label{methodology}
+\section{Methodology I: Cloning stellar spectra}\label{methodology}
 
 \subsection{Overall Architecture and Design Choices}
 
@@ -111,7 +111,7 @@ So far we have only one piece of information about the peaks: their location. Ne
 
 There does not exist a general-purpose, single-shot algorithm for obtaining the lineshape in the presence of overlapping spectral lines: where do the wings of one line begin and the wings of another adjacent line end? We, therefore, do not attempt to determine anything about the lineshape at this stage and instead assume that the lines resemble a Voigt profile, with a guess width about equally split between Lorentzian and Gaussian.
 
-\subsection{The \emph{blas\'e} clone model}
+\subsection{The \texttt{blas\'e} Stellar Clone Model}
 
 We have now arrived at the \texttt{blas\'e} clone model $\mathsf{S}_{\rm clone}(\bf{\lambda}_s)$ for a flattened synthetic spectrum $\mathsf{S}$: it is the cumulative product of transmission through the sea of all overlapping spectral lines:
 
@@ -153,31 +153,48 @@ The computational bottleneck occurs at the evaluation of Equation \ref{equation1
 
 \begin{equation}
     \begin{pmatrix}
-        1 -\mathsf{V}_1(\bm{\lambda}_s)                     & \\
-        1 - \mathsf{V}_2(\bm{\lambda}_s)                    & \\
+        1 - a_1 \mathsf{V}_1(\bm{\lambda}_s)                     & \\
+        1 - a_2 \mathsf{V}_2(\bm{\lambda}_s)                    & \\
         \vdots                                              & \\
-        1 - \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
+        1 - a_{N_{\mathrm{lines}}} \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
     \end{pmatrix}
 \end{equation}
 
-An element of this matrix, $F_{j\lambda}$, will have the flux value for a given line at a given wavelength coordinate. Equation \ref{equation1} performs a type of matrix contraction, turning a $N_{\mathrm{lines}}\times N_{S}$ matrix into a length $N_{S}$ row vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix. We can rewrite Equation \ref{equation1} as a sum by taking the log of both sides and dropping in this $\bm{\bar{F}}$ matrix:
+An element of this matrix, $F_{ji}$, will have the flux value for a given line at a given wavelength coordinate. Equation \ref{equation1} performs a type of matrix contraction, turning a $N_{\mathrm{lines}}\times N_{S}$ matrix into a length $N_{S}$ row vector. The number of Floating Point Operations (FLOPS) scales with the number of entries in this matrix. We can rewrite Equation \ref{equation1} as a sum by taking the log of both sides and dropping in this $\bm{\bar{F}}$ matrix:
 
 \begin{eqnarray}
-    \ln{\mathsf{S}_{\rm clone}} = \sum_{j=1}^{N_{lines}} \ln{F_{j\lambda}} = \mathbf{1} \cdot \ln{\bm{\bar{F}}}
+    \ln{\mathsf{S}_{\rm clone}} = \sum_{j=1}^{N_{lines}} \ln{F_{ji}} = \mathbf{1} \cdot \ln{\bm{\bar{F}}}
 \end{eqnarray}
 
 
-where $\mathbf{1}$ is a $1\times N_{\rm lines}$ row vector. Efficient GPU algorithms exist for matrix manipulations such as this one, allowing this computation to proceed quickly on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{V}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM. The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{V}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. It is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
+where $\mathbf{1}$ is a $1\times N_{\rm lines}$ row vector of all-ones. We re\"emphasize that each spectral line has to be painstakingly evaluated across the entire spectral bandwidth.   Efficient GPU algorithms exist for voluminous matrix manipulations such as this one, so this computation can proceed as quickly as possible on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{F}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM, which translates roughly to a few thousand spectral lines across $\sim$300,000 pixels.  The memory bottleneck is even more pernicious than mere storage of the $\bm{\bar{F}}$ matrix since the CPU/GPU also has to store the computation graph for autodiff. It is generally not possible to evaluate Equation \ref{equation1} in its entirety in one-fell-swoop. A remedy is needed.
 
 
 \subsection{Sparsity}
 
 The $\ln{\bm{\bar{F}}}$ matrix is sparsely populated: most of the entries far from the line center are vanishingly close to zero. Here we take advantage of that mostly empty matrix using the mathematics of sparse matrices \citep{saad03:IMS}.
 
-We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line center. Setting this wing cut produces a speedup by a factor of $\frac{N_S}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra.The choice of $N_{\rm cut}$ is nuanced.  It should be set large enough that truncation effects are not seen for the broadest lines.  But even more, $N_{\rm cut}$ has to be future-proofed for Doppler-shifting. Extreme Doppler shifts could hypothetically send line cores entirely outside the extents of $N_{\rm cut}$.  We therefore typically set wingcuts comparable to the buffer size $\pm \Delta \lambda_{\mathrm{buffer}}$, even though most weak lines only perceptibly affect $<1\;$\AA. We coerce all wing cuts to be the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line. We refer to this approximate sparse matrix as $\ln{\bm{\hat{F}}}$.
+We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line center. Setting this wing cut produces a speedup by a factor of $\frac{N_S}{N_{\mathrm{cut}}}$, which can exceed $100\times$ for wide bandwidth spectra.The choice of $N_{\rm cut}$ is nuanced.  It should be set large enough that truncation effects are not seen for the broadest lines.  But even more, $N_{\rm cut}$ has to be future-proofed for Doppler-shifting. Extreme Doppler shifts could hypothetically send line cores entirely outside the extents of $N_{\rm cut}$ if set too low.  We therefore typically set wingcuts comparable to the buffer size $\pm \Delta \lambda_{\mathrm{buffer}}$, even though most weak lines only perceptibly affect $<1\;$\AA. We coerce all wing cuts to be the same number of pixels, typically 6000 pixels for \texttt{PHOENIX}, with the middle pixel being at the line center position, and about 3000 pixels to the red and blue side of the line. We populate a new approximate sparse matrix $\ln{\bm{\hat{F}}}$ with only these $~6000$ pixels per line and assume zeros everywhere else.
+%\footnote{The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.  Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.}
+
+The remapping of the sparse matrix can be visualized as the shifting of all lines to the center of this new matrix $\bm{\hat{F}}$.  The algorithmic machinery keeps track of each $(i, j, F_{ji})$ trio of coordinates and flux values.
 
 
-The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1 \mu$m, so 6000 pixels in the visible is about 30 Angstroms, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.  Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
+\begin{equation} \bm{\bar{F}} = 
+    \begin{pmatrix}
+         \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
+         \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
+        \vdots                                              & \\
+        \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots &
+    \end{pmatrix} \mapsto 
+    \begin{pmatrix}
+        \includegraphics[height=1cm]{figures/voigt_01b.pdf}  & \\
+        \includegraphics[height=1cm]{figures/voigt_02b.pdf}  & \\
+       \vdots                                              & \\
+        \includegraphics[height=1cm]{figures/voigt_03b.pdf} &
+   \end{pmatrix} = \bm{\hat{F}}
+\end{equation}
+
 
 Sparse matrix methods generally support an operation known as \emph{coalescing}, which sums values with repeated indices.  We sum the logs and then exponentiate the result before comparing it to the native linear flux. We enforce that the argument of the natural log must be greater than zero through a simple truncation, which may approximately resemble the effect of saturation in line cores. This truncation would only be relevant for saturated lines. Each pixel may get computed about $\sim100$ times in this sparse implementation, which is about $50\times$ better than each pixel getting computed $N_{lines}\sim6500$ times in the dense approach.  Efficient algorithms for assembling and coalescing sparse matrices exist in \texttt{PyTorch}
 
@@ -185,7 +202,7 @@ Sparse matrix methods generally support an operation known as \emph{coalescing},
 
 \subsection{Optimization and training}
 
-We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}.  We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard\authorcomment1{citation} to gain an intuition for the training efficiency.
+We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}.  We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard \citep{tensorflow2015-whitepaper} to gain an intuition for the training efficiency.
 
 
 \begin{figure}[hbt!]
@@ -195,13 +212,21 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
     \label{fig_cloned_spectrum_demo}
 \end{figure}
 
-Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \emph{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
+Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \texttt{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
 
-We store the model parameters to disk and refer to the entire collection of parameters as the \emph{pre-trained model}.
+We store the model parameters to disk and refer to the entire collection of parameters as a \emph{pre-trained model}.  More specifically this fine-tuned model represents an evaluable and interpretable clone of the original static pixel values flux values.
+
+\section{Methodology II: Cloning Telluric Spectra}
+Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing this \emph{hybrid} data- and model-driven approach.  
+
+\subsection{Adjustments from the stellar model}
+The Telluric clone model proceeds almost identically to the stellar model, with the following modifications.  
+
+
 
 \section{Cloning Performance}
 
-We compute the residual $\mathsf{R}(\bm{\lambda}_s)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residuals of 1.2\%/pixel at native resolution. We see three main categories of cloning flaws.
+We compute the residual $\mathsf{R}(\bm{\lambda}_S)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residuals of 1.2\%/pixel at native resolution. We identify three main categories of cloning flaws.
 
 The first, and expected, source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{\rm rom}$ yield residual notches with strengths comparable to $P_{\rm rom}$. Including smaller prominence lines by lowering $P_{\rm rom}$ produces smaller residuals, at the tradeoff of computing more lines and yielding higher computational cost.  But at some point, turning down $P_{\rm rom}$ yields diminishing returns, as other imperfections provide a noise floor.  We have experimentally determined this noise floor to occur near $P_{\rm rom}=0.01$.
 
@@ -226,14 +251,14 @@ The cloned model already represents a useful intermediate product: the distillat
 Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. The qualifier \emph{extrinsic} distiguishes from stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g},\mathrm{and\,} [\mathrm{Fe}/\mathrm{H}]$, which appear the same from any viewing location, at least for stars with isotropic surfaces.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{F}_{ex}$:
 
 \begin{eqnarray}
-    \mathsf{F}_{ex}(\bm{\lambda}) = \mathsf{F}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
+    \mathsf{S}_{\rm ext}(\bm{\lambda}_S) = \mathsf{S}_{\rm clone}(\bm{v}-RV) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
 \end{eqnarray}
 
 where $\zeta$ is the convolution kernel for rigid body rotation \citep{2022ApJS..258...31K} and $\bm{v}$ is the spectral axis represented as relative velocity coordinates.
 
-Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,i} = (\lambda_{c,i}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{\lambda}$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
+Operationally, the Doppler shift gets applied to the line center positions $\tilde \lambda_{c,j} = (\lambda_{c,j}-\delta \lambda)$, and not the individual wavelength grid point coordinates, $\bm{\lambda}_S$. This choice yields a key benefit: it makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can easily be sensed through backpropagation by affecting only the line center positions.  The strategy allows relatively low computational and memory cost since it comports with the sparse matrix implementation.
 
-The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \emph{blas\'e} simply assumes a fixed resolving power.
+The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \texttt{blas\'e} simply assumes a fixed resolving power.
 
 The pixel resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixels.  The final forward model for \emph{blas\'e} is designated the ``pixel-level'' model to emphasize that we have achieved a model for each datum in the 1D observed spectrum:
 
