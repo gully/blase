@@ -481,13 +481,12 @@ Here are some more details about autodiff
     $\mathsf{S}_{\rm abs}$ & Flux values of the precomputed synthetic stellar spectral model $\bm{\lambda}_S$\\
     $\mathsf{B}$ & Blackbody of temperature $T_{\mathrm{eff}}$ to coarsely normalize $\mathsf{S}_{\rm native}$\\
     $\mathsf{P}$ & Smooth polynomial to refine continuum-normalization\\
-    $\mathsf{S}$ & Continuum normalized augmentation of $\mathsf{S}_{\rm native}$\\
+    $\mathsf{S}$ & Continuum normalized augmentation of $\mathsf{S}_{\rm abs}$\\
     $\mathsf{T}$ & Transmission values of the precomputed synthetic telluric model \\
     $\mathsf{D}$ & The observed data spectrum flux values\\
     $\bm{\epsilon}$ & The estimated uncertainties in the data spectrum\\
     $\mathsf{S}_{\rm clone}$ & Evaluable and tunable cloned flux model of $\mathsf{S}$\\
     $\mathsf{T}_{\rm clone}$ & Evaluable and tunable cloned transmission model of $\mathsf{T}$\\
-    %$\mathsf{T}_{\rm resamp}$ & The cloned telluric model resampled from $\bm{\lambda}_T$ to $\bm{\lambda}_S$\\
     $\mathsf{S}_{\rm ext}$ & An augmentation of $\mathsf{S}_{\rm clone}$ with $v\sin{i}$ convolution and $RV$ translation\\
     $\mathsf{M}_{\rm joint}$ & The joint stellar and telluric model: $\mathsf{S}_{\rm ext} \odot \mathsf{T}_{\rm clone}(\bm{\lambda}_S)$  \\
     $\mathsf{M}$ & Joint model convolved
@@ -497,13 +496,13 @@ Here are some more details about autodiff
     \hline
     \multicolumn{2}{c}{Line properties}\\
     \hline
-    $\lambda_{c,j}$ & Line center position of the $j^{th}$ spectral line\\
+    $\lambda_{\mathrm{c},j}$ & Line center position of the $j^{th}$ spectral line\\
     $a_j$ & Gaussian line profile amplitude of the $j^{th}$ spectral line \\
     $\sigma_j$ & Gaussian line profile scale of the $j^{th}$ spectral line\\
     $\gamma_j$ & Lorentzian line profile half width of the $j^{th}$ spectral line\\
     $\mathsf{V}_j$ & The Voigt profile of the $j^{th}$ spectral line \\
-    $\bar{\bm{V}}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all Voigt profiles stacked vertically \\
-    $\hat{\bm{V}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all Voigt profiles stacked vertically \\
+    $\bar{\bm{F}}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all line fluxes stacked vertically \\
+    $\hat{\bm{F}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all line fluxes stacked vertically \\
     $\zeta$ & The rotational broadening convolution kernel\\
     $g$ & The instrumental broadening convolution kernel, typically a Gaussian\\
     \hline
@@ -521,7 +520,7 @@ Here are some more details about autodiff
     \hline
     \multicolumn{2}{c}{Operators}\\
     \hline
-    $\resample \big[ \mathsf{F}_x \big]_z$ & The resample operator, takes in a flux spectrum $\mathsf{F}$ evaluated at $\bm{\lambda}_x$ coordinates and returns the mean flux within the pixel boundaries of coordinate $\bm{\lambda}_z$\\
+    $\resample \big[ \mathsf{F(\bm{\lambda}_x)} \big]$ & The resample operator, takes in a flux spectrum $\mathsf{F}$ evaluated at $\bm{\lambda}_x$ coordinates and returns the mean flux within the pixel boundaries of coordinate $\bm{\lambda}_z$\\
     $*$& The convolution operator\\
     $\odot$& \emph{Hadamard product}, an elementwise product of two same-length vectors\\
     \enddata
