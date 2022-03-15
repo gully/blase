@@ -102,16 +102,34 @@ class LinearEmulator(nn.Module):
         )
 
     def forward(self, wl):
-        r"""The forward pass of the spectral model: 
-            :math:`\mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j`
+        r"""The forward pass of the `blase` clone model
 
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        Conducts the product of PseudoVoigt profiles for each line, with
+        between one and three tunable parameters:
+
+        .. math:: 
+            
+            \mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+
+        Parameters
+        ----------
+        wl : torch.tensor
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
         """
         return self.product_of_pseudovoigt_model(wl)
 
     def product_of_pseudovoigt_model(self, wl):
-        """Return the PseudoVoight forward model"""
+        """Return the PseudoVoigt forward model
+        
+        
+        
+        """
         net_spectrum = (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
         wl_normed = (wl - 10_500.0) / 2500.0
@@ -125,12 +143,16 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-            wl_native (torch.tensor vector): The 1D vector of native model wavelengths (Angstroms)
-            flux_native (torch.tensor vector): The 1D vector of native model fluxes (Normalized)
+        wl_native : torch.tensor
+            The 1D vector of native model wavelengths (Angstroms)
+        flux_native: torch.tensor
+            The 1D vector of continuum-flattened model fluxes
 
         Returns
         -------
-            (tuple of tensors): The wavelength centers, prominences, and widths for all ID'ed spectral lines
+        tuple of tensors 
+            The wavelength centers, prominences, and widths for all ID'ed 
+            spectral lines
         """
         peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
         prominence_data = peak_prominences(-flux_native, peaks)
