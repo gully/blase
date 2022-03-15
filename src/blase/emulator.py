@@ -2,13 +2,8 @@ r"""
 Emulator
 --------------
 
-Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{pix} \sim 300,000` pixels and :math:`N_{lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
-
-
-PhoenixEmulator
-###############
+Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
 """
-from importlib.util import resolve_name
 import math
 import torch
 from torch import nn
@@ -17,14 +12,14 @@ from scipy.signal import find_peaks, peak_prominences, peak_widths
 from tqdm import tqdm
 
 
-class PhoenixEmulator(nn.Module):
+class LinearEmulator(nn.Module):
     r"""
     A PyTorch layer that clones precomputed synthetic spectra
 
-    wl_native (int): The input wavelength
-    flux_native (float): The output wavelength
-
-    Currently hardcoded to assume your PHOENIX grid is stored at: ~/libraries/raw/PHOENIX/
+    Parameters
+    ----------
+    wl_native (float vector): The input wavelength at native resolution and sampling 
+    flux_native (float vector): The input flux
     """
 
     def __init__(self, wl_native, flux_native, prominence=0.03):
@@ -107,31 +102,13 @@ class PhoenixEmulator(nn.Module):
         )
 
     def forward(self, wl):
-        """The forward pass of the spectral model
+        r"""The forward pass of the spectral model: 
+            :math:`\mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j`
 
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        # return self.product_of_lorentzian_model(wl)
         return self.product_of_pseudovoigt_model(wl)
-
-    def product_of_lorentzian_model(self, wl):
-        """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
-        net_spectrum = (
-            1
-            - self.lorentzian_line(
-                self.lam_centers.unsqueeze(1),
-                torch.exp(self.sigma_widths).unsqueeze(1),
-                torch.exp(self.amplitudes).unsqueeze(1),
-                wl.unsqueeze(0),
-            )
-        ).prod(0)
-
-        wl_normed = (wl - 10_500.0) / 2500.0
-        modulation = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
-        )
-        return net_spectrum * modulation
 
     def product_of_pseudovoigt_model(self, wl):
         """Return the PseudoVoight forward model"""
@@ -219,6 +196,9 @@ class PhoenixEmulator(nn.Module):
                 wavelengths.unsqueeze(0),
             )
         )
+
+
+PhoenixEmulator = LinearEmulator
 
 
 class SparsePhoenixEmulator(PhoenixEmulator):
