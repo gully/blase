@@ -70,7 +70,7 @@ We start with a high resolution pre-computed synthetic stellar model spectrum, $
 
 The choice of limiting the bandwidth to a region-of-interest around a single echelle spectrograph bandwidth stems from computational constraints. In principle, there is no fundamental limit to the bandwidth one could clone with the method presented here, up to and including the entire precomputed synthetic spectral model bandwidth. We adopt the exact native wavelength sampling with no smoothing or interpolation, yielding a wavelength vector $\bm{\lambda}_S$ with length $N_\mathrm{S}$ equal to the number of pixels within the extents of our region of interest including the buffers.
 
-At this stage, we have the choice of whether to work in linear or log scale flux units. Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desirable trait of any physical spectral model. We chose instead to stick with native linear flux scaling because of the availability of convenient approximations to astrophysically relevant line profiles in the linear scaling domain. We normalize the spectrum by its median value since we do not intend to apply these methods to absolutely flux calibrated spectra.
+At this stage, we have the choice of whether to work in linear or log scale flux units. Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desirable trait of any physical spectral model. We have implemented both modes in \texttt{blas\'e}, allowing users to choose their preference.  We only narrate the linear flux unit description in the main text of this document, for the sake of clarity, and since most practitioners tend to think of flux in terms of linear flux units.  The data-model comparison step will always take place in linear flux units, so the only operational difference is the behavior for deep and saturated lines.  Appendix \censorbox{XX} lists the equations adjusted to log flux units.
 
 \subsection{Initialization}
 
@@ -154,9 +154,9 @@ The computational bottleneck occurs at the evaluation of Equation \ref{equation1
 
 \begin{equation}
     \begin{pmatrix}
-        1 - a_1 \mathsf{V}_1(\bm{\lambda}_s)                     & \\
-        1 - a_2 \mathsf{V}_2(\bm{\lambda}_s)                    & \\
-        \vdots                                              & \\
+        1 - a_1 \mathsf{V}_1(\bm{\lambda}_s)                                       & \\
+        1 - a_2 \mathsf{V}_2(\bm{\lambda}_s)                                       & \\
+        \vdots                                                                     & \\
         1 - a_{N_{\mathrm{lines}}} \mathsf{V}_{N_{\mathrm{lines}}}(\bm{\lambda}_s) &
     \end{pmatrix}
 \end{equation}
@@ -181,19 +181,19 @@ We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line
 The remapping of the sparse matrix can be visualized as the shifting of all lines to the center of this new matrix $\bm{\hat{F}}$.  The algorithmic machinery keeps track of each $(i, j, F_{ji})$ trio of coordinates and flux values.
 
 
-\begin{equation} \bm{\bar{F}} = 
+\begin{equation} \bm{\bar{F}} =
     \begin{pmatrix}
-         \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
-         \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
+        \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
+        \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
+        \vdots                                                            & \\
+        \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots  &
+    \end{pmatrix} \mapsto
+    \begin{pmatrix}
+        \includegraphics[height=1cm]{figures/voigt_01b.pdf} & \\
+        \includegraphics[height=1cm]{figures/voigt_02b.pdf} & \\
         \vdots                                              & \\
-        \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots &
-    \end{pmatrix} \mapsto 
-    \begin{pmatrix}
-        \includegraphics[height=1cm]{figures/voigt_01b.pdf}  & \\
-        \includegraphics[height=1cm]{figures/voigt_02b.pdf}  & \\
-       \vdots                                              & \\
         \includegraphics[height=1cm]{figures/voigt_03b.pdf} &
-   \end{pmatrix} = \bm{\hat{F}}
+    \end{pmatrix} = \bm{\hat{F}}
 \end{equation}
 
 
@@ -218,12 +218,12 @@ Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum clon
 We store the model parameters to disk and refer to the entire collection of parameters as a \emph{pre-trained model}.  More specifically this fine-tuned model represents an evaluable and interpretable clone of the original static pixel values flux values.
 
 \section{Methodology II: Cloning Telluric Spectra}
-Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing such a \emph{hybrid} approach.  
+Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing such a \emph{hybrid} approach.
 
 \subsection{The \texttt{blas\'e} Telluric Clone Model}
-We start with a precomputed synthetic telluric model, $\mathsf{T}$ with associated wavelength coordinates $\bm{\lambda}_T$.  We employ a \texttt{TelFit} model, though any precomputed synthetic telluric model will work.  The \texttt{TelFit} model does not contain any continuum sources of opacity, and so we can skip the flattening procedure described in Equation \ref{eqnFlattening}.  We orchestrate the same initialization and line finding as in the stellar models, and obtain a coarse clone.  
+We start with a precomputed synthetic telluric model, $\mathsf{T}$ with associated wavelength coordinates $\bm{\lambda}_T$.  We employ a \texttt{TelFit} model, though any precomputed synthetic telluric model will work.  The \texttt{TelFit} model does not contain any continuum sources of opacity, and so we can skip the flattening procedure described in Equation \ref{eqnFlattening}.  We orchestrate the same initialization and line finding as in the stellar models, and obtain a coarse clone.
 
-The number of pixels in the telluric model can be chosen at the time of running a \texttt{TelFit} model.  Here we choose a spectral resolution \censorbox{$R\sim1\times10^6$}, adequate for resolving telluric lines, and yielding \censorbox{xx} pixels across the HPF bandwidth.  This pixel sampling is slightly \censorbox{finer} than the native PHOENIX pixel sampling.  The number of telluric lines depends on the atmospheric properties, in particular the Earth surface temperature and relative humidity $RH$.  For a \censorbox{T=x}, \censorbox{RH=y}, we detect \censorbox{zz} telluric lines across the entire HPF bandwidth.  
+The number of pixels in the telluric model can be chosen at the time of running a \texttt{TelFit} model.  Here we choose a spectral resolution \censorbox{$R\sim1\times10^6$}, adequate for resolving telluric lines, and yielding \censorbox{xx} pixels across the HPF bandwidth.  This pixel sampling is slightly \censorbox{finer} than the native PHOENIX pixel sampling.  The number of telluric lines depends on the atmospheric properties, in particular the Earth surface temperature and relative humidity $RH$.  For a \censorbox{T=x}, \censorbox{RH=y}, we detect \censorbox{zz} telluric lines across the entire HPF bandwidth.
 
 One guiding principle departs from the stellar case: telluric lines do not require future-proofing for large radial velocity shifts, hypothetically allowing us to reduce the number of pixels needed for a wingcut.  Small radial velocity shifts are possible due to bulk motions in the Earth's atmosphere, but those bulk motions should be much smaller than the speeds of stars towards and away from Earth.  So we can hypothetically tolerate a much smaller wing cut for telluric lines.  In practice, telluric lines can be extremely broad, and accurately cloning these broad telluric lines requires about $N_{\rm cut}\sim6000$ pixels, comparable to the stellar case.
 
@@ -247,9 +247,9 @@ Finally, and most perniciously, a large category of residuals appear near the wi
     \label{fig_zoom_cloning_performance}
 \end{figure}
 
-Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I$, $J$, $H$, and $K$- bands.  The \texttt{blas\'e} method cannot cope with these saturated lines, and often it treats nearby blended saturated lines as one single line.  The underfit model flounders.  
+Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I$, $J$, $H$, and $K$- bands.  The \texttt{blas\'e} method cannot cope with these saturated lines, and often it treats nearby blended saturated lines as one single line.  The underfit model flounders.
 
-But overall, the telluric model cloning performs adequately, with \censorbox{X percentage} error-per-pixel overall, and only \censorbox{zz} error-per-pixel when restricted to the atmospheric windows.  We therefore urge some caution when applying \texttt{blas\'e} to telluric modeling in the most saturated regions.  \authorcomment1{An obvious and good solution is to intialize the model in log flux.  We may revise the scheme to do so.}  
+But overall, the telluric model cloning performs adequately, with \censorbox{X percentage} error-per-pixel overall, and only \censorbox{zz} error-per-pixel when restricted to the atmospheric windows.  We therefore urge some caution when applying \texttt{blas\'e} to telluric modeling in the most saturated regions.  \authorcomment1{An obvious and good solution is to intialize the model in log flux.  We may revise the scheme to do so.}
 
 
 \section{Semi-empirical models with transfer learning techniques}\label{transferLearn}
@@ -460,9 +460,31 @@ More placeholder text...
 \appendix
 \restartappendixnumbering
 
-\section{Autodiff themes} \label{appendix:tools}
+\section{Log flux scaling mode} \label{appendixLogScale}
 
-Here are some more details about autodiff
+Here we illustrate how \texttt{blas'e} gets altered when applying the logarithmic flux pre-processing step.  First, we compute the natural log of the flux directly on the precomputed synthetic spectrum in its absolute flux scaling and native pixel sampling:
+
+\begin{eqnarray}
+    \ln{\mathsf{S}} = \ln{\mathsf{S}_{\rm abs}} - \ln{\mathsf{B}} - \mathsf{P}
+    \label{eqnlogFlat}
+\end{eqnarray}
+
+We simply ``rebrand'' $\mathsf{P}$ as residing in logarithmic flux units, and disregard it since it is largely a nuisance parameter anyways.  We then treat the \texttt{blas\'e} clone model as a sum of opacities, retaining the Voigt profile:
+
+\begin{eqnarray}
+    \ln{\mathsf{S}_{\rm clone}} = -\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j \label{equationOpacitySum}
+\end{eqnarray}
+
+Here, the $a_j$'s have also been slightly rebranded from their meaning in Equation \ref{equation1}.  We still want to enforce only absorption lines---and not spurious emission lines---so we use the sample trick of sampling the $a_j$'s in log and then exponentiating them to get guaranteed positive values.  Note that Equations \ref{equation1} and \ref{equationOpacitySum} carry modified meanings for the Voigt profile.  Specifically, Equation \ref{equation1} can be viewed as the Taylor Series expansion for \ref{equationOpacitySum} in the limit of small opacities:
+
+\begin{eqnarray}
+    e^{-a_j \mathsf{V}_j} \approx (1-a_j\mathsf{V}_j) \label{eqnTaylor}
+\end{eqnarray}
+
+Both equations are approximate. A real stellar atmosphere's lineshape arises from a sum of disparate Voigt profiles weighted along a nonuniform column of gas, whereas here we have assumed the column of gas is approximated as a single uniform isothermal backlit layer.  A sum of unlike-Voigt profiles is not exactly equal to any single Voigt profile.  Theoreticians may resonate with this more ``first principles'' representation, while data practitioners may find Equation \ref{equation1} more natural, so to some extent the choice is a matter of taste.
+
+The sparse matrix gets rebranded as filled with opacity values, instead of log-fluxes, but operationally remains the same. All subsequent steps operate on the summed-and-exponentiated opacities, behaving identically to their linear counterparts.  For example, we exponentiate before computing the residuals and data-model comparison, $\mathsf{R} = e^{\ln{\mathsf{S}}} - e^{\ln{\mathsf{S}_{\rm clone}}}$.
+
 
 
 % Table
