@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 class LinearEmulator(nn.Module):
     r"""
-    A PyTorch layer that clones precomputed synthetic spectra
+    A PyTorch layer that clones a precomputed synthetic spectrum :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
 
     Parameters
     ----------
@@ -123,12 +123,14 @@ class LinearEmulator(nn.Module):
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
 
-        Args:
+        Parameters
+        ----------
             wl_native (torch.tensor vector): The 1D vector of native model wavelengths (Angstroms)
             flux_native (torch.tensor vector): The 1D vector of native model fluxes (Normalized)
-        Returns:
+
+        Returns
+        -------
             (tuple of tensors): The wavelength centers, prominences, and widths for all ID'ed spectral lines
-        -----
         """
         peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
         prominence_data = peak_prominences(-flux_native, peaks)
@@ -209,8 +211,7 @@ class SparsePhoenixEmulator(PhoenixEmulator):
     flux_native (float vector): The native flux
     prominence (int scalar): The threshold for detecting lines
     device (Torch Device or str): GPU or CPU?
-    wing_cut_pixels (int scalar): the number of pixels centered on the line center
-        to evaluate in the sparse implementation, default: 1000 pixels
+    wing_cut_pixels (int scalar): the number of pixels centered on the line center to evaluate in the sparse implementation, default: 1000 pixels
     """
 
     def __init__(

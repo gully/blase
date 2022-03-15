@@ -6,3 +6,5 @@ astropy
 kornia
 pandas
 scipy
+sphinx-book-theme
+
