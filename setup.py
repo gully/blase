@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="blase",
-    version="0.1",
+    version="0.2",
     author="gully",
     author_email="igully@gmail.com",
     description="Forward Modeling echelle spectra with PyTorch",
