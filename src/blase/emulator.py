@@ -2,29 +2,29 @@ r"""
 Emulator
 --------------
 
-Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{pix} \sim 300,000` pixels and :math:`N_{lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
-
-
-PhoenixEmulator
-###############
+Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
 """
-from importlib.util import resolve_name
 import math
 import torch
 from torch import nn
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
-from tqdm import tqdm
 
 
-class PhoenixEmulator(nn.Module):
+class LinearEmulator(nn.Module):
     r"""
-    A PyTorch layer that clones precomputed synthetic spectra
+    Model for cloning a precomputed synthetic spectrum in linear flux.
+    
+    :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
 
-    wl_native (int): The input wavelength
-    flux_native (float): The output wavelength
-
-    Currently hardcoded to assume your PHOENIX grid is stored at: ~/libraries/raw/PHOENIX/
+    Parameters
+    ----------
+    wl_native :  torch.tensor
+        The vector of input wavelengths at native resolution and sampling 
+    flux_native : torch.tensor
+        The vector continuum-flattened input fluxes
+    prominence : int
+        The threshold prominence for peak finding
     """
 
     def __init__(self, wl_native, flux_native, prominence=0.03):
@@ -106,52 +106,75 @@ class PhoenixEmulator(nn.Module):
             torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
         )
 
+        self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
+
     def forward(self, wl):
-        """The forward pass of the spectral model
+        r"""The forward pass of the `blase` clone model
 
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        Conducts the product of PseudoVoigt profiles for each line, with
+        between one and three tunable parameters.  The entire spectrum can
+        optionally be modulated by a tunable continuum polynomial.
+
+        .. math:: 
+            
+            \mathsf{S}_{\rm clone} = \mathsf{P}(\lambda_S) \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+
+        Parameters
+        ----------
+        wl : torch.tensor
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
         """
-        # return self.product_of_lorentzian_model(wl)
-        return self.product_of_pseudovoigt_model(wl)
 
-    def product_of_lorentzian_model(self, wl):
-        """Return the Lorentzian-only forward model, modulated by Blackbody and slopes"""
-        net_spectrum = (
-            1
-            - self.lorentzian_line(
-                self.lam_centers.unsqueeze(1),
-                torch.exp(self.sigma_widths).unsqueeze(1),
-                torch.exp(self.amplitudes).unsqueeze(1),
-                wl.unsqueeze(0),
-            )
-        ).prod(0)
-
-        wl_normed = (wl - 10_500.0) / 2500.0
-        modulation = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
+        polynomial_term = (
+            self.a_coeff
+            + self.b_coeff * self.wl_normed
+            + self.c_coeff * self.wl_normed ** 2
         )
-        return net_spectrum * modulation
+
+        return self.product_of_pseudovoigt_model(wl) * polynomial_term
 
     def product_of_pseudovoigt_model(self, wl):
-        """Return the PseudoVoight forward model"""
-        net_spectrum = (1 - self.pseudo_voigt_profiles(wl)).prod(0)
+        r"""Return the Product of pseudo-Voigt profiles
+        
+        The product acts like a matrix contraction:
 
-        wl_normed = (wl - 10_500.0) / 2500.0
-        modulation = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
-        )
-        return net_spectrum * modulation
+        .. math:: \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+
+        Parameters
+        ----------
+        wl : torch.tensor
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` 
+            destined for backpropagation parameter tuning     
+        """
+        return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
 
-        Args:
-            wl_native (torch.tensor vector): The 1D vector of native model wavelengths (Angstroms)
-            flux_native (torch.tensor vector): The 1D vector of native model fluxes (Normalized)
-        Returns:
-            (tuple of tensors): The wavelength centers, prominences, and widths for all ID'ed spectral lines
-        -----
+        Parameters
+        ----------
+        wl_native : torch.tensor
+            The 1D vector of native model wavelengths (Angstroms)
+        flux_native: torch.tensor
+            The 1D vector of continuum-flattened model fluxes
+
+        Returns
+        -------
+        tuple of tensors 
+            The wavelength centers, prominences, and widths for all ID'ed 
+            spectral lines
         """
         peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
         prominence_data = peak_prominences(-flux_native, peaks)
@@ -165,13 +188,12 @@ class PhoenixEmulator(nn.Module):
 
         return (lam_centers, prominences, widths_angs)
 
-    def lorentzian_line(self, lam_center, width, wavelengths):
+    def _lorentzian_line(self, lam_center, width, wavelengths):
         """Return a Lorentzian line, given properties"""
         return 1 / 3.141592654 * width / (width ** 2 + (wavelengths - lam_center) ** 2)
 
-    def gaussian_line(self, lam_center, width, wavelengths):
+    def _gaussian_line(self, lam_center, width, wavelengths):
         """Return a normalized Gaussian line, given properties"""
-
         return (
             1.0
             / (width * 2.5066)
@@ -179,14 +201,12 @@ class PhoenixEmulator(nn.Module):
         )
 
     def _compute_eta(self, fwhm_L, fwhm):
-        """Compute the eta parameter for pseudo Voigt"""
+        """Compute the eta mixture ratio for pseudo-Voigt weighting"""
         f_ratio = fwhm_L / fwhm
         return 1.36603 * f_ratio - 0.47719 * f_ratio ** 2 + 0.11116 * f_ratio ** 3
 
     def _compute_fwhm(self, fwhm_L, fwhm_G):
-        """Compute the fwhm for pseudo Voigt using the approximation:
-        :math:`f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}`
-
+        """Compute the fwhm for pseudo Voigt using the approximation
         """
 
         return (
@@ -199,7 +219,46 @@ class PhoenixEmulator(nn.Module):
         ) ** (1 / 5)
 
     def pseudo_voigt_profiles(self, wavelengths):
-        """Compute the pseudo Voigt Profile, much faster than the full Voigt profile"""
+        r"""Compute the pseudo-Voigt Profile for a collection of lines
+        
+        Much faster than the exact Voigt profile, but not as accurate:
+
+        .. math:: 
+        
+            \mathsf{V}(\lambda_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)
+
+        
+        Parameters
+        ----------
+        wavelengths : torch.tensor
+            The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D pseudo-Voigt profiles
+
+        Notes
+        -----
+        The pseudo-Voigt [1]_ is an approximation to the convolution of a 
+        Lorentzian profile :math:`L(\lambda,f)` and Gaussian profile :math:`G(\lambda,f)`
+
+        .. math::  V_p(\lambda,f) = \eta \cdot L(\lambda, f) + (1 - \eta) \cdot G(\lambda,f) 
+        
+        with mixture pre-factor:
+
+        .. math::  \eta = 1.36603 (f_L/f) - 0.47719 (f_L/f)^2 + 0.11116(f_L/f)^3
+        
+        and FWHM:
+
+        .. math::  f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}
+
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Pseudo-Voigt_profile
+        """
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
@@ -207,13 +266,13 @@ class PhoenixEmulator(nn.Module):
 
         return torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
-            * self.lorentzian_line(
+            * self._lorentzian_line(
                 self.lam_centers.unsqueeze(1),
                 torch.exp(self.gamma_widths).unsqueeze(1),
                 wavelengths.unsqueeze(0),
             )
             + (1 - eta)
-            * self.gaussian_line(
+            * self._gaussian_line(
                 self.lam_centers.unsqueeze(1),
                 torch.exp(self.sigma_widths).unsqueeze(1),
                 wavelengths.unsqueeze(0),
@@ -221,16 +280,23 @@ class PhoenixEmulator(nn.Module):
         )
 
 
-class SparsePhoenixEmulator(PhoenixEmulator):
+class SparseLinearEmulator(LinearEmulator):
     r"""
-    A sparse implementation of the PhoenixEmulator
+    A sparse implementation of the LinearEmulator
 
-    wl_native (float vector): The input wavelength
-    flux_native (float vector): The native flux
-    prominence (int scalar): The threshold for detecting lines
-    device (Torch Device or str): GPU or CPU?
-    wing_cut_pixels (int scalar): the number of pixels centered on the line center
-        to evaluate in the sparse implementation, default: 1000 pixels
+    Parameters
+    ----------
+    wl_native : float vector
+        The input wavelength at native sampling
+    flux_native : float vector 
+        The continuum-flattened flux at native sampling
+    prominence : int
+        The threshold for detecting lines
+    device : Torch Device or str
+        GPU or CPU?
+    wing_cut_pixels : int
+        The number of pixels centered on the line center to evaluate in the 
+        sparse implementation, default: 1000 pixels
     """
 
     def __init__(
@@ -289,9 +355,9 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         """The forward pass of the sparse implementation--- no wavelengths needed!
 
         Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        torch.tensor
+            The 1D generative spectral model destined for backpropagation
         """
-        # return self.sparse_gaussian_model()
         return self.sparse_pseudo_Voigt_model()
 
     def sparse_gaussian_model(self):
@@ -365,13 +431,19 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         return torch.exp(result_1D)
 
 
-class EchelleModel(nn.Module):
+class ExtrinsicModel(nn.Module):
     r"""
     A Model for Echelle Spectra based on the SparseEmulator
 
-    wl_bin_edges (float vector): The input wavelength
-    device (Torch Device or str): GPU or CPU?
-    pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
+
+    Parameters
+    ----------
+    wl_bin_edges : float vector
+        The edges of the wavelength bins
+    wl_native : float vector
+        The native wavelength coordinates
+    device : Torch Device or str
+        GPU or CPU?
     """
 
     def __init__(self, wl_bin_edges, wl_native, device=None):
@@ -441,10 +513,24 @@ class EchelleModel(nn.Module):
         )
 
     def forward(self, high_res_model):
-        """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
+        r"""The forward pass of the data-based echelle model implementation
+        
+        Computes the RV and vsini modulations of the native model:
 
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        .. math::
+
+            \mathsf{S}_{\rm ext}(\lambda_S) = \mathsf{S}_{\rm clone}(\lambda_\mathrm{c} - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{v}{v\sin{i}}\right)
+
+
+        Parameters
+        ----------
+        high_res_model : torch.tensor
+            The high resolution model fluxes sampled at the native wavelength grid
+
+        Returns
+        -------
+        torch.tensor
+            The high resolution model modulated for extrinsic parameters, :math:`\mathsf{S}_{\rm ext}`
         """
         sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms...
         vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
@@ -470,7 +556,17 @@ class EchelleModel(nn.Module):
     def instrumental_broaden(self, input_flux, sigma_angs):
         """Instrumental broaden the spectrum
 
-        sigma_angs (float scalar) The spectral resolution sigma in Angstroms
+        Parameters
+        ----------
+        input_flux : torch.tensor
+            The input flux vector to be broadened
+        sigma_angs : float scalar 
+            The spectral resolution sigma in Angstroms
+
+        Returns
+        -------
+        torch.tensor
+            The instrumental broadened flux vector
         """
         weights = (
             1
@@ -486,7 +582,28 @@ class EchelleModel(nn.Module):
         return output.squeeze()
 
     def rotational_broaden(self, input_flux, vsini):
-        """Rotationally broaden the spectrum"""
+        r"""Rotationally broaden the spectrum
+
+        Computes the convolution of the input flux with a Rotational
+        Broadening kernel:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} * \zeta \left(\frac{v}{v\sin{i}}\right)
+            
+
+        Parameters
+        ----------
+        input_flux : torch.tensor
+            The input flux vector, sampled at the native wavelength grid
+        vsini : float scalar
+            The rotational velocity in km/s
+
+        Returns
+        -------
+        torch.tensor
+            The rotationally broadened flux vector
+        """
         velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
         x = velocity_grid / vsini
         x2 = x * x
@@ -500,3 +617,9 @@ class EchelleModel(nn.Module):
             padding="same",
         )
         return output.squeeze()
+
+
+# Deprecated class names
+PhoenixEmulator = LinearEmulator
+SparsePhoenixEmulator = SparseLinearEmulator
+EchelleModel = ExtrinsicModel
