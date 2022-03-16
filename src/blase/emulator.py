@@ -9,12 +9,11 @@ import torch
 from torch import nn
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
-from tqdm import tqdm
 
 
 class LinearEmulator(nn.Module):
     r"""
-    A PyTorch layer for cloneing a precomputed synthetic spectrum 
+    Model for cloning a precomputed synthetic spectrum in linear flux.
     
     :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
 
@@ -141,11 +140,11 @@ class LinearEmulator(nn.Module):
         return self.product_of_pseudovoigt_model(wl) * polynomial_term
 
     def product_of_pseudovoigt_model(self, wl):
-        """Return the Product of pseudo-Voigt forward model
+        r"""Return the Product of pseudo-Voigt profiles
         
-        .. math:: 
-            
-            \mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+        The product acts like a matrix contraction:
+
+        .. math:: \mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
 
         Parameters
         ----------
@@ -159,8 +158,7 @@ class LinearEmulator(nn.Module):
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` 
             destined for backpropagation parameter tuning     
         """
-        net_spectrum = (1 - self.pseudo_voigt_profiles(wl)).prod(0)
-        return net_spectrum
+        return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
@@ -196,7 +194,6 @@ class LinearEmulator(nn.Module):
 
     def _gaussian_line(self, lam_center, width, wavelengths):
         """Return a normalized Gaussian line, given properties"""
-
         return (
             1.0
             / (width * 2.5066)
@@ -204,14 +201,12 @@ class LinearEmulator(nn.Module):
         )
 
     def _compute_eta(self, fwhm_L, fwhm):
-        """Compute the eta parameter for pseudo Voigt"""
+        """Compute the eta mixture ratio for pseudo-Voigt weighting"""
         f_ratio = fwhm_L / fwhm
         return 1.36603 * f_ratio - 0.47719 * f_ratio ** 2 + 0.11116 * f_ratio ** 3
 
     def _compute_fwhm(self, fwhm_L, fwhm_G):
-        """Compute the fwhm for pseudo Voigt using the approximation:
-        :math:`f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}`
-
+        """Compute the fwhm for pseudo Voigt using the approximation
         """
 
         return (
@@ -285,18 +280,23 @@ class LinearEmulator(nn.Module):
         )
 
 
-PhoenixEmulator = LinearEmulator
-
-
-class SparsePhoenixEmulator(PhoenixEmulator):
+class SparseLinearEmulator(LinearEmulator):
     r"""
-    A sparse implementation of the PhoenixEmulator
+    A sparse implementation of the LinearEmulator
 
-    wl_native (float vector): The input wavelength
-    flux_native (float vector): The native flux
-    prominence (int scalar): The threshold for detecting lines
-    device (Torch Device or str): GPU or CPU?
-    wing_cut_pixels (int scalar): the number of pixels centered on the line center to evaluate in the sparse implementation, default: 1000 pixels
+    Parameters
+    ----------
+    wl_native : float vector
+        The input wavelength at native sampling
+    flux_native : float vector 
+        The continuum-flattened flux at native sampling
+    prominence : int
+        The threshold for detecting lines
+    device : Torch Device or str
+        GPU or CPU?
+    wing_cut_pixels : int
+        The number of pixels centered on the line center to evaluate in the 
+        sparse implementation, default: 1000 pixels
     """
 
     def __init__(
@@ -355,9 +355,9 @@ class SparsePhoenixEmulator(PhoenixEmulator):
         """The forward pass of the sparse implementation--- no wavelengths needed!
 
         Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        torch.tensor
+            The 1D generative spectral model destined for backpropagation
         """
-        # return self.sparse_gaussian_model()
         return self.sparse_pseudo_Voigt_model()
 
     def sparse_gaussian_model(self):
@@ -566,3 +566,7 @@ class EchelleModel(nn.Module):
             padding="same",
         )
         return output.squeeze()
+
+
+PhoenixEmulator = LinearEmulator
+SparsePhoenixEmulator = SparseLinearEmulator
