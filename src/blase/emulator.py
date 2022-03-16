@@ -14,12 +14,18 @@ from tqdm import tqdm
 
 class LinearEmulator(nn.Module):
     r"""
-    A PyTorch layer that clones a precomputed synthetic spectrum :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
+    A PyTorch layer for cloneing a precomputed synthetic spectrum 
+    
+    :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
 
     Parameters
     ----------
-    wl_native (float vector): The input wavelength at native resolution and sampling 
-    flux_native (float vector): The input flux
+    wl_native :  torch.tensor
+        The vector of input wavelengths at native resolution and sampling 
+    flux_native : torch.tensor
+        The vector continuum-flattened input fluxes
+    prominence : int
+        The threshold prominence for peak finding
     """
 
     def __init__(self, wl_native, flux_native, prominence=0.03):
@@ -101,12 +107,42 @@ class LinearEmulator(nn.Module):
             torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
         )
 
+        self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
+
     def forward(self, wl):
         r"""The forward pass of the `blase` clone model
 
         Conducts the product of PseudoVoigt profiles for each line, with
-        between one and three tunable parameters:
+        between one and three tunable parameters.  The entire spectrum can
+        optionally be modulated by a tunable continuum polynomial.
 
+        .. math:: 
+            
+            \mathsf{P}(\lambda_S) \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+
+        Parameters
+        ----------
+        wl : torch.tensor
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
+        """
+
+        polynomial_term = (
+            self.a_coeff
+            + self.b_coeff * self.wl_normed
+            + self.c_coeff * self.wl_normed ** 2
+        )
+
+        return self.product_of_pseudovoigt_model(wl) * polynomial_term
+
+    def product_of_pseudovoigt_model(self, wl):
+        """Return the Product of pseudo-Voigt forward model
+        
         .. math:: 
             
             \mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
@@ -120,23 +156,11 @@ class LinearEmulator(nn.Module):
         Returns
         -------
         torch.tensor
-            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
-        """
-        return self.product_of_pseudovoigt_model(wl)
-
-    def product_of_pseudovoigt_model(self, wl):
-        """Return the PseudoVoigt forward model
-        
-        
-        
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` 
+            destined for backpropagation parameter tuning     
         """
         net_spectrum = (1 - self.pseudo_voigt_profiles(wl)).prod(0)
-
-        wl_normed = (wl - 10_500.0) / 2500.0
-        modulation = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
-        )
-        return net_spectrum * modulation
+        return net_spectrum
 
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
@@ -166,11 +190,11 @@ class LinearEmulator(nn.Module):
 
         return (lam_centers, prominences, widths_angs)
 
-    def lorentzian_line(self, lam_center, width, wavelengths):
+    def _lorentzian_line(self, lam_center, width, wavelengths):
         """Return a Lorentzian line, given properties"""
         return 1 / 3.141592654 * width / (width ** 2 + (wavelengths - lam_center) ** 2)
 
-    def gaussian_line(self, lam_center, width, wavelengths):
+    def _gaussian_line(self, lam_center, width, wavelengths):
         """Return a normalized Gaussian line, given properties"""
 
         return (
@@ -200,7 +224,46 @@ class LinearEmulator(nn.Module):
         ) ** (1 / 5)
 
     def pseudo_voigt_profiles(self, wavelengths):
-        """Compute the pseudo Voigt Profile, much faster than the full Voigt profile"""
+        r"""Compute the pseudo-Voigt Profile for a collection of lines
+        
+        Much faster than the exact Voigt profile, but not as accurate:
+
+        .. math:: 
+        
+            \mathsf{V}(\lambda_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)
+
+        
+        Parameters
+        ----------
+        wavelengths : torch.tensor
+            The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to 
+            evaluate the model
+
+        Returns
+        -------
+        torch.tensor
+            The 1D pseudo-Voigt profiles
+
+        Notes
+        -----
+        The pseudo-Voigt [1]_ is an approximation to the convolution of a 
+        Lorentzian profile :math:`L(\lambda,f)` and Gaussian profile :math:`G(\lambda,f)`
+
+        .. math::  V_p(\lambda,f) = \eta \cdot L(\lambda, f) + (1 - \eta) \cdot G(\lambda,f) 
+        
+        with mixture pre-factor:
+
+        .. math::  \eta = 1.36603 (f_L/f) - 0.47719 (f_L/f)^2 + 0.11116(f_L/f)^3
+        
+        and FWHM:
+
+        .. math::  f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}
+
+
+        References
+        ----------
+        .. [1] https://en.wikipedia.org/wiki/Pseudo-Voigt_profile
+        """
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
@@ -208,13 +271,13 @@ class LinearEmulator(nn.Module):
 
         return torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
-            * self.lorentzian_line(
+            * self._lorentzian_line(
                 self.lam_centers.unsqueeze(1),
                 torch.exp(self.gamma_widths).unsqueeze(1),
                 wavelengths.unsqueeze(0),
             )
             + (1 - eta)
-            * self.gaussian_line(
+            * self._gaussian_line(
                 self.lam_centers.unsqueeze(1),
                 torch.exp(self.sigma_widths).unsqueeze(1),
                 wavelengths.unsqueeze(0),
