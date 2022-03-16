@@ -383,13 +383,21 @@ class SparseLinearEmulator(LinearEmulator):
         return torch.exp(result_1D)
 
     def sparse_pseudo_Voigt_model(self):
-        """A sparse pseudo-Voigt model
+        r"""A sparse pseudo-Voigt model
 
-        Note:
-            Almost the same as the base class implementation, may want to refactor
+        The sparse matrix :math:`\hat{F}` is composed of the log flux 
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes 
+        are stored as trios of coordinate values and fluxes.  
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
 
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        .. math::
+        
+            \mathsf{S}_{\rm clone} = \exp{\Big(\sum_{j=1}^{N_{lines}} \ln{F_{ji}} \Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model 
         """
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
@@ -432,7 +440,105 @@ class SparseLinearEmulator(LinearEmulator):
 
 class ExtrinsicModel(nn.Module):
     r"""
-    A Model for Echelle Spectra based on the SparseEmulator
+    A Model for Extrinsic modulation
+
+
+    Parameters
+    ----------
+    wl_native : float vector
+        The native wavelength coordinates
+    device : Torch Device or str
+        GPU or CPU?
+    """
+
+    def __init__(self, wl_native, device=None):
+        super().__init__()
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        device = torch.device(device)
+
+        self.median_wl = np.median(wl_native)
+
+        self.ln_vsini = nn.Parameter(
+            torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
+        )
+
+        # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
+        self.kernel_grid = torch.arange(
+            -4.5, 4.51, 0.01, dtype=torch.float64, device=device
+        )
+
+    def forward(self, high_res_model):
+        r"""The forward pass of the data-based echelle model implementation
+        
+        Computes the RV and vsini modulations of the native model:
+
+        .. math::
+
+            \mathsf{S}_{\rm ext}(\lambda_S) = \mathsf{S}_{\rm clone}(\lambda_\mathrm{c} - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{v}{v\sin{i}}\right)
+
+
+        Parameters
+        ----------
+        high_res_model : torch.tensor
+            The high resolution model fluxes sampled at the native wavelength grid
+
+        Returns
+        -------
+        torch.tensor
+            The high resolution model modulated for extrinsic parameters, :math:`\mathsf{S}_{\rm ext}`
+        """
+        vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
+        rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
+
+        return rotationally_broadened
+
+    def rotational_broaden(self, input_flux, vsini):
+        r"""Rotationally broaden the spectrum
+
+        Computes the convolution of the input flux with a Rotational
+        Broadening kernel:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} * \zeta \left(\frac{v}{v\sin{i}}\right)
+            
+
+        Parameters
+        ----------
+        input_flux : torch.tensor
+            The input flux vector, sampled at the native wavelength grid
+        vsini : float scalar
+            The rotational velocity in km/s
+
+        Returns
+        -------
+        torch.tensor
+            The rotationally broadened flux vector
+        """
+        velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
+        x = velocity_grid / vsini
+        x2 = x * x
+        x2 = torch.clamp(x2, max=1)
+        kernel = torch.where(x2 < 0.99999999, 2.0 * torch.sqrt(1.0 - x2), 0.0)
+        kernel = kernel / torch.sum(kernel)
+
+        output = torch.nn.functional.conv1d(
+            input_flux.unsqueeze(0).unsqueeze(1),
+            kernel.unsqueeze(0).unsqueeze(1),
+            padding="same",
+        )
+        return output.squeeze()
+
+
+class InstrumentalModel(nn.Module):
+    r"""
+    A Model for instrumental resolution, etc (e.g. for a spectrograph)
 
 
     Parameters
@@ -467,14 +573,6 @@ class ExtrinsicModel(nn.Module):
         self.ln_sigma_angs = nn.Parameter(
             torch.tensor(-2.8134, requires_grad=True, dtype=torch.float64)
         )
-
-        self.ln_vsini = nn.Parameter(
-            torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
-        )
-
-        # self.radial_velocity = nn.Parameter(
-        #    torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
-        # )
 
         # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
         self.kernel_grid = torch.arange(
@@ -532,12 +630,10 @@ class ExtrinsicModel(nn.Module):
             The high resolution model modulated for extrinsic parameters, :math:`\mathsf{S}_{\rm ext}`
         """
         sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms...
-        vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
-        rotationally_broadened = self.rotational_broaden(high_res_model, vsini)
-        convolved_flux = self.instrumental_broaden(rotationally_broadened, sigma_angs)
+        convolved_flux = self.instrumental_broaden(high_res_model, sigma_angs)
         resampled_flux = self.resample_to_data(convolved_flux)
 
-        return resampled_flux * self.warped_continuum()
+        return resampled_flux * self.warped_continuum()[1:-1]
 
     def warped_continuum(self):
         """Warp the continuum by a smooth polynomial"""
@@ -576,43 +672,6 @@ class ExtrinsicModel(nn.Module):
         output = torch.nn.functional.conv1d(
             input_flux.unsqueeze(0).unsqueeze(1),
             weights.unsqueeze(0).unsqueeze(1),
-            padding="same",
-        )
-        return output.squeeze()
-
-    def rotational_broaden(self, input_flux, vsini):
-        r"""Rotationally broaden the spectrum
-
-        Computes the convolution of the input flux with a Rotational
-        Broadening kernel:
-
-        .. math::
-
-            \mathsf{S}_{\rm clone} * \zeta \left(\frac{v}{v\sin{i}}\right)
-            
-
-        Parameters
-        ----------
-        input_flux : torch.tensor
-            The input flux vector, sampled at the native wavelength grid
-        vsini : float scalar
-            The rotational velocity in km/s
-
-        Returns
-        -------
-        torch.tensor
-            The rotationally broadened flux vector
-        """
-        velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
-        x = velocity_grid / vsini
-        x2 = x * x
-        x2 = torch.clamp(x2, max=1)
-        kernel = torch.where(x2 < 0.99999999, 2.0 * torch.sqrt(1.0 - x2), 0.0)
-        kernel = kernel / torch.sum(kernel)
-
-        output = torch.nn.functional.conv1d(
-            input_flux.unsqueeze(0).unsqueeze(1),
-            kernel.unsqueeze(0).unsqueeze(1),
             padding="same",
         )
         return output.squeeze()

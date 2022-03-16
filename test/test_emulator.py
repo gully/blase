@@ -1,6 +1,12 @@
 import torch
-from blase.emulator import LinearEmulator, SparseLinearEmulator
+from blase.emulator import (
+    LinearEmulator,
+    SparseLinearEmulator,
+    ExtrinsicModel,
+    InstrumentalModel,
+)
 from gollum.phoenix import PHOENIXSpectrum
+import numpy as np
 
 spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
 spectrum = spectrum.divide_by_blackbody()
@@ -39,3 +45,22 @@ def test_sparse_forward():
     assert spectrum is not None
     assert len(spectrum) > 0
     assert spectrum.dtype == torch.float64
+
+    model = ExtrinsicModel(wl_native)
+    out1 = model.forward(torch.tensor(flux_native))
+    out2 = model.forward(spectrum)
+
+    assert model is not None
+    assert out1 is not None
+    assert out2 is not None
+    assert len(out1) == len(out2)
+
+    bin_edges = spec_native.spectral_axis.bin_edges.value.astype(np.float64)
+    inst_model = InstrumentalModel(bin_edges, wl_native)
+    out1 = inst_model.forward(torch.tensor(flux_native))
+    out2 = inst_model.forward(spectrum)
+
+    assert inst_model is not None
+    assert out1 is not None
+    assert out2 is not None
+    assert len(out1) == len(out2)
