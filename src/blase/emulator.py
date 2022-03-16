@@ -117,7 +117,7 @@ class LinearEmulator(nn.Module):
 
         .. math:: 
             
-            \mathsf{P}(\lambda_S) \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+            \mathsf{S}_{\rm clone} = \mathsf{P}(\lambda_S) \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
 
         Parameters
         ----------
@@ -144,7 +144,7 @@ class LinearEmulator(nn.Module):
         
         The product acts like a matrix contraction:
 
-        .. math:: \mathsf{S}_{\rm clone} = \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
+        .. math:: \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
 
         Parameters
         ----------
@@ -431,13 +431,19 @@ class SparseLinearEmulator(LinearEmulator):
         return torch.exp(result_1D)
 
 
-class EchelleModel(nn.Module):
+class ExtrinsicModel(nn.Module):
     r"""
     A Model for Echelle Spectra based on the SparseEmulator
 
-    wl_bin_edges (float vector): The input wavelength
-    device (Torch Device or str): GPU or CPU?
-    pretrained_emulator (SparsePhoenixEmulator): A pretrained emulator to use for modeling data
+
+    Parameters
+    ----------
+    wl_bin_edges : float vector
+        The edges of the wavelength bins
+    wl_native : float vector
+        The native wavelength coordinates
+    device : Torch Device or str
+        GPU or CPU?
     """
 
     def __init__(self, wl_bin_edges, wl_native, device=None):
@@ -507,10 +513,24 @@ class EchelleModel(nn.Module):
         )
 
     def forward(self, high_res_model):
-        """The forward pass of the data-based echelle model implementation--- no wavelengths needed!
+        r"""The forward pass of the data-based echelle model implementation
+        
+        Computes the RV and vsini modulations of the native model:
 
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
+        .. math::
+
+            \mathsf{S}_{\rm ext}(\lambda_S) = \mathsf{S}_{\rm clone}(\lambda_\mathrm{c} - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{v}{v\sin{i}}\right)
+
+
+        Parameters
+        ----------
+        high_res_model : torch.tensor
+            The high resolution model fluxes sampled at the native wavelength grid
+
+        Returns
+        -------
+        torch.tensor
+            The high resolution model modulated for extrinsic parameters, :math:`\mathsf{S}_{\rm ext}`
         """
         sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms...
         vsini = 0.9 + torch.exp(self.ln_vsini)  # Floor of 0.9 km/s for now...
@@ -536,7 +556,17 @@ class EchelleModel(nn.Module):
     def instrumental_broaden(self, input_flux, sigma_angs):
         """Instrumental broaden the spectrum
 
-        sigma_angs (float scalar) The spectral resolution sigma in Angstroms
+        Parameters
+        ----------
+        input_flux : torch.tensor
+            The input flux vector to be broadened
+        sigma_angs : float scalar 
+            The spectral resolution sigma in Angstroms
+
+        Returns
+        -------
+        torch.tensor
+            The instrumental broadened flux vector
         """
         weights = (
             1
@@ -552,7 +582,28 @@ class EchelleModel(nn.Module):
         return output.squeeze()
 
     def rotational_broaden(self, input_flux, vsini):
-        """Rotationally broaden the spectrum"""
+        r"""Rotationally broaden the spectrum
+
+        Computes the convolution of the input flux with a Rotational
+        Broadening kernel:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} * \zeta \left(\frac{v}{v\sin{i}}\right)
+            
+
+        Parameters
+        ----------
+        input_flux : torch.tensor
+            The input flux vector, sampled at the native wavelength grid
+        vsini : float scalar
+            The rotational velocity in km/s
+
+        Returns
+        -------
+        torch.tensor
+            The rotationally broadened flux vector
+        """
         velocity_grid = 299792.458 * self.kernel_grid / self.median_wl
         x = velocity_grid / vsini
         x2 = x * x
@@ -568,5 +619,7 @@ class EchelleModel(nn.Module):
         return output.squeeze()
 
 
+# Deprecated class names
 PhoenixEmulator = LinearEmulator
 SparsePhoenixEmulator = SparseLinearEmulator
+EchelleModel = ExtrinsicModel
