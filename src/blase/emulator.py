@@ -130,11 +130,10 @@ class LinearEmulator(nn.Module):
         torch.tensor
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
         """
+        wl_normed = (wl - 10_500.0) / 2500.0
 
         polynomial_term = (
-            self.a_coeff
-            + self.b_coeff * self.wl_normed
-            + self.c_coeff * self.wl_normed ** 2
+            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
         )
 
         return self.product_of_pseudovoigt_model(wl) * polynomial_term
@@ -403,13 +402,13 @@ class SparseLinearEmulator(LinearEmulator):
 
         flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
-            * self.lorentzian_line(
+            * self._lorentzian_line(
                 rv_shifted_centers.unsqueeze(1),
                 torch.exp(self.gamma_widths).unsqueeze(1),
                 self.wl_2D,
             )
             + (1 - eta)
-            * self.gaussian_line(
+            * self._gaussian_line(
                 rv_shifted_centers.unsqueeze(1),
                 torch.exp(self.sigma_widths).unsqueeze(1),
                 self.wl_2D,
