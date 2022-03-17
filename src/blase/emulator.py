@@ -610,24 +610,32 @@ class InstrumentalModel(nn.Module):
         )
 
     def forward(self, high_res_model):
-        r"""The forward pass of the data-based echelle model implementation
+        r"""The forward pass of the instrumental model
         
-        Computes the RV and vsini modulations of the native model:
+        Computes the instrumental modulation of the joint model and resamples the spectrum to the coarse data wavelength coordinates.
 
-        .. math::
+        We start with a joint model composed of the elementwise product of the extrinsic stellar spectrum with the resampled telluric spectrum:
 
-            \mathsf{S}_{\rm ext}(\lambda_S) = \mathsf{S}_{\rm clone}(\lambda_\mathrm{c} - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{v}{v\sin{i}}\right)
+        .. math::  \mathsf{M}_{\rm joint} = \mathsf{S}_{\rm ext} \odot \mathsf{T}(\lambda_S) \\ 
+
+        An intermediate high resolution spectrum is computed by convolving the joint model with a Gaussian kernel, and weighting by a smooth polynomial shape:
+
+        .. math::  \mathsf{M}_{\rm inst}(\lambda_S) = \mathsf{P} \odot \Big(\mathsf{M}_{\rm joint} * g(R) \Big)
+
+        Finally, we resample the intermediate high resolution instrumental spectrum to the coarser data wavelength coordinates:
+
+        .. math::  \mathsf{M}(\lambda_D) = \text{resample} \Big[ \mathsf{M}_{\rm inst}(\lambda_S) \Big]
 
 
         Parameters
         ----------
         high_res_model : torch.tensor
-            The high resolution model fluxes sampled at the native wavelength grid
+            The high resolution model fluxes sampled at the native wavelength grid.  The high resolution model is typically the joint model including the extrinsic spectrum and telluric spectrum, :math:`\mathsf{M}_{\rm joint}`.  It can alternatively be a bare extrinisic spectrum, :math:`\mathsf{S}_{\rm ext}` if telluric absorption is negligible in the wavelength range of interest.
 
         Returns
         -------
         torch.tensor
-            The high resolution model modulated for extrinsic parameters, :math:`\mathsf{S}_{\rm ext}`
+            The high resolution model modulated for extrinsic parameters, and resampled at the data coordinates :math:`\mathsf{M}(\lambda_D)`.
         """
         sigma_angs = 0.01 + torch.exp(self.ln_sigma_angs)  # Floor of 0.01 Angstroms...
         convolved_flux = self.instrumental_broaden(high_res_model, sigma_angs)
