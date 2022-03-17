@@ -677,6 +677,99 @@ class InstrumentalModel(nn.Module):
         return output.squeeze()
 
 
+class SparseLogEmulator(SparseLinearEmulator):
+    r"""
+    A log version of the sparse emulator
+
+    Parameters
+    ----------
+    wl_native : float vector
+        The input wavelength at native sampling
+    lnflux_native : float vector 
+        The natural log of the continuum-flattened flux at native sampling
+    prominence : int
+        The threshold for detecting lines
+    device : Torch Device or str
+        GPU or CPU?
+    wing_cut_pixels : int
+        The number of pixels centered on the line center to evaluate in the 
+        sparse implementation, default: 1000 pixels
+    """
+
+    def __init__(
+        self,
+        wl_native,
+        lnflux_native,
+        prominence=0.01,
+        device=None,
+        wing_cut_pixels=None,
+    ):
+        super().__init__(
+            wl_native, lnflux_native, prominence=0.01, device=None, wing_cut_pixels=None
+        )
+
+    def forward(self):
+        """The forward pass of the sparse implementation--- no wavelengths needed!
+
+        Returns:
+        torch.tensor
+            The 1D generative spectral model destined for backpropagation
+        """
+        return self.sparse_opacity_model()
+
+    def sparse_opacity_model(self):
+        r"""A sparse pseudo-Voigt model
+
+        The sparse matrix :math:`\hat{F}` is composed of the log flux 
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes 
+        are stored as trios of coordinate values and fluxes.  
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
+
+        .. math::
+        
+            \mathsf{S}_{\rm clone} = \exp{\Big(-\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j\Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model 
+        """
+        fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
+        fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
+        fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
+        eta = self._compute_eta(fwhm_L, fwhm)
+
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
+
+        opacities_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
+            eta
+            * self._lorentzian_line(
+                rv_shifted_centers.unsqueeze(1),
+                torch.exp(self.gamma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
+            + (1 - eta)
+            * self._gaussian_line(
+                rv_shifted_centers.unsqueeze(1),
+                torch.exp(self.sigma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
+        )
+
+        opacities_1D = opacities_2D.reshape(-1)
+        negative_opacities = -1 * opacities_1D
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, negative_opacities, size=(self.n_pix,), requires_grad=True
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return torch.exp(result_1D)
+
+
 # Deprecated class names
 PhoenixEmulator = LinearEmulator
 SparsePhoenixEmulator = SparseLinearEmulator
