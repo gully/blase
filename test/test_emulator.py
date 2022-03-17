@@ -2,6 +2,7 @@ import torch
 from blase.emulator import (
     LinearEmulator,
     SparseLinearEmulator,
+    SparseLogEmulator,
     ExtrinsicModel,
     InstrumentalModel,
 )
@@ -64,3 +65,16 @@ def test_sparse_forward():
     assert out1 is not None
     assert out2 is not None
     assert len(out1) == len(out2)
+
+    # Test the LogEmulator
+
+    lnflux_native = torch.log(torch.tensor(flux_native))
+
+    log_emulator = SparseLogEmulator(
+        wl_native, lnflux_native, prominence=0.02, wing_cut_pixels=1000
+    )
+    spectrum_flux = log_emulator.forward()
+
+    assert spectrum_flux is not None
+    assert len(spectrum_flux) > 0
+    assert spectrum_flux.dtype == torch.float64
