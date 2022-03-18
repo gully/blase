@@ -310,12 +310,25 @@ class SparseLinearEmulator(LinearEmulator):
     wing_cut_pixels : int
         The number of pixels centered on the line center to evaluate in the 
         sparse implementation, default: 1000 pixels
+    init_state_dict : dict
+        A dictionary of model parameters to initialize the model with
     """
 
     def __init__(
-        self, wl_native, flux_native, prominence=0.01, device=None, wing_cut_pixels=None
+        self,
+        wl_native,
+        flux_native,
+        prominence=0.01,
+        device=None,
+        wing_cut_pixels=None,
+        init_state_dict=None,
     ):
-        super().__init__(wl_native, flux_native, prominence=prominence)
+        super().__init__(
+            wl_native,
+            flux_native,
+            prominence=prominence,
+            init_state_dict=init_state_dict,
+        )
 
         if device is None:
             if torch.cuda.is_available():
@@ -749,6 +762,8 @@ class SparseLogEmulator(SparseLinearEmulator):
     wing_cut_pixels : int
         The number of pixels centered on the line center to evaluate in the 
         sparse implementation, default: 1000 pixels
+    init_state_dict : dict
+        The initial state of the model
     """
 
     def __init__(
@@ -758,8 +773,16 @@ class SparseLogEmulator(SparseLinearEmulator):
         prominence=0.01,
         device=None,
         wing_cut_pixels=None,
+        init_state_dict=None,
     ):
-        super().__init__(wl_native, lnflux_native, prominence, device, wing_cut_pixels)
+        super().__init__(
+            wl_native,
+            lnflux_native,
+            prominence=prominence,
+            device=device,
+            wing_cut_pixels=wing_cut_pixels,
+            init_state_dict=init_state_dict,
+        )
 
         # The clone-native comparison is done in linear space:
         self.target = torch.exp(torch.tensor(lnflux_native, device=device))[
