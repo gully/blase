@@ -9,6 +9,8 @@ import torch
 from torch import nn
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
+import torch.optim as optim
+from tqdm import trange
 
 
 class LinearEmulator(nn.Module):
@@ -52,6 +54,8 @@ class LinearEmulator(nn.Module):
         )
         active_mask = (wl_native > active_lower) & (wl_native < active_upper)
         self.active_mask = torch.tensor(active_mask)
+        self.flux_active = self.flux_native[active_mask]
+        self.wl_active = self.wl_native[active_mask]
 
         # Set up line threshold, where lines are computed outside the active area
         line_threshold_lower, line_threshold_upper = (
@@ -278,6 +282,10 @@ class LinearEmulator(nn.Module):
             )
         )
 
+    def optimize(self):
+        """Optimize the model parameters"""
+        raise NotImplementedError
+
 
 class SparseLinearEmulator(LinearEmulator):
     r"""
@@ -311,6 +319,8 @@ class SparseLinearEmulator(LinearEmulator):
 
         device = torch.device(device)
 
+        self.target = self.flux_active
+
         ## Define the wing cut
         # Currently defined in *pixels*
         if wing_cut_pixels is None:
@@ -331,8 +341,8 @@ class SparseLinearEmulator(LinearEmulator):
         zero_indices[too_low] = 0
         end_indices = zero_indices + wing_cut_pixels
         too_high = end_indices > self.n_pix
-        zero_indices[too_high] = len(wl_native) - wing_cut_pixels
-        end_indices[too_high] = len(wl_native)
+        zero_indices[too_high] = self.n_pix - wing_cut_pixels - 1
+        end_indices[too_high] = self.n_pix - 1
 
         # Make a 2D array of the indices
         indices_2D = np.linspace(
@@ -436,6 +446,37 @@ class SparseLinearEmulator(LinearEmulator):
         result_1D = sparse_matrix.to_dense()
 
         return torch.exp(result_1D)
+
+    def optimize(self, epochs=100, LR=0.01):
+        """Optimize the model parameters with backpropagation
+        
+        Parameters
+        ----------
+        epochs : int
+            The number of epochs to run the optimization for
+        LR : float
+            The learning rate for the optimizer
+
+        Returns
+        -------
+        None
+        """
+
+        loss_fn = nn.MSELoss(reduction="mean")
+
+        optimizer = optim.Adam(
+            filter(lambda p: p.requires_grad, self.parameters()), LR, amsgrad=True,
+        )
+
+        t_iter = trange(epochs, desc="Training", leave=True)
+        for epoch in t_iter:
+            self.train()
+            high_res_model = self.forward()[self.active_mask]
+            loss = loss_fn(high_res_model, self.target)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            t_iter.set_description("Training Loss: {:0.8f}".format(loss.item()))
 
 
 class ExtrinsicModel(nn.Module):
@@ -713,6 +754,11 @@ class SparseLogEmulator(SparseLinearEmulator):
         wing_cut_pixels=None,
     ):
         super().__init__(wl_native, lnflux_native, prominence, device, wing_cut_pixels)
+
+        # The clone-native comparison is done in linear space:
+        self.target = torch.exp(torch.tensor(lnflux_native, device=device))[
+            self.active_mask
+        ]
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
