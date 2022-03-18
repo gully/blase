@@ -712,9 +712,7 @@ class SparseLogEmulator(SparseLinearEmulator):
         device=None,
         wing_cut_pixels=None,
     ):
-        super().__init__(
-            wl_native, lnflux_native, prominence=0.01, device=None, wing_cut_pixels=None
-        )
+        super().__init__(wl_native, lnflux_native, prominence, device, wing_cut_pixels)
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
