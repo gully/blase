@@ -701,7 +701,7 @@ class InstrumentalModel(nn.Module):
         convolved_flux = self.instrumental_broaden(high_res_model, sigma_angs)
         resampled_flux = self.resample_to_data(convolved_flux)
 
-        return resampled_flux * self.warped_continuum()[1:-1]
+        return resampled_flux * self.warped_continuum()
 
     def warped_continuum(self):
         """Warp the continuum by a smooth polynomial"""
