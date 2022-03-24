@@ -261,12 +261,12 @@ The cloned model already represents a useful intermediate product: the distillat
 Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. We follow \citet{czekala15} by emphasizing the qualifier \emph{extrinsic}, to distiguish between stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g},\mathrm{and\,} [\mathrm{Fe}/\mathrm{H}]$.  Intrinsic properties appear the same from any viewing location---at least for stars with isotropic surfaces---while extrinsic properties do not.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{S}_{\rm ext}$:
 
 \begin{eqnarray}
-    \mathsf{S}_{\rm ext}(\bm{\lambda}_z) = \mathsf{S}_{\rm clone}(\bm{\lambda}_\mathrm{z} - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
+    \mathsf{S}_{\rm ext}(\bm{\lambda}_Z) = \mathsf{S}_{\rm clone}(\bm{\lambda}_Z - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
 \end{eqnarray}
 
 where $\zeta$ is the convolution kernel for rigid body rotation \citep{2022ApJS..258...31K}, $\bm{v}$ is the spectral axis represented as relative velocity coordinates, and $*$ denotes the convolution operator.
 
-Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximating kernels as numerically sampled functions.  There exists a special exponential spectral sample spacing that allows the convolution operators to work out-of-the-box for rotational broadening.  We therefore change the sampling from the native stellar and telluric wavelength coordinate grids, $\bm{\lambda}_S$ and $\bm{\lambda}_T$, to a new exponentially sampled wavelength grid, denoted with the subscript $Z$:
+Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximating kernels as numerically sampled functions.  There exists a special exponential spectral sample spacing that allows the convolution operators to work out-of-the-box for rotational broadening.  The design of \texttt{blas\'e} permits the telluric model to be re\"evaluated at any wavelength coordinate vector, provided that it adequately samples the underlying lines.  We therefore change the sampling from the native stellar and telluric wavelength coordinate grids, $\bm{\lambda}_S$ and $\bm{\lambda}_T$, to a new exponentially sampled wavelength grid, denoted with the subscript $Z$:
 
 \begin{eqnarray}
     \bm{\lambda}_Z = \lambda_0  \exp{\frac{\bm{v}-v_0}{c}}
@@ -274,11 +274,11 @@ Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximatin
 
 where $\bm{v}-v_0$ is the velocity vector going from zero to the velocity associated with the largest wavelength, with \emph{linear} spaced velocity samples.  We choose a sampling in velocity space of 0.5 km/s, which corresponds to about $10\times$ finer than the instrumental resolving power of HPF, and delivers a minimum and maximum wavelength spacing of 0.013 and 0.024 \AA$/\text{pixel}$ respectively for the HPF bandwidth.
 
-Operationally, the radial velocity shift gets applied to the line center positions rather than scaling the entire wavelength grid point coordinates, $\bm{\lambda}_Z$. This approximate choice ignores relativistic effects, but yields a convenience: it cleanly makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can be sensed through backpropagation by affecting only the line center positions.
+Operationally, the radial velocity shift $RV$ gets applied to the line center positions rather than scaling the entire wavelength grid point coordinates, $\bm{\lambda}_Z$. This approximate choice ignores relativistic effects, but yields a convenience: it cleanly makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can be sensed through backpropagation by affecting only the line center positions.
 
 
 \subsection{Joint Stellar and Telluric Model}
-The telluric model and stellar models possess distinct pixel sampling and coordinates.  The design of \texttt{blas\'e} permits the telluric model to be re\"evaluated at any wavelength coordinate vector, provided that it adequately samples the underlying lines.  We choose to evaluate the telluric model at the native resolution of the stellar model.  We then simply multiply the stellar model by the tunable telluric transmission:
+We then simply multiply the stellar model by the telluric transmission:
 
 \begin{eqnarray}
     \mathsf{M}_{\rm joint} = \mathsf{S}_{\rm ext}(\bm{\lambda}_Z) \odot \mathsf{T}_{\rm clone}(\bm{\lambda}_Z)
@@ -286,10 +286,10 @@ The telluric model and stellar models possess distinct pixel sampling and coordi
 
 It is only at this stage that we may apply the instrumental broadening kernel.  The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation.  The extent to which this effect matters will depend on the science case.  For now, \texttt{blas\'e} simply assumes a fixed resolving power.
 
-The data-pixel sampling is much coarser than the model pixel sampling.  This resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of native resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixels.  The final forward model for \emph{blas\'e} is designated simply as $\mathsf{M}$ without subscripts to emphasize that we have achieved the desired goal of a plausible model for each datum in the 1D observed spectrum:
+The data-pixel sampling is much coarser than the model pixel sampling.  This resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which we evaluate the extrinsic model at all of the native resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of high resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixels.  The final forward model for \emph{blas\'e} is designated simply as $\mathsf{M}$ without subscripts to emphasize that we have achieved the desired goal of a plausible model for each datum in the 1D observed spectrum:
 
 \begin{eqnarray}
-    \mathsf{M}(\bm{\lambda}_D) = \resample{\Big[\mathsf{M}_{\rm joint}(\bm{\lambda}_S) * g(R) \Big]} \label{eqn_final_model}
+    \mathsf{M}(\bm{\lambda}_D) = \resample{\Big[\mathsf{M}_{\rm joint}(\bm{\lambda}_Z) * g(R) \Big]} \label{eqn_final_model}
 \end{eqnarray}
 
 where $g$ is the Gaussian instrumental convolution kernel and the \texttt{resample[]} operation indicates the average of model pixels that fall within each data pixel's red and blue boundaries.
