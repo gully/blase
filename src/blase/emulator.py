@@ -338,7 +338,7 @@ class SparseLinearEmulator(LinearEmulator):
 
         device = torch.device(device)
 
-        self.target = self.flux_active
+        self.target = torch.tensor(self.flux_active, dtype=torch.float64, device=device)
 
         ## Define the wing cut
         # Currently defined in *pixels*
@@ -784,10 +784,18 @@ class SparseLogEmulator(SparseLinearEmulator):
             init_state_dict=init_state_dict,
         )
 
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        device = torch.device(device)
+
         # The clone-native comparison is done in linear space:
         self.target = torch.exp(torch.tensor(lnflux_native, device=device))[
-            self.active_mask
-        ]
+            self.active_mask.to(device)
+        ].to(device)
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
