@@ -6,6 +6,7 @@ Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here
 """
 from cmath import log
 import math
+from mimetypes import init
 import torch
 from torch import nn
 import numpy as np
@@ -24,20 +25,22 @@ class LinearEmulator(nn.Module):
     ----------
     wl_native :  torch.tensor
         The vector of input wavelengths at native resolution and sampling 
-    flux_native : torch.tensor
-        The vector continuum-flattened input fluxes
-    prominence : int
-        The threshold prominence for peak finding
+    flux_native : torch.tensor or None
+        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the 
+        optimize method does not work.
+    prominence : int or None
+        The threshold prominence for peak finding, defaults to 0.03.  Ignored if init_state_dict is provided.
     init_state_dict : dict
         A dictionary of model parameters to initialize the model with
     """
 
-    def __init__(self, wl_native, flux_native, prominence=0.03, init_state_dict=None):
+    def __init__(
+        self, wl_native, flux_native=None, prominence=None, init_state_dict=None
+    ):
         super().__init__()
 
         # Read in the synthetic spectra at native resolution
         self.wl_native = torch.tensor(wl_native)
-        self.flux_native = torch.tensor(flux_native)
         self.wl_min = wl_native.min()
         self.wl_max = wl_native.max()
         self.n_pix = len(wl_native)
@@ -55,8 +58,14 @@ class LinearEmulator(nn.Module):
         active_mask = (wl_native > active_lower) & (wl_native < active_upper)
         self.active_mask = torch.tensor(active_mask)
 
-        self.flux_active = self.flux_native[active_mask]
         self.wl_active = self.wl_native[active_mask]
+
+        if flux_native is not None:
+            self.flux_native = torch.tensor(flux_native)
+            self.flux_active = self.flux_native[active_mask]
+        else:
+            self.flux_native = None
+            self.flux_active = None
 
         # Set up line threshold, where lines are computed outside the active area
         line_threshold_lower, line_threshold_upper = (
@@ -65,11 +74,18 @@ class LinearEmulator(nn.Module):
         )
 
         if init_state_dict is not None:
+            if prominence is not None:
+                print(
+                    "You have entered both an initial state dict and a prominence kwarg.  Discarding prominence kwarg in favor of state dict."
+                )
             lam_centers = init_state_dict["lam_centers"]
             log_amps = init_state_dict["amplitudes"]
             log_sigma_widths = init_state_dict["sigma_widths"]
             log_gamma_widths = init_state_dict["gamma_widths"]
-        else:
+
+        elif init_state_dict is None and self.flux_native is not None:
+            if prominence is None:
+                prominence = 0.03
             (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
                 self.wl_native, self.flux_native, prominence=prominence
             )
@@ -89,6 +105,10 @@ class LinearEmulator(nn.Module):
             )
             log_gamma_widths = torch.log(
                 widths_angstroms[mask] / math.sqrt(2) * gamma_width_tweak
+            )
+        elif init_state_dict is None and self.flux_native is None:
+            raise ValueError(
+                "Either flux_native or init_state_dict must be provided to specify the spectral lines"
             )
 
         # Fix the wavelength centers as gospel for now.
@@ -317,15 +337,15 @@ class SparseLinearEmulator(LinearEmulator):
     def __init__(
         self,
         wl_native,
-        flux_native,
-        prominence=0.01,
+        flux_native=None,
+        prominence=None,
         device=None,
         wing_cut_pixels=None,
         init_state_dict=None,
     ):
         super().__init__(
             wl_native,
-            flux_native,
+            flux_native=flux_native,
             prominence=prominence,
             init_state_dict=init_state_dict,
         )
@@ -338,7 +358,12 @@ class SparseLinearEmulator(LinearEmulator):
 
         device = torch.device(device)
 
-        self.target = torch.tensor(self.flux_active, dtype=torch.float64, device=device)
+        if self.flux_native is not None:
+            self.target = torch.tensor(
+                self.flux_active, dtype=torch.float64, device=device
+            )
+        else:
+            self.target = None
 
         ## Define the wing cut
         # Currently defined in *pixels*
@@ -486,6 +511,13 @@ class SparseLinearEmulator(LinearEmulator):
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, self.parameters()), LR, amsgrad=True,
         )
+
+        if self.target is None:
+            raise (
+                ValueError(
+                    "No target spectrum provided, cannot optimize.  Initialize the model with the flux_native argument."
+                )
+            )
 
         t_iter = trange(epochs, desc="Training", leave=True)
         for epoch in t_iter:
