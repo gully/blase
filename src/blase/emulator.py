@@ -801,15 +801,15 @@ class SparseLogEmulator(SparseLinearEmulator):
     def __init__(
         self,
         wl_native,
-        lnflux_native,
-        prominence=0.01,
+        lnflux_native=None,
+        prominence=None,
         device=None,
         wing_cut_pixels=None,
         init_state_dict=None,
     ):
         super().__init__(
             wl_native,
-            lnflux_native,
+            flux_native=lnflux_native,
             prominence=prominence,
             device=device,
             wing_cut_pixels=wing_cut_pixels,
@@ -825,9 +825,12 @@ class SparseLogEmulator(SparseLinearEmulator):
         device = torch.device(device)
 
         # The clone-native comparison is done in linear space:
-        self.target = torch.exp(torch.tensor(lnflux_native, device=device))[
-            self.active_mask.to(device)
-        ].to(device)
+        if lnflux_native is not None:
+            self.target = torch.exp(torch.tensor(lnflux_native, device=device))[
+                self.active_mask.to(device)
+            ].to(device)
+        else:
+            self.target = None
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
