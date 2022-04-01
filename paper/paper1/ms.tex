@@ -39,7 +39,7 @@
 
 \subsection{Spectral fitting past and present}
 
-Tens of thousands or more individual spectral lines give rise to a sea of undulations that imbue each stellar spectrum with its characteristic appearance.  The identification and understanding of these lines has defined a large category of astrophysics over the last century.  The field grew from by-eye catalogs of stellar templates \citep{1901AnHar..28..129C} to quantifying the role of atomic ionization balance \citep{1925PhDT.........1P}, to modern synthetic forward models including millions or billions of lines \citep{husser13, 2021ApJ...920...85M}.  As technology has improved, our data and models have become more voluminous, more precise, and more complicated.  The mere act of comparing models to observed spectra can resemble a computational statistics challenge as much as a scientific one.  Here we introduce a machine-learning-based framework \texttt{blas\'e} aimed at solving computational, statistical, and scientific challenges associated with data-model comparisons for modern astronomical spectroscopy.
+Tens of thousands or more individual spectral lines give rise to a sea of undulations that imbue each stellar spectrum with its characteristic appearance.  The identification and understanding of these lines has defined a large category of astrophysics over the last century.  The field grew from by-eye catalogs of stellar templates \citep{1901AnHar..28..129C} to quantifying the role of atomic ionization balance \citep{1925PhDT.........1P}, to modern synthetic forward models including millions or billions of lines \citep{husser13, 2021ApJ...920...85M}.  As technology has improved, our data and models have become more voluminous, more precise, and more complicated.  The mere act of comparing models to observed spectra can now resemble a computational statistics challenge as much as a scientific one.  Here we introduce a new machine-learning-based framework \texttt{blas\'e} aimed at solving computational, statistical, and scientific challenges associated with data-model comparisons for modern astronomical spectroscopy.
 
 The metaphorical holy grail of astronomical spectroscopy is a function that takes in an observed astronomical spectrum and reports back the postition, amplitude, width, and shape of all of its spectral lines, automatically, accurately, and precisely.  The function would go further. It would report back the systemic radial velocity (RV) and rotational broadening ($v\sin{i}$).  Finally the function would---in an \emph{Inception}-like manner---provide what it believes to be the interpretable generating function that produced the data, so that we may gain insights on future examples of this or other stars.  Solving this problem is hard, for at least four reasons.  First, the spectral lines may overlap, and so the assignment of one line may be partially degenerate with the assignment of some other adjacent line.  Second, extremely wide line wings blend into the continuum, such that the placement of the continuum level may become ill-defined.  Third, the extent of line blending and realized line shape depends strongly on the spectral resolution of the spectrograph, the rotational broadening of the star, and possibly the instrumental configuration at the time of observation.  Finally, telluric absorption lines commingle with the astronomical spectral lines of interest, censoring some spectral regions entirely, or partially confounding other lines with chance allignments.
 
@@ -59,7 +59,9 @@ The design of these frameworks necessarily have to make a choice in the bias-var
 
 A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
 
-In this paper we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed from self-consistent models, but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \cite{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  In Section \ref{transferLearn} we describe how to fine-adjust the cloned models to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.  Section \ref{secInjRec} exhibits injection-recovery tests on simulated data of known properties, revealing the scalability and fundamental limits of the technique.  Finally we discuss many conceivable extensions to the framework, and directions for future work in Section \ref{secDiscuss}.
+In this paper we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed from self-consistent models, but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \cite{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  We show how to combine both stellar and telluric models in a joint modelling approach.  In Section \ref{transferLearn} we describe how to fine-adjust the cloned models to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.
+%Section \ref{secInjRec} exhibits injection-recovery tests on simulated data of known properties, revealing the scalability and fundamental limits of the technique.  
+Finally we discuss many conceivable extensions to the framework, and directions for future work in Section \ref{secDiscuss}.
 
 
 \section{Methodology I: Cloning stellar spectra}\label{methodology}
@@ -136,7 +138,7 @@ The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in e
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes. Instead, we tune the parameters of the model, starting from these coarse initial values. This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary. We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{S}_{\rm clone}$ but has no notion of per-pixel noise since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
-    \mathcal{L} = \sum_i^{N_S} (S_i - S_{\mathrm{clone},i})^2 = \mathsf{R^\intercal}\cdot \mathsf{R}
+    \mathcal{L} = \sum_i^{N_S} (S_i - S_{\mathrm{clone},i})^2 = \mathsf{R^\intercal}\cdot \mathsf{R} \label{simpleLikelihood}
 \end{eqnarray}
 
 
@@ -328,30 +330,30 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the close
     \label{fig_WASP69_regularized}
 \end{figure}
 
-\subsection{Performance of transfer learning}
 
+% \begin{outline}
+%     \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
+%     \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
+%     \2 Should be near-zero except for missing lines
+%     \2 What should we do about missing lines?
+%     \1 What is the residual level with modest regularization? What is the typical change to the line?
+%     \2 Plot of cloned FWHM versus FWHM transferred
+%     \2 The pseudo-Voigt line properties can be analytically integrated to give an equivalent width
+%     \2 Plot of cloned EW (before) versus transfer EW (after)
+% \end{outline}
 
-\begin{outline}
-    \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
-    \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
-    \2 Should be near-zero except for missing lines
-    \2 What should we do about missing lines?
-    \1 What is the residual level with modest regularization? What is the typical change to the line?
-    \2 Plot of cloned FWHM versus FWHM transferred
-    \2 The pseudo-Voigt line properties can be analytically integrated to give an equivalent width
-    \2 Plot of cloned EW (before) versus transfer EW (after)
-\end{outline}
-
-\section{Injection/recovery tests}\label{secInjRec}
-Here we conduct injection/recovery tests.
+%\section{Injection/recovery tests}\label{secInjRec}
+%Here we conduct injection/recovery tests.
 
 \section{Discussion}\label{secDiscuss}
 
 \subsection{Comparison to existing frameworks}
 
+Several astronomical spectral frameworks share similar aims as \texttt{blas\'e}.  These existing frameworks will have enduring value for the wide range of problems in the field of stellar spectroscopy.  Here we scrutinize the differences among some of these approaches to clarify how This Work fits in.
+
 The \texttt{specmatch} synthetic template matching tool produces noise-free nearest neighbor templates given an input spectrum \citep{2015PhDT........82P}.  Several practical barriers limit the accuracy of using precomputed synthetic spectral models alone. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions that our models do.  Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere is challenging.
 
-The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but is still too rigid for some applications and requires the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates has not yet been established in the near infrared, and may not be feasible for brown dwarfs.
+The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but is still too rigid for some applications and requires the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates with high resolving power and low $v\sin{i}$ has not yet been established in the near infrared.
 
 The \texttt{wobble} framework \citep{2019AJ....158..164B} modernized the construction of high-SNR templates to account for temporally variable telluric lines. The tool requires dozens of high-SNR spectra acquired at a range of Barycentric Earth Radial Velocities (BERVs).  The final telluric-free combined spectrum would still have to be compared to models for absolute calibration, or can be used out-of-the-box for precision relative RVs.  The \texttt{wobble} framework also pioneered the off-label application of automatic differentiation frameworks---in this case \texttt{TensorFlow}---towards their physically-motivated use in stellar spectra.  \texttt{blas\'e} can be viewed as an evaluable and interpretable super-resolution version of \texttt{wobble}, that accepts more bias in the bias-variance tradeoff.
 
@@ -359,21 +361,32 @@ The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood f
 
 For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
 
-\begin{outline}
-    \1 We see some lines that devolve into missing continuum opacity
-    \1 How do the lineshapes cluster in $\sigma_G$ vs $FWHM_L$?
-    \1 How do the lineshapes cluster in Amplitude vs FWHM? Can some lines be rejected?
-\end{outline}
 
-\subsection{Alternatives to the PseudoVoigt Profile}
-Two sampled Voigt approaches could be feasible. Direct convolution of a sampled Gaussian and Lorentzian profile may be too costly and inexact if pixels are coarsely sampled. Analogously, the convolution can be achieved in the Fourier domain through the multiplication of the Fast Fourier Transforms of the Gaussian and Lorentzian profiles, followed by the subsequent Inverse Fourier Transforms. The main rationale for either of these two choices would be to anticipate and align with planned convolutions such as rotational broadening and instrumental kernels. We do not currently implement these sampled convolutions in \emph{blas\'e} due to their prohibitive computational cost.
+\section{Conceivable Improvements, Extensions, and Limitations}
+
+As currently implemented, \texttt{blas\'e} represents a minimum viable product: it out-performs some existing approaches for some science cases.  The scaffolding of the framework is designed in a way to promote extensibility, so the future of the framework is bright.  Here we enumerate some planned or conceivable extensions to the framework that would unlock new science arenas.  We order the presentation of these extensions from our perceived ease-of-implementation, from easiest to hardest.
+
+\subsection{Exact instead of pseudo Voigt Profile}
+We currently employ the pseudo-Voigt profile for its low computational cost.  We have a prototype exact-Voigt-Hjertingimplementation following \citet{2022ApJS..258...31K}.  We coarsely estimate that moving to this exact-Voigt implementation wculd decrease some residual regions by $\sim 30\%$, while increasing the computational cost by more than $10\times$ over the existing pseudo-Voigt approximation.  The exact-Voigt-Hjerting implementation still outbids the higher cost of a direct numerical convolution of a Gaussian and Lorentzian profile.
+
 
 \subsection{Prospects for closed-form computation of Jacobians}
-In principle, we could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form---circumventing the vendor lock-in and memory overhead of an autodiff implementation with PyTorch. Further, an autodiff-aware implementation of the \emph{celerit\'e} algorithm \citep{2017AJ....154..220F} does not yet exist in PyTorch, constricting our choices for simultaneous continuum fitting. In practice, PyTorch also offers hardware acceleration on GPU or TPU \citep{10.1145/3079856.3080246}, mature support for a range of optimizers, and other perks that motivated its choice over analytic implementations or other machine learning frameworks. The GPyTorch framework \citep{2018arXiv180911165G} may offer a workaround to the absence of a \emph{celerit\'e} implementation. Still, the performance of an analytic Jacobian implementation over the autodiff route presented here offers an interesting avenue of future research.
+In principle, one could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form.  This analytical approach would cut-out the autodiff approach, using the exact Jacobians to compute the Gradient Descent step.  The analytical approach may be faster and/or possess lower memory overhead than the autodiff one.  However, working out the chain-rule for the closed-form analytical Jacobians may become difficult or impossible once combined with the many augmentations get applied at the joint telluric-and-stellar modeling step.  So analytic Jacobians could principally accelerate the cloning step, but would add significant implementation complexity at the important data-model comparison step.  We therefore deem this extension somewhat diminishing returns on scarce developer time.
 
 
-\subsection{Tuning the continuum fit}
-We could also tune or freeze an experimental wavelength-dependent pre-factor to Equation \ref{equation1} to correct for lingering imperfections in the otherwise-fixed continuum flattening procedure.
+\subsection{Addressing the pseudo-continuum with Gaussian Process regression}
+
+We currently assume the input spectra are perfectly normalized to the continuum.  This approximation impacts all training stages, including the stellar cloning, telluric cloning, and data-model comparison.  Gaussian Processes (GPs) could and should be brought to bear at each of these optimization stages, as described in the ``global kernels'' in \texttt{Starfish} \citet{czekala15}.  In short, a GP-likelihood relaxes the assumption that the continuum has been perfectly normalized, in favor of the more realistic statement ``the continuum has been coarsely normalized, with some characteristic-but-as-yet-unknown correlation and scale length and amplitude of the imperfections''.  That statement translated to the following modification to Equation \ref{simpleLikelihood}:
+
+\begin{eqnarray}
+    \mathcal{L} =  \frac{1}{2}\mathsf{R^\intercal} \mathsf{C}^{-1} \mathsf{R} +\frac{1}{2}\ln{\det{\mathsf{C}}} \label{GPLikelihood}
+\end{eqnarray}
+
+where we introduce the covariance matrix $\mathsf{C}$, with its concommittant kernel and collection of typically 2-3 parameters.  We anticipate that this GP likelihood would have the greatest impact on stellar stars with significant band-heads and line-blanketing: spectra with a so-called ``pseudo-continuum''.  M-dwarfs and brown dwarfs fall into this fear-inducing category.
+
+The main demerit of moving to a GP-likelihood is computational cost.  Fortunately a few efficient autodiff-aware implementations of GPs exist. The \texttt{celerite} algorithm \emph{celerit\'e} \citep{2017AJ....154..220F} has an exact backpropation implementation \citep{2018RNAAS...2...31F} that scales linearly with the number of data points.  The celerite algorithm does not currently have a PyTorch implementation.  The \texttt{GPyTorch} framework \citep{2018arXiv180911165G} has a large category of approximate and exact GPs that could be straight-forwardly dropped into \texttt{blas\'e}.  Even still these GPs could increase the computation cost by of order $10\times$.
+
+An alternative to GPs could be to simply tune the $\mathsf{P}$ term that represents the wavelength-dependent pre-factor to Equation \ref{equation1}.  Tuning $\mathsf{P}$ would correct for only large-scale imperfections in the otherwise-fixed continuum flattening procedure.
 
 
 \subsection{What about minibatches?}
