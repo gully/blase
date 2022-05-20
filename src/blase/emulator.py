@@ -4,9 +4,7 @@ Emulator
 
 Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
 """
-from cmath import log
 import math
-from mimetypes import init
 import torch
 from torch import nn
 import numpy as np
@@ -113,27 +111,29 @@ class LinearEmulator(nn.Module):
 
         # Fix the wavelength centers as gospel for now.
         self.lam_centers = nn.Parameter(
-            lam_centers.clone().detach().requires_grad_(False)
+            lam_centers.clone().detach().requires_grad_(False).to(torch.float32)
         )
-        self.amplitudes = nn.Parameter(log_amps.clone().detach().requires_grad_(True))
+        self.amplitudes = nn.Parameter(
+            log_amps.clone().detach().requires_grad_(True).to(torch.float32)
+        )
         self.sigma_widths = nn.Parameter(
-            log_sigma_widths.clone().detach().requires_grad_(True)
+            log_sigma_widths.clone().detach().requires_grad_(True).to(torch.float32)
         )
 
         self.gamma_widths = nn.Parameter(
-            log_gamma_widths.clone().detach().requires_grad_(True)
+            log_gamma_widths.clone().detach().requires_grad_(True).to(torch.float32)
         )
 
         self.n_lines = len(lam_centers)
 
         self.a_coeff = nn.Parameter(
-            torch.tensor(1.0, requires_grad=False, dtype=torch.float64)
+            torch.tensor(1.0, requires_grad=False, dtype=torch.float32)
         )
         self.b_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
+            torch.tensor(0.0, requires_grad=False, dtype=torch.float32)
         )
         self.c_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
+            torch.tensor(0.0, requires_grad=False, dtype=torch.float32)
         )
 
         self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
@@ -352,15 +352,18 @@ class SparseLinearEmulator(LinearEmulator):
 
         if device is None:
             if torch.cuda.is_available():
-                device = "cuda"
+                device = torch.device("cuda")
             else:
-                device = "cpu"
-
-        device = torch.device(device)
+                try:
+                    device = torch.device("mps")  # New! Try M1 Mac GPU training...
+                except RuntimeError:
+                    device = torch.device("cpu")
+        else:
+            device = torch.device(device)
 
         if self.flux_native is not None:
             self.target = torch.tensor(
-                self.flux_active, dtype=torch.float64, device=device
+                self.flux_active, dtype=torch.float32, device=device
             )
         else:
             self.target = None
@@ -391,18 +394,21 @@ class SparseLinearEmulator(LinearEmulator):
         # Make a 2D array of the indices
         indices_2D = np.linspace(
             zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
-        )
+        ).T
 
-        self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
-        self.indices_1D = self.indices_2D.reshape(-1)
-        self.indices = self.indices_1D.unsqueeze(0)
-        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
+        # self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
+        indices_1D = indices_2D.flatten()
+        # self.indices_1D = indices_2D.reshape(-1)
+        self.indices = torch.tensor(indices_1D).unsqueeze(0)
+        # workaround to avoid indexing limitation on M1 Mac...
+        # self.wl_2D = self.wl_native.to("cpu")[self.indices_2D.to("cpu")].to(device)
+        self.wl_2D = (self.wl_native.to("cpu")[indices_2D]).to(device).to(torch.float32)
         self.wl_1D = self.wl_2D.reshape(-1)
         self.active_mask = self.active_mask.to(device)
 
         self.radial_velocity = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
-        )
+            torch.tensor(0.0, requires_grad=True, dtype=torch.float32)
+        ).to(torch.float32)
 
     def forward(self):
         """The forward pass of the sparse implementation--- no wavelengths needed!
@@ -411,7 +417,8 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
-        return self.sparse_pseudo_Voigt_model()
+        vector = self.sparse_pseudo_Voigt_model()
+        return vector
 
     def sparse_gaussian_model(self):
         """A sparse Gaussian-only model
@@ -453,15 +460,14 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative sparse spectral model 
         """
+
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
-
         rv_shifted_centers = self.lam_centers * (
             1.0 + self.radial_velocity / 299_792.458
         )
-
         flux_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
             eta
             * self._lorentzian_line(
@@ -476,17 +482,21 @@ class SparseLinearEmulator(LinearEmulator):
                 self.wl_2D,
             )
         )
-
         # Enforce that you cannot have negative flux or emission lines
         flux_2D = torch.clamp(flux_2D, min=0.0, max=0.999999999)
 
         flux_1D = flux_2D.reshape(-1)
         ln_term = torch.log(1 - flux_1D)
 
+        print("--------------------------")
+        print("Before Sparse_matrix...")
+        print("--------------------------")
         sparse_matrix = torch.sparse_coo_tensor(
             self.indices, ln_term, size=(self.n_pix,), requires_grad=True
         )
-
+        print("--------------------------")
+        print("After Sparse_matrix...")
+        print("--------------------------")
         result_1D = sparse_matrix.to_dense()
 
         return torch.exp(result_1D)
@@ -557,12 +567,12 @@ class ExtrinsicModel(nn.Module):
         self.median_wl = np.median(wl_native)
 
         self.ln_vsini = nn.Parameter(
-            torch.tensor(2.89, requires_grad=True, dtype=torch.float64)
+            torch.tensor(2.89, requires_grad=True, dtype=torch.float32)
         )
 
         # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
         self.kernel_grid = torch.arange(
-            -4.5, 4.51, 0.01, dtype=torch.float64, device=device
+            -4.5, 4.51, 0.01, dtype=torch.float32, device=device
         )
 
     def forward(self, high_res_model):
@@ -660,15 +670,15 @@ class InstrumentalModel(nn.Module):
         self.bandwidth = self.wl_bin_edges[-1] + self.wl_bin_edges[0]
 
         # self.resolving_power = nn.Parameter(
-        #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float64)
+        #    torch.tensor(45_000.0, requires_grad=True, dtype=torch.float32)
         # )
         self.ln_sigma_angs = nn.Parameter(
-            torch.tensor(-2.8134, requires_grad=True, dtype=torch.float64)
+            torch.tensor(-2.8134, requires_grad=True, dtype=torch.float32)
         )
 
         # Make a fine wavelength grid from -4.5 to 4.5 Angstroms for convolution
         self.kernel_grid = torch.arange(
-            -4.5, 4.51, 0.01, dtype=torch.float64, device=device
+            -4.5, 4.51, 0.01, dtype=torch.float32, device=device
         )
 
         labels = np.searchsorted(wl_bin_edges, wl_native)
@@ -686,19 +696,19 @@ class InstrumentalModel(nn.Module):
         self.wl_normed = torch.tensor(
             (self.wl_centers - self.median_wl) / self.bandwidth,
             device=device,
-            dtype=torch.float64,
+            dtype=torch.float32,
         )
         self.design_matrix = (
-            self.wl_normed.unsqueeze(-1).pow(p_exponents).to(torch.float64)
+            self.wl_normed.unsqueeze(-1).pow(p_exponents).to(torch.float32)
         )
         self.linear_model = torch.nn.Linear(
-            max_p, 1, device=device, dtype=torch.float64
+            max_p, 1, device=device, dtype=torch.float32
         )
         self.linear_model.weight = torch.nn.Parameter(
-            torch.zeros((1, max_p), dtype=torch.float64)
+            torch.zeros((1, max_p), dtype=torch.float32)
         )
         self.linear_model.bias = torch.nn.Parameter(
-            torch.tensor([1.0], dtype=torch.float64)
+            torch.tensor([1.0], dtype=torch.float32)
         )
 
     def forward(self, high_res_model):
