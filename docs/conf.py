@@ -77,5 +77,6 @@ html_theme_options = {
     "repository_url": "https://github.com/gully/blase",
     "use_repository_button": True,
     "repository_branch": "main",
+    "home_page_in_toc": True,
     "announcement": "🆕 blasé will be featured in a talk at the Machine Learning Splinter Session at the Cool Star 21 Conference in Toulouse, France on July 5th, 2022!",
 }
