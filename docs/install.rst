@@ -12,34 +12,15 @@ Installing the development version
     Conda and pip are not available for this experimental research code.
 
 
-Currently only the bleeding-edge developer version is available for beta testing.
-`blase` relies on the developer version of two packages:
-
-`torchinterp1d
-<https://github.com/aliutkus/torchinterp1d>`_
-
-and 
-
-The HITRAN Python API `HAPI
-<https://github.com/hitranonline/hapi>`_,
-
-First, install the conda environment included in the repo::
+First, install a conda environment included in the repo.  These are located in 
+the `conda_environments/` sub-directory.  These will merely serve as a substrate 
+onto which a fresh version of blasé will be installed::
 
     $ conda env create -f environment.yml
     $ conda activate blase
+    
+Then, install the bleeding-edge developer version of `blase` ::
 
-
-
-Then, install the two bleeding-edge packages, and finally `blase` itself ::
-
-    $ git clone https://github.com/aliutkus/torchinterp1d.git
-    $ cd torchinterp1d
-    $ python setup.py develop
-    $ cd ..
-    $ git clone https://github.com/hitranonline/hapi.git
-    $ cd hapi
-    $ python setup.py develop
-    $ cd ..
     $ cd blase
     $ python setup.py develop
 
@@ -51,11 +32,22 @@ and benchmark GPU/CPU performance::
 
 
 
+The first-principles telluric forward modeling requires the HITRAN Python API `HAPI
+<https://github.com/hitranonline/hapi>`_.  This arm of the code is still highly experimental
+so it is not recommended for general use.  Instead we recommend starting from a TelFit 
+template, which then circumvents the need for HITRAN.  Eventually these two arms
+of the code may merge.  If you want to experiment with it, you will need to install HAPI::
+
+    $ git clone https://github.com/hitranonline/hapi.git
+    $ cd hapi
+    $ python setup.py develop
+
+
 Requirements
 ============
 
-The project may work with a variety of Python 3 minor versions, though none have been tested.  The project has been developed with:
+The project may work with a variety of Python 3 minor versions, though few have been tested.  The project has been developed with:
 
 - Python: 3.8
-- PyTorch: 1.7
-- CUDA 10.2
+- PyTorch: 1.7--1.11
+- CUDA 10.2+
