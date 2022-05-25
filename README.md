@@ -1,5 +1,9 @@
 # blasé
 
+
+<a href="https://blase.readthedocs.io/en/latest/"><img src="https://img.shields.io/badge/Read-the%20docs-blue"></a>
+
+
 Hybrid data/model-driven approach to astronomical echelle spectroscopy data built on PyTorch
 
 Watch our [4K YouTube video tutorial](https://www.youtube.com/watch?v=gSIeg2drSTw) on the concepts behind blasé, and how and why we use PyTorch!
@@ -16,5 +20,6 @@ The [HITRAN database](https://hitran.org/) stores atomic data used here for besp
 ### Authors:
 
 - Michael Gully-Santiago (UT Austin)
+- Caroline Morley (UT Austin)
 
-Copyright 2020, 2021 Michael Gully-Santiago
+Copyright 2020, 2021, 2022 Michael Gully-Santiago
