@@ -20,15 +20,14 @@ We invite you to engage with us at our `GitHub page
 
 .. toctree::
   :maxdepth: 1
-  :caption: Contents:
+  :caption: Navigation
 
    Installation <install>
    Application Programming Interface <api>
    
 
 .. toctree::
-   :caption: Tutorials
-   :maxdepth: 3
+   :maxdepth: 2
 
    Tutorials <tutorials/index>
    

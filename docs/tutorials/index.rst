@@ -1,10 +1,7 @@
 
 
-Tutorials
----------
-
-Beginner
-########
+Concepts
+--------
 
 
 .. nbgallery::
