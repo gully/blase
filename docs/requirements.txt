@@ -8,5 +8,6 @@ pandas
 scipy
 sphinx-book-theme
 nbsphinx
+tqdm
 sphinx-gallery
 
