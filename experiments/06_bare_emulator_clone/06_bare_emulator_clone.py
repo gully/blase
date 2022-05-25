@@ -13,9 +13,12 @@ import numpy as np
 from muler.hpf import HPFSpectrum
 
 if torch.cuda.is_available():
-    device = "cuda"
+    device = torch.device("cuda")
 else:
-    device = "cpu"
+    try:
+        device = torch.device("mps")  # New! Try M1 Mac GPU training...
+    except RuntimeError:
+        device = torch.device("cpu")
 
 
 def plot_spectrum(spectra):
