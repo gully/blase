@@ -7,10 +7,7 @@ The API is under active development and should be considered unstable.  Feedback
 .. automodule:: blase.emulator
     :members:
 
-.. automodule:: blase.datasets
-    :members:
-
-.. automodule:: blase.multiorder
+.. automodule:: blase.utils
     :members:
 
 .. automodule:: blase.telluric

@@ -405,9 +405,10 @@ class SparseLinearEmulator(LinearEmulator):
         )
 
     def forward(self):
-        """The forward pass of the sparse implementation--- no wavelengths needed!
+        r"""The forward pass of the sparse implementation--- no wavelengths needed!
 
-        Returns:
+        Returns
+        -------
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
@@ -833,9 +834,10 @@ class SparseLogEmulator(SparseLinearEmulator):
             self.target = None
 
     def forward(self):
-        """The forward pass of the sparse implementation--- no wavelengths needed!
+        r"""The forward pass of the sparse implementation--- no wavelengths needed!
 
-        Returns:
+        Returns
+        -------
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """

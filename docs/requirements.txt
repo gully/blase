@@ -7,4 +7,6 @@ kornia
 pandas
 scipy
 sphinx-book-theme
+nbsphinx
+sphinx-gallery
 

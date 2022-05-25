@@ -37,11 +37,14 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.todo",
     "sphinx.ext.mathjax",
+    "nbsphinx",
     "sphinx.ext.githubpages",
     "sphinx.ext.ifconfig",
+    "sphinx_gallery.load_style",
 ]
 
 autodoc_mock_imports = ["torchinterp1d", "hapi"]
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -51,6 +54,11 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+
+nbsphinx_thumbnails = {
+    "tutorials/demo1": "_static/397px-PyTorch_logo_icon.svg.png",
+    "tutorials/demo2": "_static/397px-PyTorch_logo_icon.svg.png",
+}
 
 # -- Options for HTML output -------------------------------------------------
 
