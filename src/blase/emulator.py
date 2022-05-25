@@ -4,9 +4,7 @@ Emulator
 
 Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
 """
-from cmath import log
 import math
-from mimetypes import init
 import torch
 from torch import nn
 import numpy as np
