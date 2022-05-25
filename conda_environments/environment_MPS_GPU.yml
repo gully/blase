@@ -1,0 +1,22 @@
+name: blase_mps_GPU
+channels:
+  - pytorch-nightly
+  - nodefaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - seaborn
+  - pyarrow
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - black
