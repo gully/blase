@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath("../src/"))
 # -- Project information -----------------------------------------------------
 
 project = "blase"
-copyright = "2020, gully"
+copyright = "2020, 2021, 2022 Michael Gully-Santiago"
 author = "gully"
 
 # The full version, including alpha/beta/rc tags

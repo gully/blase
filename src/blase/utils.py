@@ -1,3 +1,9 @@
+r"""
+utilities
+--------------
+
+These general purpose methods are used in one or more other modules.
+"""
 from contextlib import contextmanager
 import sys, os
 import numpy as np
