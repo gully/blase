@@ -138,3 +138,5 @@ notebooks
 
 # Ignore pdf version of the paper
 paper/paper1/final/ms.pdf
+paper/illustrator_schematic_01/*
+figures/
