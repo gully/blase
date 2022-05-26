@@ -1,7 +1,7 @@
 
 
-Concepts
---------
+Tutorials
+---------
 
 
 .. nbgallery::
