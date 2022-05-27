@@ -9,5 +9,6 @@ scipy
 sphinx-book-theme
 nbsphinx
 tqdm
+ipython
 sphinx-gallery
 
