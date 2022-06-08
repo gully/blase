@@ -12,3 +12,4 @@ Tutorials
     demo2.ipynb
     demo3.ipynb
     demo4.ipynb
+    demo5.ipynb
