@@ -1,0 +1,43 @@
+name: blase_pt2022
+channels:
+  - conda-forge
+  - nvidia
+  - pytorch
+dependencies:
+  - nvidia::cudatoolkit=11.2
+  - python=3.9
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy>=5.0
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - seaborn
+  - pyarrow
+  - astunparse
+  - ninja
+  - pyyaml
+  - setuptools
+  - cmake
+  - cffi
+  - typing_extensions
+  - future
+  - six
+  - requests
+  - dataclasses
+  - pytest
+  - pip
+  - cmake
+  - sphinx
+  - mkl
+  - mkl-include
+  - pytorch::magma-cuda112
+  - sphinx-gallery
+  - sphinx-book-theme
+  - specutils
+  - importlib_resources
+  - black
+  - pip:
+      - tensorboard
