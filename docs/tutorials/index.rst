@@ -1,11 +1,7 @@
 
 
-Tutorials
----------
-
-
-Step-by-step introduction
-#########################
+Step-by-step Tutorials
+----------------------
 
 
 .. nbgallery::
@@ -17,15 +13,3 @@ Step-by-step introduction
     demo3.ipynb
     demo4.ipynb
     demo5.ipynb
-
-
-
-Frequently Asked Questions
-##########################
-
-
-.. nbgallery::
-    :caption: New gallery
-    :name: altgallery
-
-    demo6.ipynb

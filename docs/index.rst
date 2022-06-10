@@ -30,6 +30,7 @@ We invite you to engage with us at our `GitHub page
    :maxdepth: 2
 
    Tutorials <tutorials/index>
+   Frequently Asked Questions <FAQ/index>
    
 
 This project can use either CPUs or GPUs. To check if you have a GPU available:
