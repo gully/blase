@@ -28,12 +28,12 @@
 
 \begin{abstract}
 
-    We introduce blas\'e, a framework for transfer learning for high-grasp echelle spectroscopy.  \texttt{blas\'e} produces extensible models that are both physically informed and highly accurate when compared to data. These models can be evaluated quickly for use in likelihood calculations. It works on data with large spectral grasp: simultaneously wide bandwidth and high spectral resolution.
+Comparison of \'echelle spectra to synthetic models has become a computational statistics challenge, with over ten thousand individual spectral lines affecting a typical cool star \'echelle spectrum.  Telluric artifacts, imperfect line lists, inexact continuum placement, and inflexible models frustrate the scientific promise of these information-rich datasets.  Here we debut an interpretable machine-learning framework \emph{blas\'e} that addresses these challenges.  The semi-empirical approach can be viewed as ``transfer learning''--first pre-training models on noise-free precomputed synthetic spectral models, then learning the corrections to line depths and widths from whole-spectrum fitting to an observed spectrum.  The auto-differentiable model employs back-propagation, the fundamental algorithm empowering modern Neural Networks. Here, however, the 40,000+ parameters symbolize physically interpretable line profile properties such as amplitude, width, location, and shape, plus radial velocity and rotational broadening.  This hybrid data-/model- driven framework allows joint modeling of stellar and telluric lines simultaneously, a potentially transformative step forwards for mitigating the deleterious telluric contamination in the near-infrared.  The \emph{blas\'e} approach also acts as a deconvolution tool. It is suitable for Doppler Imaging scenarios with longitudinally symmetric surface features like bands or polar spots, which evade detection in differential techniques.  Blas\'e can also create super-resolution semi-empirical templates useful for critically evaluating atomic and molecular line lists.  Its sparse-matrix architecture and GPU-acceleration make \emph{blas\'e} fast, with end-to-end training of an octave of bandwidth (50+ \'echlle orders) in under 1 minute.  The open-source PyTorch-based code \texttt{blase} includes tutorials and API documentation.  We show how the tool fits into the existing Python spectroscopy ecosystem, demonstrate a range of astrophysical applications, and discuss limitations and future extensions.  
 
 
 \end{abstract}
 
-\keywords{High resolution spectroscopy (2096), Stellar spectral lines (1630), Astronomy data modeling(1859), GPU Computing (1969), Calibration (2179), Radial Velocity (1332), Maximum likelihood estimation (1901), Deconvolution (1910), Atomic spectroscopy (2099), Stellar photospheres (1237)},
+\keywords{High resolution spectroscopy (2096), Stellar spectral lines (1630), Astronomy data modeling(1859), GPU Computing (1969), Calibration (2179), Radial Velocity (1332), Maximum likelihood estimation (1901), Deconvolution (1910), Atomic spectroscopy (2099), Stellar photospheres (1237)}
 
 \section{Introduction}\label{sec:intro}
 
@@ -259,7 +259,7 @@ But overall, the telluric model cloning performs adequately, with \censorbox{X p
 
 The cloned model already represents a useful intermediate product: the distillation of $N_s=335,849\times2$ pixel flux values and coordinates into a more compact quartet of properties for a list of 9,028 spectral lines, a dimensionality reduction of $18\times$ for the cost of 1.2\%/pixel in accuracy.  But the cloned model serves as a mere stepping stone in our principal quest: the comparison of models to real data.
 
-\subsection{Augmenting the Stellar Clone Model for $RV$ and $v\sin{i}$ }
+\subsection{Augmenting the Stellar Clone with radial velocity and rotational broadening }
 Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i}$ and radial velocity $RV$ depend on the observer's viewing location. We follow \citet{czekala15} by emphasizing the qualifier \emph{extrinsic}, to distiguish between stellar \emph{intrinsic} properties, such as $T_{\mathrm{eff}}, \log{g},\mathrm{and\,} [\mathrm{Fe}/\mathrm{H}]$.  Intrinsic properties appear the same from any viewing location---at least for stars with isotropic surfaces---while extrinsic properties do not.  The distinction is important because the extrinsic terms act as simple convolutions and translations to the cloned spectrum.  We therefore define an augmented model, which we designate the ``extrinsic'' model, $\mathsf{S}_{\rm ext}$:
 
 \begin{eqnarray}
@@ -527,7 +527,8 @@ The sparse matrix gets rebranded as filled with opacity values, instead of log-f
 
 
 % Table
-\begin{deluxetable}{cp{12cm}}
+\begin{deluxetable}{cp{10cm}}
+    \tabletypesize{\scriptsize}
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
         \colhead{Symbol} & \colhead{Meaning}
@@ -585,6 +586,7 @@ The sparse matrix gets rebranded as filled with opacity values, instead of log-f
     $*$& The convolution operator\\
     $\odot$& \emph{Hadamard product}, an elementwise product of two same-length vectors\\
     \enddata
+    
 \end{deluxetable}
 
 \end{document}
