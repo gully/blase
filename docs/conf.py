@@ -61,6 +61,7 @@ nbsphinx_thumbnails = {
     "tutorials/demo3": "_static/397px-PyTorch_logo_icon.svg.png",
     "tutorials/demo4": "_static/397px-PyTorch_logo_icon.svg.png",
     "tutorials/demo5": "_static/397px-PyTorch_logo_icon.svg.png",
+    "tutorials/demo6": "_static/397px-PyTorch_logo_icon.svg.png",
     "FAQ/demo6": "_static/397px-PyTorch_logo_icon.svg.png",
 }
 

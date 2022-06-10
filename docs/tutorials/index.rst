@@ -13,3 +13,4 @@ Step-by-step Tutorials
     demo3.ipynb
     demo4.ipynb
     demo5.ipynb
+    demo6.ipynb
