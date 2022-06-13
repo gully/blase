@@ -10,4 +10,4 @@ A selection of the notebooks that generated figures from the blase paper can be 
     :caption: Here are some Paper figures:
     :name: papfigs
 
-    fig_telluric.ipynb
+    figure_telluric.ipynb
