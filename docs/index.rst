@@ -30,6 +30,8 @@ We invite you to engage with us at our `GitHub page
    :maxdepth: 2
 
    Tutorials <tutorials/index>
+   Paper Figures <paper_figures/index>
+   Case Studies <case_studies/index>
    Frequently Asked Questions <FAQ/index>
    
 
