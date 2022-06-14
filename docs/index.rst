@@ -31,7 +31,7 @@ We invite you to engage with us at our `GitHub page
 
    Tutorials <tutorials/index>
    Paper Figures <paper_figures/index>
-   Case Studies <case_studies/index>
+   Deep Dives <deep_dives/index>
    Frequently Asked Questions <FAQ/index>
    
 
