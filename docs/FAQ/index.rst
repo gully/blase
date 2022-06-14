@@ -9,3 +9,4 @@ Frequently Asked Questions
     :name: altgallery
 
     demo6.ipynb
+    study01.ipynb
