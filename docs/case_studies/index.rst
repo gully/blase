@@ -1,11 +1,11 @@
 
 
-Case Studies
-------------
+Deep Dives
+----------
 
 
 .. nbgallery::
-    :caption: Here are some Case Studies:
-    :name: studies
+    :caption: Here are some Deep Dives:
+    :name: dives
 
-    study01.ipynb
+    figure_telluric.ipynb
