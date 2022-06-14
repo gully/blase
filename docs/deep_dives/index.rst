@@ -8,4 +8,4 @@ Deep Dives
     :caption: Here are some Deep Dives:
     :name: dives
 
-    figure_telluric.ipynb
+    WASP-69_HPF_dive1.ipynb
