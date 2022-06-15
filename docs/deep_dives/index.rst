@@ -9,3 +9,4 @@ Deep Dives
     :name: dives
 
     WASP-69_HPF_dive1.ipynb
+    large_vsini.ipynb
