@@ -12,7 +12,8 @@
 \definecolor{peter}{RGB}{52, 152, 219}
 \definecolor{nephritis}{RGB}{39, 174, 96}
 \definecolor{asbestos}{RGB}{127, 140, 141}
-\hypersetup{linkcolor=nephritis,citecolor=belize,filecolor=asbestos,urlcolor=peter}
+\hypersetup{linkcolor=asbestos, 
+citecolor=belize,filecolor=asbestos,urlcolor=peter}
 
 \DeclareMathOperator{\resample}{resample}
 
@@ -106,8 +107,11 @@ currently on the Gemini South Telescope on Cerro Pach\'on in Chile. The $R=55,00
 
 \begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.5\textwidth]{figures/N_lines_vs_Teff_prom.png}
-    \caption{Number of prominent spectral lines versus effective temperature for PHOENIX models truncated to IGRINS (\emph{blue, connected} points) and HPF (\emph{orange, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.}
+    \includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
+    \includegraphics[width=0.45\textwidth]{figures/line_density_demo.png}
+    \caption{Scaling of prominence and density of spectral lines.  
+    \emph{Left:} Number of lines versus effective temperature for PHOENIX models truncated to IGRINS (\textbf{blue, connected} points) and HPF (\emph{red, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.
+    \textbf{Right:} Number of lines per 100 \AA\ wavelength bin for stellar (\emph{blue, upper envelope of steps}) and telluric (\emph{orange, lower envelope of steps}), illustrated for a $T_\mathrm{eff}=4700$~K, $\log{g}=4.5$ PHOENIX model and a $T=290 \mathrm{K}$, relative humidity of 40\% TelFit model.}
     \label{fig_Nlines_vs_teff}
 \end{figure}
 
@@ -239,7 +243,10 @@ We optimize the sparse telluric clone, achieving comparable computational speed 
 
 \section{Cloning Performance}
 
-We compute the residual $\mathsf{R}(\bm{\lambda}_S)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residual of 1.2\%/pixel at native resolution. We identify three main categories of cloning flaws.
+We compute the residual $\mathsf{R}(\bm{\lambda}_S)$ of native PHOENIX minus cloned model, illustrated in the bottom panel of Figure \ref{fig_cloned_spectrum_demo}. We see an RMS residual of 1.2\%/pixel at native resolution. 
+\authorcomment1{Need more prose here.}
+
+We identify three main categories of cloning flaws.
 
 The first---and expected---source of large residuals is simply missing line opacity due to our finite prominence threshold. Lines with prominence less than $P_{\rm rom}$ yield residual notches with strengths comparable to $P_{\rm rom}$. Including smaller prominence lines by lowering $P_{\rm rom}$ produces smaller residuals, at the tradeoff of computing more lines and yielding higher computational cost.  But at some point, turning down $P_{\rm rom}$ yields diminishing returns, as other imperfections provide a noise floor.  We have experimentally determined this noise floor to occur near $P_{\rm rom}=0.01$.
 
@@ -254,7 +261,7 @@ Finally, and most perniciously, a large category of residuals appear near the wi
     \label{fig_zoom_cloning_performance}
 \end{figure}
 
-Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I$, $J$, $H$, and $K$- bands.  The \texttt{blas\'e} method cannot cope with these saturated lines, and often it treats nearby blended saturated lines as one single line.  The underfit model flounders.
+Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I-$, $J-$, $H-$, and $K-$ bands.  The \texttt{blas\'e} method can cope with these saturated lines, but often it treats nearby-and-blended saturated lines as one single line.  This glomming together of lines has little practical effect since few astronomical practitioners can make use of such profoundly saturated data.
 
 But overall, the telluric model cloning performs adequately, with \censorbox{X percentage} error-per-pixel, and only \censorbox{zz} error-per-pixel when restricted to the atmospheric windows.
 
@@ -506,7 +513,7 @@ More placeholder text...
 
 \section{Log flux scaling mode} \label{appendixLogScale}
 
-Here we illustrate how \texttt{blas'e} gets altered when applying the logarithmic flux pre-processing step.  First, we compute the natural log of the flux directly on the precomputed synthetic spectrum in its absolute flux scaling and native pixel sampling:
+Here we illustrate how \texttt{blas\'e} gets altered when applying the logarithmic flux pre-processing step.  First, we compute the natural log of the flux directly on the precomputed synthetic spectrum in its absolute flux scaling and native pixel sampling:
 
 \begin{eqnarray}
     \ln{\mathsf{S}} = \ln{\mathsf{S}_{\rm abs}} - \ln{\mathsf{B}} - \mathsf{P}
