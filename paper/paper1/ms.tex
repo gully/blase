@@ -8,6 +8,7 @@
 \usepackage{mathtools}
 \usepackage{outlines}
 \usepackage{amsmath,bm}
+
 \definecolor{belize}{RGB}{41, 128, 185}
 \definecolor{peter}{RGB}{52, 152, 219}
 \definecolor{nephritis}{RGB}{39, 174, 96}
@@ -15,7 +16,7 @@
 \hypersetup{linkcolor=asbestos, 
 citecolor=belize,filecolor=asbestos,urlcolor=peter}
 
-\hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion}
+\hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion Ad-min-is-tra-tion}
 
 \DeclareMathOperator{\resample}{resample}
 
@@ -99,7 +100,7 @@ where the division indicates element-wise division of these arrays or ``vectors'
     \centering
     \includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
     %\includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
-    \includegraphics[width=0.45\textwidth]{figures/line_density_demo.png}
+    \includegraphics[width=0.41\textwidth]{figures/line_density_demo.png}
     \caption{Scaling of prominence and density of spectral lines.
         \emph{Left:} Number of lines versus effective temperature for PHOENIX models truncated to IGRINS (\textbf{blue, connected} points) and HPF (\emph{red, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.
         \textbf{Right:} Number of lines per 100 \AA\ wavelength bin for stellar (\emph{blue, upper envelope of steps}) and telluric (\emph{orange, lower envelope of steps}), illustrated for a $T_\mathrm{eff}=4700$~K, $\log{g}=4.5$ PHOENIX model and a $T=290 \mathrm{K}$, relative humidity of 40\% TelFit model.}
@@ -227,7 +228,7 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
+    \includegraphics[width=0.6\textwidth]{figures/blase_clone_demo.png}
     \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity model has 9,028 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 50 \AA~ chunk contains 121 spectral lines and represents about 1$\%$ of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
     \label{fig_cloned_spectrum_demo}
 \end{figure*}
@@ -262,12 +263,12 @@ Second, another anticipated flaw occurs in the line cores of relatively narrow l
 
 Finally, and most perniciously, a large category of residuals appear near the wings of the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines.  The true lines exhibit advanced lineshapes, such as non-Lorentzian line wings that are not captured with the overly simplistic Voigt line profile.  Figure \ref{fig_zoom_cloning_performance} highlights super-Lorentzian line wings around a line at 8691~\AA.  Narrow lines devolve into missing line wing opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This flaw can be seen where a line initialized at 8692.5~\AA~ and another pair of lines at 8690.0 all melt into line wings.
 
-\begin{figure*}[hbt!]
+\begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
+    \includegraphics[width=0.48\textwidth]{figures/blase_clone_demo_zoom.png}
     \caption{Zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. The cloned model has 7 spectral lines describing the 400 pixels in this 4 \AA~ chunk.  The native PHOENIX pixel sampling can be see as the boxy steps in both the native and cloned model.  }
     \label{fig_zoom_cloning_performance}
-\end{figure*}
+\end{figure}
 
 Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I-$, $J-$, $H-$, and $K-$ bands.  The \texttt{blas\'e} method can cope with these saturated lines, but often it treats nearby-and-blended saturated lines as one single line.  This glomming together of lines has little practical effect since few astronomical practitioners can make use of such profoundly saturated data.
 
@@ -327,7 +328,8 @@ We apply some amount of \emph{regularization}, a restriction on the allowed valu
 Even still, the regularization step is in some ways the most subjective, since the degree of regularization will control the degree of overfitting or underfitting. The most extreme regularization---the antithesis of the \emph{laissez-faire} scenario---would yield a model too rigid to respond to the data at all, yielding a model entirely unchanged from the cloned PHOENIX and \texttt{TelFit} models.  So regularization constitutes the only hyperparameters worthy of tuning in \texttt{blas\'e}.  The choice of how to set the regularization is problem-specific.  We default to the following choice. We usually fix all line parameters except for amplitude, which receives a log-normal distribution:
 
 \begin{eqnarray}
-    \mathrm{regularization} \equiv -\ln{\mathrm{prior}}  = \frac{1}{2} \sum_{j=1}^{N_\mathrm{lines}} \Big(\frac{\ln{a_j} - \ln{a^\prime_j }}{\Lambda}\Big)^2
+    \mathrm{regularization} &\equiv& -\ln{\mathrm{prior}} \nonumber \\ 
+    &=& \frac{1}{2} \sum_{j=1}^{N_\mathrm{lines}} \Big(\frac{\ln{a_j} - \ln{a^\prime_j }}{\Lambda}\Big)^2
 \end{eqnarray}
 
 where the prime notation demarcates the amplitudes obtained from cloning, or the ``initial amplitude''.  We assign $\Lambda_{\ln{a}}\sim5$.  This weak degree of regularization has the effect of permitting refinement of only the most conspicuous data-model mismatches; the weakest lines don't both to move from their initial state because doing so would penalize the regularization penalty without enough reduction of the overall loss.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice, they need to be initialized close to their plausible values.
@@ -337,21 +339,21 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the close
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_demo.png}
+    \includegraphics[width=0.6\textwidth]{figures/blase_WASP69_demo.png}
     \caption{WASP 69 observed with HPF, compared to a $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity PHOENIX model warped to $v\sin{i}=2.2$~km/s, $RV=-9.6$~km/s, and HPF resolving power.}
     \label{fig_WASP69_demo}
 \end{figure*}
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_regularized.png}
+    \includegraphics[width=0.6\textwidth]{figures/blase_WASP69_regularized.png}
     \caption{Semi-empirical model of WASP 69 transfer-learned with \texttt{blas\'e}, employing a regularization prior on the learned amplitudes.}
     \label{fig_WASP69_transferred}
 \end{figure*}
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/blase_super_resolution_template.png}
+    \includegraphics[width=0.6\textwidth]{figures/blase_super_resolution_template.png}
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
 \end{figure*}
@@ -460,7 +462,7 @@ Already \texttt{blas\'e} is equipped to fit every single line with its own syste
 
 
 \subsection{Prospects for closed-form computation of Jacobians}
-In principle, one could compute the Jacobians analytically---since the partial derivatives of the Voigt function are known in closed-form.  This analytical approach would cut out the autodiff approach, using the exact Jacobians to compute the Gradient Descent step.  The analytical approach may be faster and/or possess lower memory overhead than the autodiff one.  However, working out the chain-rule for the closed-form analytical Jacobians may become difficult or impossible once combined with the many augmentations that get applied at the joint telluric-and-stellar modeling step.  So analytic Jacobians could principally accelerate the cloning step but would add significant implementation complexity at the important data-model comparison step.  We, therefore, deem this extension somewhat diminishing returns on scarce developer time.
+In principle, one could compute the Jacobians analytically since the partial derivatives of the Voigt function are known in closed-form.  This analytical approach would cut out the autodiff approach, using the exact Jacobians to compute the Gradient Descent step.  The analytical approach may be faster and/or possess lower memory overhead than the autodiff one.  However, working out the chain-rule for the closed-form analytical Jacobians may become difficult or impossible once combined with the many augmentations that get applied at the joint telluric-and-stellar modeling step.  So analytic Jacobians could principally accelerate the cloning step but would add significant implementation complexity at the important data-model comparison step.  We, therefore, deem this extension somewhat diminishing returns on scarce developer time.
 
 
 \subsection{Lineshapes choice and tradeoffs}
@@ -499,13 +501,20 @@ In principle, one could compute the Jacobians analytically---since the partial d
 More placeholder text...
 
 
-\
+\begin{acknowledgments}
 
-\begin{acknowledgements}
-    This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program, and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.  We acknowledge the National Science Foundation, which supported the work presented here under Grant No. 1910969.  This research has made use of NASA's Astrophysics Data System Bibliographic Services.
-\end{acknowledgements}
+These results are based on observations obtained with the Habitable-zone Planet Finder Spectrograph on the HET. The HPF team was supported by NSF grants AST-1006676, AST-1126413, AST-1310885, AST-1517592, AST-1310875, AST-1910954, AST-1907622, AST-1909506, ATI 2009889, ATI-2009982, and the NASA Astrobiology Institute (NNA09DA76A) in the pursuit of precision radial velocities in the NIR. The HPF team was also supported by the Heising-Simons Foundation via grant 2017-0494.
 
-\clearpage
+The Hobby-Eberly Telescope (HET) is a joint project of the University of Texas at Austin, the Pennsylvania State University, Ludwig-Maximilians-Universit\"at M\"unchen, and Georg-August-Universit\"at G\"ottingen. The HET is named in honor of its principal benefactors, William P. Hobby and Robert E. Eberly.    
+
+This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program,
+and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.  
+
+We acknowledge the National Science Foundation, which supported the work presented here under Grant No. 1910969.  
+
+This research has made use of NASA's Astrophysics Data System Bibliographic Services.
+
+\end{acknowledgments}
 
 
 \facilities{HET (HPF)}
