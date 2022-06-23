@@ -140,3 +140,12 @@ notebooks
 paper/paper1/final/ms.pdf
 paper/illustrator_schematic_01/*
 figures/
+
+
+
+data/HPF
+data/*.txt
+docs/deep_dives/IGRINS_demo.ipynb
+docs/deep_dives/Injection_recovery_part2.ipynb
+docs/deep_dives/high_bandwidth.ipynb
+docs/deep_dives/sonora_demo.ipynb
