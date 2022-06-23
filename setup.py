@@ -10,7 +10,7 @@ setuptools.setup(
     long_description="Hybrid data/model-driven forward modeling of echelle spectra",
     long_description_content_type="text/markdown",
     url="https://github.com/gully/blase",
-    install_requires=["numpy", "scipy", "torch"],
+    install_requires=["numpy", "scipy", "torch", "tqdm", "kornia"],
     packages=setuptools.find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[
