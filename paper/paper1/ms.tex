@@ -1,4 +1,4 @@
-\documentclass[modern]{aastex631}
+\documentclass[twocolumn]{aastex631}
 \usepackage{hyperref}
 \bibliographystyle{aasjournal}
 %\turnoffedit
@@ -14,6 +14,8 @@
 \definecolor{asbestos}{RGB}{127, 140, 141}
 \hypersetup{linkcolor=asbestos, 
 citecolor=belize,filecolor=asbestos,urlcolor=peter}
+
+\hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion}
 
 \DeclareMathOperator{\resample}{resample}
 
@@ -93,6 +95,17 @@ We initialize the cloned model with a series of preprocessing steps. We divide t
 
 where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  Visual inspection of this continuum-flattened spectrum typically possesses variations at the $<1\%$ level. Tuning the pixel distance and polynomial order can lower the undulations to $<0.05\%$ level for some input spectra. We found a pixel distance of 50,000 and $3^{rd}$ order polynomial worked across the range of effective temperatures for HPF's bandwidth. The IGRINS spectra had more significant continuum opacity and band heads to accommodate and therefore needed to capture finer-scale variation: 5,000 pixels and a $9^{th}$ order polynomial appeared adequate over most of the effective temperature range.
 
+\begin{figure}[hbt!]
+    \centering
+    \includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
+    %\includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
+    \includegraphics[width=0.45\textwidth]{figures/line_density_demo.png}
+    \caption{Scaling of prominence and density of spectral lines.
+        \emph{Left:} Number of lines versus effective temperature for PHOENIX models truncated to IGRINS (\textbf{blue, connected} points) and HPF (\emph{red, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.
+        \textbf{Right:} Number of lines per 100 \AA\ wavelength bin for stellar (\emph{blue, upper envelope of steps}) and telluric (\emph{orange, lower envelope of steps}), illustrated for a $T_\mathrm{eff}=4700$~K, $\log{g}=4.5$ PHOENIX model and a $T=290 \mathrm{K}$, relative humidity of 40\% TelFit model.}
+    \label{fig_Nlines_vs_teff}
+\end{figure}
+
 This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. We have experimentally found it helpful to hand-tune models of exceptionally broad and non-standard line wings with an optional pre-processing step that depends on the wavelength range of interest. Here we sketch the approach for common broad lines found in the long-wavelength visible and near-infrared wavelength regions.
 
 % TODO We pre-assign spectral lines for the conspicuous Hydrogen lines and neutral metal lines. Table
@@ -105,16 +118,7 @@ For this paper, we illustrate examples for two \'echelle spectrographs with part
 currently on the Gemini South Telescope on Cerro Pach\'on in Chile. The $R=55,000$ HPF has a native bandwidth of $8079-12785$~\AA, which we expand to $8049-12815$~\AA~including the edge buffers. IGRINS has two cameras for $H$ and $K$ band, with the combined spectrum spanning $14267-25217\;$\AA~ including the edge buffers and the region in-between the two cameras, all at a resolving power of $(R=45,000)$. The spectrograph acquisition, reduction, and post-processing steps yield data $\mathsf{D}(\bm{\lambda}_{D})$, where $\bm{\lambda}_{D}$ is the wavelength vector at the instrumental resolution and sampling of each instrument, generally much coarser than the resolution and sampling grid of the precomputed synthetic spectra. The data wavelength vector may also contain gaps between \'echelle orders, whereas the precomputed wavelength coordinates are usually contiguous. HPF may have up to $2048\times28=$57,344 pixels, and IGRINS has typically about 75,000 pixels, after common trimming of noisy edge pixels and unusable telluric regions.
 
 
-\begin{figure}[hbt!]
-    \centering
-    \includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
-    \includegraphics[width=0.45\textwidth]{figures/N_lines_vs_Teff_prom.png}
-    %\includegraphics[width=0.45\textwidth]{figures/line_density_demo.png}
-    \caption{Scaling of prominence and density of spectral lines.
-        \emph{Left:} Number of lines versus effective temperature for PHOENIX models truncated to IGRINS (\textbf{blue, connected} points) and HPF (\emph{red, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.
-        \textbf{Right:} Number of lines per 100 \AA\ wavelength bin for stellar (\emph{blue, upper envelope of steps}) and telluric (\emph{orange, lower envelope of steps}), illustrated for a $T_\mathrm{eff}=4700$~K, $\log{g}=4.5$ PHOENIX model and a $T=290 \mathrm{K}$, relative humidity of 40\% TelFit model.}
-    \label{fig_Nlines_vs_teff}
-\end{figure}
+
 
 
 Figure \ref{fig_Nlines_vs_teff} shows how the number of detected lines $N_{\mathrm{lines}}$ scales with effective temperature and prominence threshold $P_{\rm rom}$ for the \texttt{PHOENIX} grid, truncated to the bandwidths-plus-buffers for HPF and IGRINS. We see between about 2,000 and 20,000 lines depending on the $T_{\mathrm{eff}}$ and $P_{\rm rom}$. HPF and IGRINS have a comparable number of lines, and halving the prominence increases the number of lines by about $20-30\%$ in these ranges. The number of lines monotonically increases towards cooler effective temperatures.
@@ -137,12 +141,12 @@ where $\mathsf{V}_j$ is the Voigt profile $\mathsf{V}(\bm{\lambda}_S-\lambda_{\m
 The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Voigt-Hjerting function \citep{1938ApJ....88..508H} as the real part of the complex Fadeeva function \citep[\emph{e.g.}][]{2011arXiv1106.0151Z}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation \citep{Ida:nt0146}.
 
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.98\textwidth]{figures/blase_flowchart01.png}
     \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for the target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next, this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally, the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought.} }
     \label{blase_flowchart}
-\end{figure}
+\end{figure*}
 
 \subsection{Goodness of fit metric}
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes. Instead, we tune the parameters of the model, starting from these coarse initial values. This model has $N_{\mathrm{lines}}\times 3$ free parameters, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary. We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{S}_{\rm clone}$ but has no notion of per-pixel noise since the precomputed synthetic spectrum has no uncertainty:
@@ -193,19 +197,22 @@ We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line
 The remapping of the sparse matrix can be visualized as the shifting of all lines to the center of this new matrix $\bm{\hat{F}}$.  The algorithmic machinery keeps track of each $(i, j, F_{ji})$ trio of coordinates and flux values.
 
 
-\begin{equation} \bm{\bar{F}} =
+\begin{equation} 
+    \begin{aligned}
+    \bm{\bar{F}} &=
     \begin{pmatrix}
         \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
         \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
         \vdots                                                            & \\
         \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots  &
-    \end{pmatrix} \mapsto
-    \begin{pmatrix}
+    \end{pmatrix} \\
+    \bm{\bar{F}}&\mapsto \bm{\hat{F}} =\begin{pmatrix}
         \includegraphics[height=1cm]{figures/voigt_01b.pdf} & \\
         \includegraphics[height=1cm]{figures/voigt_02b.pdf} & \\
         \vdots                                              & \\
         \includegraphics[height=1cm]{figures/voigt_03b.pdf} &
-    \end{pmatrix} = \bm{\hat{F}}
+    \end{pmatrix}
+\end{aligned}
 \end{equation}
 
 
@@ -218,12 +225,12 @@ Sparse matrix methods generally support an operation known as \emph{coalescing},
 We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.05)$ and all the defaults for \texttt{PyTorch v1.11}.  We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard \citep{tensorflow2015-whitepaper} to gain an intuition for the training efficiency.
 
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo.png}
     \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity model has 9,028 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 50 \AA~ chunk contains 121 spectral lines and represents about 1$\%$ of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
     \label{fig_cloned_spectrum_demo}
-\end{figure}
+\end{figure*}
 
 Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \texttt{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
 
@@ -255,12 +262,12 @@ Second, another anticipated flaw occurs in the line cores of relatively narrow l
 
 Finally, and most perniciously, a large category of residuals appear near the wings of the deepest and broadest lines---such as Hydrogen and neutral alkali metal lines.  The true lines exhibit advanced lineshapes, such as non-Lorentzian line wings that are not captured with the overly simplistic Voigt line profile.  Figure \ref{fig_zoom_cloning_performance} highlights super-Lorentzian line wings around a line at 8691~\AA.  Narrow lines devolve into missing line wing opacity, the favored tradeoff when the continuum estimate's poor performance outweighs the pain of a narrow-but-tolerably-small spike. This flaw can be seen where a line initialized at 8692.5~\AA~ and another pair of lines at 8690.0 all melt into line wings.
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_clone_demo_zoom.png}
     \caption{Zoom in of the region between the vertical gray bars in Figure \ref{fig_cloned_spectrum_demo}. The cloned model has 7 spectral lines describing the 400 pixels in this 4 \AA~ chunk.  The native PHOENIX pixel sampling can be see as the boxy steps in both the native and cloned model.  }
     \label{fig_zoom_cloning_performance}
-\end{figure}
+\end{figure*}
 
 Cloning telluric lines suffers from one additional problem.  Telluric lines can be extremely deep, exhibiting almost vanishing transmission with saturated line cores common in-between the atmospheric windows that define the $I-$, $J-$, $H-$, and $K-$ bands.  The \texttt{blas\'e} method can cope with these saturated lines, but often it treats nearby-and-blended saturated lines as one single line.  This glomming together of lines has little practical effect since few astronomical practitioners can make use of such profoundly saturated data.
 
@@ -320,7 +327,7 @@ We apply some amount of \emph{regularization}, a restriction on the allowed valu
 Even still, the regularization step is in some ways the most subjective, since the degree of regularization will control the degree of overfitting or underfitting. The most extreme regularization---the antithesis of the \emph{laissez-faire} scenario---would yield a model too rigid to respond to the data at all, yielding a model entirely unchanged from the cloned PHOENIX and \texttt{TelFit} models.  So regularization constitutes the only hyperparameters worthy of tuning in \texttt{blas\'e}.  The choice of how to set the regularization is problem-specific.  We default to the following choice. We usually fix all line parameters except for amplitude, which receives a log-normal distribution:
 
 \begin{eqnarray}
-    \mathrm{regularization} \equiv \ln{\mathrm{prior}}  = \frac{1}{2} \sum_{j=1}^{N_\mathrm{lines}} \Big(\frac{\ln{a_j} - \ln{a^\prime_j }}{\Lambda}\Big)^2
+    \mathrm{regularization} \equiv -\ln{\mathrm{prior}}  = \frac{1}{2} \sum_{j=1}^{N_\mathrm{lines}} \Big(\frac{\ln{a_j} - \ln{a^\prime_j }}{\Lambda}\Big)^2
 \end{eqnarray}
 
 where the prime notation demarcates the amplitudes obtained from cloning, or the ``initial amplitude''.  We assign $\Lambda_{\ln{a}}\sim5$.  This weak degree of regularization has the effect of permitting refinement of only the most conspicuous data-model mismatches; the weakest lines don't both to move from their initial state because doing so would penalize the regularization penalty without enough reduction of the overall loss.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice, they need to be initialized close to their plausible values.
@@ -328,26 +335,26 @@ where the prime notation demarcates the amplitudes obtained from cloning, or the
 Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the closest PHOENIX template, post-processed to the HPF resolution and sampling.  Figure \ref{fig_WASP69_transferred} shows the same data spectrum compared to a pixel-level \emph{blas\'e} model regularized to the clone in Figure \ref{fig_cloned_spectrum_demo}.  The latent high-resolution model for WASP 69 is therefore the transfer-learned model, unadjusted for the extrinsic and instrumental properties.  This semi-empirical model is shown in Figure \ref{fig_WASP69_regularized}.
 
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_demo.png}
     \caption{WASP 69 observed with HPF, compared to a $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity PHOENIX model warped to $v\sin{i}=2.2$~km/s, $RV=-9.6$~km/s, and HPF resolving power.}
     \label{fig_WASP69_demo}
-\end{figure}
+\end{figure*}
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_WASP69_regularized.png}
     \caption{Semi-empirical model of WASP 69 transfer-learned with \texttt{blas\'e}, employing a regularization prior on the learned amplitudes.}
     \label{fig_WASP69_transferred}
-\end{figure}
+\end{figure*}
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/blase_super_resolution_template.png}
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
-\end{figure}
+\end{figure*}
 
 
 % \begin{outline}
@@ -371,6 +378,7 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the close
 Several astronomical spectral frameworks share similar aims as \texttt{blas\'e}.  These existing frameworks will have enduring value for the wide range of problems in the field of stellar spectroscopy.  Here we scrutinize the differences among some of these approaches to clarify how This Work fits in.
 
 The \texttt{specmatch} synthetic template matching tool produces noise-free nearest neighbor templates given an input spectrum \citep{2015PhDT........82P}.  Several practical barriers limit the accuracy of using precomputed synthetic spectral models alone. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions that our models do.  Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere is challenging.
+
 
 The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but is still too rigid for some applications and requires the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates with high resolving power and low $v\sin{i}$ has not yet been established in the near-infrared.
 
@@ -407,7 +415,10 @@ An alternative to GPs could be to simply tune the $\mathsf{P}$ term that represe
 
 \subsection{Minibatches and Stochastic Gradient Descent}
 
-Currently, each training epoch ``sees'' the entire dataset, a setup dubbed ``full-batch'' gradient descent.  An alternative scheme allows training with only a portion of the entire dataset at a time in ``minibatches''.  The massive data volumes in modern Neural Network applications cannot fit into the GPU memory, so minibatches are a necessity.  Our meager $1$ MB dataset can easily fit into the GPU memory, but our model can be large if we have a large number of pixels or lines or both.  So while minibatches may not be required due to data size limitations they may be useful for particularly large models.  Minibatches also act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}.
+Currently, each training epoch sees the entire dataset, a setup dubbed \emph{full-batch} gradient descent.  
+An alternative scheme allows training with only a portion of the entire dataset at a time in \emph{minibatches}.  The massive data volumes in modern Neural Network applications cannot fit into the GPU memory, so minibatches are a necessity.  Our meager 1 MB dataset can easily fit into the GPU memory, but our model can be large if we have a large number of pixels or lines or both.  
+So while minibatches may not be required due to data size limitations they may be useful for particularly large models.  
+Minibatches also act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}.
 
 We experimented with minibatches by assembling and evaluating only a portion of the dense $\bar{\bm{F}}$ matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a random subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters. The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks (duplicating the sparse matrix approach), or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.  Overall minibatches as implemented above performed worse than the sparse implementation, with both lower accuracy and slower computation time.
 
@@ -437,7 +448,8 @@ The fixed $v\sin{i}$ approximation breaks down for stars with large-scale surfac
 
 Longitudinally symmetric surface features do not change as the star rotates on its axis.  The existence of these features changes the \emph{kurtosis} of the spectral line.  For example, a hypothetical non-emitting (black) polar starspot exhibits a deficit in flux at the line core, resulting in less zero-velocity flux than its homogeneous counterpart.  A dark zonal band results in equal-sized bites out of the red- and blue- sides of the line.
 
-It is much easier to reverse-engineer longitudinally asymmetric features than longitudinally symmetric ones.  The latter requires exact knowledge of the underlying spectral template.  Isolated deep spectral lines constitute the only practical scenario where exact knowledge can be claimed.  Isolated spectral lines may be scarce or absent for M-dwarfs and brown dwarfs where lines blend ostensibly in an inseparable way, counfounding Doppler imaging.
+It is easier to reverse-engineer longitudinally asymmetric features than longitudinally symmetric ones.  
+The latter requires exact knowledge of the underlying spectral template.  Isolated deep spectral lines constitute the only practical scenario where exact knowledge can be claimed.  Isolated spectral lines may be scarce or absent for M-dwarfs and brown dwarfs where lines blend ostensibly in an inseparable way, counfounding Doppler imaging.
 
 \texttt{blas\'e} offer a new approach to Doppler imaging that may overcome these historical limitations.
 
@@ -459,7 +471,7 @@ In principle, one could compute the Jacobians analytically---since the partial d
     \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
     \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
     \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
-    \2 Additional Implementation challenge: Fadeeva function not implemented in PyTorch
+    \2 Additional challenge: Fadeeva function not in PyTorch
     \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
 \end{outline}
 
