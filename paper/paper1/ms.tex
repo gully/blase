@@ -161,7 +161,7 @@ The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in e
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.98\textwidth]{figures/blase_flowchart01.png}
+    \includegraphics[width=0.78\textwidth]{figures/blase_flowchart01.png}
     \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for the target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next, this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally, the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought.} }
     \label{blase_flowchart}
 \end{figure*}
@@ -499,47 +499,17 @@ The latter requires exact knowledge of the underlying spectral template.  Isolat
 Already \texttt{blas\'e} is equipped to fit every single line with its own systemic $RV$, by tuning the line center position $\lambda_\mathrm{c}$ at each training epoch.  There exists both empirical evidence and some theoretical motivation that $RV$ jitter varies from line-to-line \citep{2018A&A...620A..47D}.  Importantly, the extent of this line-by-line RV jitter could be predicted in part by the depth of line formation.  A future extreme-precision-RV (EPRV) version of \texttt{blase} could leverage this information.  As an example, the depth-of-formation for all (or a subset) of lines could be obtained and associated with each spectral line.  A regularization scaling term could be introduced to allow the line positions to vary, but only in proportion to their depth of formation.
 
 
-\subsection{Prospects for closed-form computation of Jacobians}
+\subsection{Using native line lists rather than clones}
+For many practitioners, the choice to clone precomputed synthetic models in the first place may seem roundabout: ``Why not just use the line lists?''.  Adopting the line lists would have many advantages: it would provide chemical and molecular provenance tags.  Metadata associated with the quality of the atomic and molecular data could be used to assign physics-informed regularization.  Many other benefits would effortlessly accrue from adopting the native line lists.  The \texttt{FAL} project (Cargile et al. \emph{in prep}) follows such a principled prescription.
 
-\authorcomment1{Slated for removal:}
-{\color{asbestos}
-In principle, one could compute the Jacobians analytically since the partial derivatives of the Voigt function are known in closed-form.  This analytical approach would cut out the autodiff approach, using the exact Jacobians to compute the Gradient Descent step.  The analytical approach may be faster and/or possess lower memory overhead than the autodiff one.  However, working out the chain-rule for the closed-form analytical Jacobians may become difficult or impossible once combined with the many augmentations that get applied at the joint telluric-and-stellar modeling step.  So analytic Jacobians could principally accelerate the cloning step but would add significant implementation complexity at the important data-model comparison step.  We, therefore, deem this extension somewhat diminishing returns on scarce developer time.
-}
-
-\subsection{Lineshapes choice and tradeoffs}
-\begin{outline}
-    \1 Faced with a question: what lineshape to use
-    \2 To First order the lines are Gaussian or Lorentzian
-    \2 To Second-order the lines are Voigt Profiles
-    \2 In detail the lines are the result of radiative transfer that can smear the Voigt profile
-    \2 In practice the high-res lines get convolved with instrumental profiles, so details don't matter too much
-    \1 Computational tradeoff of Lorentzian/Gaussian versus Pseudo-Voigt versus Voigt
-    \2 Additional challenge: Fadeeva function not in PyTorch
-    \1 We choose a pseudo-Voigt as a balance between computation and adequate accuracy
-\end{outline}
-
-\subsection{Questioning the assumptions of the method}
-
-\begin{outline}
-    \1 Is PseudoVoigt Adequate?
-    \1 What performance level is adequate? (depends on your application)
-    \1 What about PRV applications
-    \1 Are we using the GPU effectively? Are we memory bandwidth limited?
-    \1 Should we update the line center positions?
-\end{outline}
-
-\subsection{Limitations}
-\begin{outline}
-    \1 What to do when continuum is absent even at the native resolution of precomputed synthetic model?
-    \1 Relevant to brown dwarfs and possibly M dwarfs molecular bands
-    \1 Bandwidth limitations
-    \1 Interplay with tellurics
-\end{outline}
-
+There exists at least a few demerits of adopting the line lists, and therefore supporting the \emph{blase} strategy.  First, these line lists need to undergo expensive multi-level radiative transfer calculations in order to obtain their amplitudes, so adopting the line lists would mean a laborious and computationally expensive pursuit simply to get close to what has already been computed.  Second, as the effective temperature scales to ultracool dwarfs (Figure \ref{fig_Nlines_vs_teff}) the number of lines sky-rockets, tending towards the billions for T-dwarfs.  The methane line list alone \censorbox{Hargraves et al 2022} represents a prohibitive data volume.  The ExoJAX and Radis \censorbox{Radis paper} libraries offer a breakthrough solution to the voluminous line list problem.  Even still, \emph{blase} deals with the less pure but more practical ``pseudo line'' that gets closer to the astronomical observables anyways, and offers a middle ground between the extremes of interpretability and performance.
 
 
 \section{Conclusions}
-More placeholder text...
+\lipsum[5-5]\\
+\authorcomment1{Text pending June 24, 2022}
+\lipsum[6-6]
+
 
 
 \begin{acknowledgments}
