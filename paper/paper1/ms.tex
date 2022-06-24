@@ -7,14 +7,22 @@
 \usepackage{censor}
 \usepackage{mathtools}
 \usepackage{outlines}
+\usepackage{lipsum}  
 \usepackage{amsmath,bm}
 
 \definecolor{belize}{RGB}{41, 128, 185}
 \definecolor{peter}{RGB}{52, 152, 219}
 \definecolor{nephritis}{RGB}{39, 174, 96}
 \definecolor{asbestos}{RGB}{127, 140, 141}
+\definecolor{clouds}{RGB}{236, 240, 241}
+
 \hypersetup{linkcolor=asbestos, 
 citecolor=belize,filecolor=asbestos,urlcolor=peter}
+
+\setlipsum{
+  par-before = \begingroup\color{clouds},
+  par-after = \endgroup
+}
 
 \hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion Ad-min-is-tra-tion}
 
@@ -37,7 +45,7 @@ citecolor=belize,filecolor=asbestos,urlcolor=peter}
 
 \begin{abstract}
 
-    Comparison of \'echelle spectra to synthetic models has become a computational statistics challenge, with over ten thousand individual spectral lines affecting a typical cool star \'echelle spectrum.  Telluric artifacts, imperfect line lists, inexact continuum placement, and inflexible models frustrate the scientific promise of these information-rich datasets.  Here we debut an interpretable machine-learning framework \emph{blas\'e} that addresses these challenges.  The semi-empirical approach can be viewed as ``transfer learning''--first pre-training models on noise-free precomputed synthetic spectral models, then learning the corrections to line depths and widths from whole-spectrum fitting to an observed spectrum.  The auto-differentiable model employs back-propagation, the fundamental algorithm empowering modern Neural Networks. Here, however, the 40,000+ parameters symbolize physically interpretable line profile properties such as amplitude, width, location, and shape, plus radial velocity and rotational broadening.  This hybrid data-/model- driven framework allows joint modeling of stellar and telluric lines simultaneously, a potentially transformative step forwards for mitigating the deleterious telluric contamination in the near-infrared.  The \emph{blas\'e} approach also acts as a deconvolution tool. It is suitable for Doppler Imaging scenarios with longitudinally symmetric surface features like bands or polar spots, which evade detection in differential techniques.  Blas\'e can also create super-resolution semi-empirical templates useful for critically evaluating atomic and molecular line lists.  Its sparse-matrix architecture and GPU-acceleration make \emph{blas\'e} fast, with end-to-end training of an octave of bandwidth (50+ \'echelle orders) in under 1 minute.  The open-source PyTorch-based code \texttt{blase} includes tutorials and API documentation.  We show how the tool fits into the existing Python spectroscopy ecosystem, demonstrate a range of astrophysical applications, and discuss limitations and future extensions.
+    Comparison of \'echelle spectra to synthetic models has become a computational statistics challenge, with over ten thousand individual spectral lines affecting a typical cool star \'echelle spectrum.  Telluric artifacts, imperfect line lists, inexact continuum placement, and inflexible models frustrate the scientific promise of these information-rich datasets.  Here we debut an interpretable machine-learning framework \emph{blas\'e} that addresses these and other challenges.  The semi-empirical approach can be viewed as ``transfer learning''--first pre-training models on noise-free precomputed synthetic spectral models, then learning the corrections to line depths and widths from whole-spectrum fitting to an observed spectrum.  The auto-differentiable model employs back-propagation, the fundamental algorithm empowering modern Deep Learning and Neural Networks. Here, however, the 40,000+ parameters symbolize physically interpretable line profile properties such as amplitude, width, location, and shape, plus radial velocity and rotational broadening.  This hybrid data-/model- driven framework allows joint modeling of stellar and telluric lines simultaneously, a potentially transformative step forwards for mitigating the deleterious telluric contamination in the near-infrared.  The \emph{blas\'e} approach also acts as a deconvolution tool. It is suitable for Doppler Imaging scenarios with longitudinally symmetric surface features like bands or polar spots, which evade detection in differential techniques.  Blas\'e can also create super-resolution semi-empirical templates useful for critically evaluating atomic and molecular line lists.  Its sparse-matrix architecture and GPU-acceleration make \emph{blas\'e} fast, with end-to-end training of an octave of bandwidth (50+ \'echelle orders) in under 1 minute.  The open-source PyTorch-based code \texttt{blase} includes tutorials, deep dives, reproducible Python environments, and API documentation.  We show how the tool fits into the existing Python spectroscopy ecosystem, demonstrate a range of astrophysical applications, and discuss limitations and future extensions.
 
 
 \end{abstract}
@@ -58,34 +66,40 @@ But many new and important questions in the fields of stars and exoplanets aspir
 
 For example, exoplanet cross-correlation spectroscopy \citep{2013MNRAS.436L..35B} hinges on accurate molecular spectral templates to detect and characterize the atmospheres of exoplanets.  Imperfections in these templates can mute the perceived signal strength of these atmospheric features \citep{2015A&A...575A..20H}.
 
-In extreme precision radial velocity (EPRV) applications, cross-correlation methods work \citep{2018A_A...620A..47D}, but have many limitations \citep{2022arXiv220110639Z}.  Among the many such limitations, one pernicious noise floor stands out as enigmatic: telluric mitigation.  Many practitioners today simply mask these telluric regions, yet micro-tellurics still inject variance into the spectrum that cannot be easily accounted for with existing methods.  A robust accounting of telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption \emph{before} convolution with an instrumental kernel.  This telluric joint modeling capability does not yet exist at a precision that can meet these strenuous demands.
+In extreme precision radial velocity (EPRV) applications, cross-correlation methods work \citep{2018A_A...620A..47D}, but have many limitations \citep{2022arXiv220110639Z}.  Among the many such limitations, one pernicious noise floor stands out as enigmatic: telluric mitigation.  Many practitioners today simply mask these telluric regions, yet micro-tellurics still inject variance into the spectrum that cannot be easily accounted for with existing methods.  Instead, a robust accounting of telluric absorption at the $\mathrm{cm/s}$ level may require joint modeling of the star and the Earth's atmospheric absorption \emph{before} convolution with an instrumental kernel.  This telluric joint modeling capability does not yet exist at a precision that can meet these strenuous demands.
 
-In the case of Doppler imaging, an accurate underlying template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.
+In the case of Doppler imaging, an accurate underlying spectral template is needed to detect longitudinally symmetric structures \citep{1983PASP...95..565V,2021arXiv211006271L} such as polar spots \citep{roettenbacher16} or zonal bands \citep{Crossfield14,2021ApJ...906...64A}.  There exists a nearly circular reasoning: we need to know the extent of line profile perturbations to reveal the underlying spectral template, but we need the underlying spectral template to estimate the line profile perturbations.  \emph{Blase} offers a path forward.
 
 Existing open-source frameworks have overcome some of these challenges, or have been purpose-built for specialized applications.
 These frameworks include \texttt{ROBOSPECT} \citep{2013PASP..125.1164W}, \texttt{specmatch} \citep{2015PhDT........82P}, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y}, \texttt{wobble} \citep{2019AJ....158..164B}, \texttt{starfish} \citep{czekala15}, \texttt{sick} \citep{2016ApJS..223....8C}, \texttt{psoap} \citep{2017ApJ...840...49C}, \texttt{FAL} (Cargile et al. \emph{in prep}), CHIMERA \citep{2015ApJ...807..183L}, the \texttt{Cannon} \citep{2017ApJ...836....5H},  \texttt{MINESweeper} \citep{2020ApJ...900...28C}, and recently \texttt{ExoJAX} \citep{2022ApJS..258...31K}.
 The designs of these frameworks necessarily have to make a choice in the bias-variance tradeoff: is the tool more \emph{data}-driven or more \emph{model}-driven?  The statistical tradeoff can be viewed as a concession in physical self-consistency for model flexibility: more or fewer parameters; more \emph{accurate} or more \emph{precise}.
 
-A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
+A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'',][]{2015arXiv150205767G} and its affiliated backpropagation algorithm \citep{kelley1960,Linnainmaa1976TaylorEO, 1986Natur.323..533R, 1990JGCD...13..926D} has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
 
-In this paper, we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed by self-consistent models but refined with data.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \citep{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  We show how to combine both stellar and telluric models in a joint modeling approach.  In Section \ref{transferLearn} we describe how to fine-adjust the cloned models to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.
-%Section \ref{secInjRec} exhibits injection-recovery tests on simulated data of known properties, revealing the scalability and fundamental limits of the technique.  
-Finally, we discuss many conceivable extensions to the framework and directions for future work in Section \ref{secDiscuss}.
+In this paper, we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed by self-consistent models but refined with data.  This sweet spot in the bias-variance tradoff can be thought of as a hybrid data-and-model driven approach.  In Section \ref{methodology} we introduce the \emph{blas\'e} forward-model design and its \texttt{PyTorch}-based \citep{2019arXiv191201703P} implementation.  We show how to supplant the computationally expensive radiative transfer by cloning pre-computed synthetic spectral models.  In Sectrion \ref{sectionTelluric} we clone telluric models in and in Section \ref{transferLearn} we describe how to fine-adjust both cloned models simultaneously to real-world data from high-grasp near-IR spectrographs, using a transfer-learning step.  Section \ref{secInjRec} validates the procedure from end-to-end with systematic injection-recovery tests on simulated data of known properties, and quantifying the limits of the technique.  Finally, we compare the framework to alternatives (Section \ref{secDiscuss}) and chronicle many conceivable extensions for future work (Section \ref{secFutureWork}).
 
 
 \section{Methodology I: Cloning stellar spectra}\label{methodology}
 
 \subsection{Overall Architecture and Design Choices}
 
-We start with a high resolution pre-computed synthetic stellar model spectrum, $\mathsf{S}_{\rm abs}(\bm{\lambda})$ at its native resolution sampling and with its original absolute physical flux units. The procedure that follows is largely agnostic to the exact details of how this spectrum was made, or what physics or chemistry it may represent. For the purposes of this paper, we will showcase examples from two well-known families of precomputed synthetic astronomical spectra: \texttt{PHOENIX} \citep{husser13} for stellar spectra $(T_{\mathrm{eff}}\in [2300, 10000]\;K)$ and \texttt{Sonora} \citep{2021ApJ...920...85M} for brown dwarf spectra $(T_{\mathrm{eff}}\in [1000, 2300]\;K)$. The framework may also work for precomputed synthetic spectra of exoplanets, supernovae, galaxies, or even further afield such as laboratory physical chemistry.  We place the following demands on the precomputed spectra. They should have sporadic regions of discernable continuum devoid of lines, and the continuum must vary smoothly in wavelength. The spectral lines or pseudo-lines should be resolved, and not sub-sampled. We suspect most stellar spectra meet these criteria, except for the coolest M dwarfs and brown dwarfs. The method can hypothetically handle spectra without discernable continua, but we suspect some modifications to the preprocessing steps would be needed. We truncate the red and blue limits of the precomputed synthetic spectrum to match a high-bandwidth echelle spectrograph, extended with a buffer at the edges of size $\pm \Delta \lambda_{\mathrm{buffer}}$, chosen to account for plausible radial velocity and rotational broadening of real stars. A generous buffer of $v \sin{i} < 500 \;\kmps$ and $|RV|<500 \;\kmps$ yields a typical buffer of about 30~\AA.
+We start with a high resolution pre-computed synthetic stellar model spectrum, $\mathsf{S}_{\rm abs}(\bm{\lambda})$ at its native resolution sampling and with its original absolute physical flux units. The procedure that follows is largely agnostic to the exact details of how this spectrum was made, or what physics or chemistry it may represent. For the purposes of this paper, we will showcase examples from two well-known families of precomputed synthetic astronomical spectra: \texttt{PHOENIX} \citep{husser13} for stellar spectra $(T_{\mathrm{eff}}\in [2300, 10000]\;K)$ and \texttt{Sonora} \citep{2021ApJ...920...85M} for substellar spectra $(T_{\mathrm{eff}}\in [200, 2300]\;K)$. The algorithms in the framework may also work for precomputed synthetic spectra of reflected light exoplanets, supernovae, galaxies, or even further afield such as laboratory physical chemistry, plasma physics, or materials science.  
+
+We place mild demands on the precomputed spectra. They should have sporadic regions of discernable continuum devoid of lines, and the continuum should vary smoothly in wavelength. The spectral lines or pseudo-lines should be resolved (and not sub-sampled). We suspect most stellar spectra meet these criteria, except for the coolest M dwarfs and brown dwarfs. The method can handle spectra without discernable continua, with some fine-adjustments to the preprocessing steps. We truncate the red and blue limits of the precomputed synthetic spectrum to match a high-bandwidth echelle spectrograph, extended with a buffer at the edges of size $\pm \Delta \lambda_{\mathrm{buffer}}$, chosen to account for plausible radial velocity and rotational broadening of real stars. A generous buffer of $v \sin{i} < 500 \;\kmps$ and $|RV|<500 \;\kmps$ yields a typical buffer of about 30~\AA.
 
 The choice of limiting the bandwidth to a region of interest around a single echelle spectrograph bandwidth stems from computational constraints. In principle, there is no fundamental limit to the bandwidth one could clone with the method presented here, up to and including the entire precomputed synthetic spectral model bandwidth. We adopt the exact native wavelength sampling with no smoothing or interpolation, yielding a wavelength vector $\bm{\lambda}_S$ with length $N_\mathrm{S}$ equal to the number of pixels within the extents of our region of interest including the buffers.
 
-At this stage, we have the choice of whether to work in linear or log scale flux units. Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desirable trait of any physical spectral model. We have implemented both modes in \texttt{blas\'e}, allowing users to choose their preference.  We only narrate the linear flux unit description in the main text of this document, for the sake of clarity, and since most practitioners tend to think of flux in terms of linear flux units.  The data-model comparison step will always take place in linear flux units, so the only operational difference is the behavior for deep and saturated lines.  Appendix \ref{appendixLogScale} lists the equations adjusted to log flux units.
+At this stage, we have the choice of whether to work in linear or log scale flux units. Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desirable trait of any physical spectral model. We have implemented both modes in \texttt{blas\'e}, allowing users to choose their preference.  We only narrate the linear flux unit description in the main text of this document, for the sake of clarity, and since most practitioners may tend to think of flux in terms of linear flux units.  The data-model comparison step will always take place in linear flux units, so the only operational difference is the behavior for deep and saturated lines.  Appendix \ref{appendixLogScale} lists the equations adjusted to log flux units.
 
 \subsection{Initialization}
 
-We initialize the cloned model with a series of preprocessing steps. We divide the entire spectrum by a black body $\mathsf{B}(\bm{\lambda}_S)$ of the same effective temperature $T_{\mathrm{eff}}$ as the model template. The resulting signal typically possesses a smooth continuum variation. An additional continuum flattening step ensures that subsequent spectral line finding steps get applied uniformly. Here, we identify the continuum regions by the most prominent peaks in the spectrum separated by a distance of at least 5,000$-$90,000 pixels from adjacent peaks, yielding between 60 and 5 control points. We then fit an $n_{\mathrm{poly}} = 3^{rd}-15^{th}$ order polynomial to these peaks, evaluate the polynomial on the entire bandwidth $\mathsf{P}(\bm{\lambda}_S)$, and divide the spectrum by this trend. The result should be a flattened ``continuum-normalized'' spectrum familiar to practitioners in high-resolution spectroscopy, with the continuum level close to unity.  It is this spectrum that will serve as the centerpiece of subsequent training steps.  We, therefore, drop any subscript and simply refer to this flattened spectrum as $\mathsf{S}$:
+We initialize the cloned model with a series of preprocessing steps. We divide the entire spectrum by a black body $\mathsf{B}(\bm{\lambda}_S)$ of the same effective temperature $T_{\mathrm{eff}}$ as the model template. The resulting signal usually still has smooth wiggles around the continuum. An optional continuum flattening step ensures that subsequent spectral line finding steps get applied uniformly. This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. Any high-pass filter will work, a Gaussian Process approach would be ideal.  Instead we apply a simple and familiar heuristic: fit a polynomial $\mathsf{P}(\bm{\lambda}_S)$ to a few continuum peaks and divide out the trend.  
+
+\authorcomment1{Slated for removal:}
+{\color{asbestos}
+    Here, we identify the continuum regions by the most prominent peaks in the spectrum separated by a distance of at least 5,000$-$90,000 pixels from adjacent peaks, yielding between 60 and 5 control points. We then fit an $n_{\mathrm{poly}} = 3^{rd}-15^{th}$ order polynomial to these peaks, evaluate the polynomial on the entire bandwidth $\mathsf{P}(\bm{\lambda}_S)$, and divide the spectrum by this trend. 
+}
+The result should be a flattened ``continuum-normalized'' spectrum familiar to practitioners in high-resolution spectroscopy, with the continuum level close to unity.  It is this spectrum that will serve as the centerpiece of subsequent training steps.  We, therefore, drop any subscript and simply refer to this flattened spectrum as $\mathsf{S}$:
 
 \begin{eqnarray}
     %\mathsf{S} = \frac{\mathsf{S}_{\rm abs}}{\mathsf{B} \; \mathsf{P}}
@@ -94,7 +108,12 @@ We initialize the cloned model with a series of preprocessing steps. We divide t
 \end{eqnarray}
 
 
-where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  Visual inspection of this continuum-flattened spectrum typically possesses variations at the $<1\%$ level. Tuning the pixel distance and polynomial order can lower the undulations to $<0.05\%$ level for some input spectra. We found a pixel distance of 50,000 and $3^{rd}$ order polynomial worked across the range of effective temperatures for HPF's bandwidth. The IGRINS spectra had more significant continuum opacity and band heads to accommodate and therefore needed to capture finer-scale variation: 5,000 pixels and a $9^{th}$ order polynomial appeared adequate over most of the effective temperature range.
+where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  
+
+\authorcomment1{Slated for removal:}
+{\color{asbestos}
+Visual inspection of this continuum-flattened spectrum typically possesses variations at the $<1\%$ level. Tuning the pixel distance and polynomial order can lower the undulations to $<0.05\%$ level for some input spectra. We found a pixel distance of 50,000 and $3^{rd}$ order polynomial worked across the range of effective temperatures for HPF's bandwidth. The IGRINS spectra had more significant continuum opacity and band heads to accommodate and therefore needed to capture finer-scale variation: 5,000 pixels and a $9^{th}$ order polynomial appeared adequate over most of the effective temperature range.
+}
 
 \begin{figure}[hbt!]
     \centering
@@ -107,7 +126,6 @@ where the division indicates element-wise division of these arrays or ``vectors'
     \label{fig_Nlines_vs_teff}
 \end{figure}
 
-This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. We have experimentally found it helpful to hand-tune models of exceptionally broad and non-standard line wings with an optional pre-processing step that depends on the wavelength range of interest. Here we sketch the approach for common broad lines found in the long-wavelength visible and near-infrared wavelength regions.
 
 % TODO We pre-assign spectral lines for the conspicuous Hydrogen lines and neutral metal lines. Table
 
@@ -237,7 +255,7 @@ Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum clon
 
 We store the model parameters to disk and refer to the entire collection of parameters as a \emph{pre-trained model}.  More specifically this fine-tuned model represents an evaluable and interpretable clone of the original static pixel values flux values.
 
-\section{Methodology II: Cloning Telluric Spectra}
+\section{Methodology II: Cloning Telluric Spectra} \label{sectionTelluric}
 Ground-based near-IR \'echelle spectra possess countless depressions attributable to molecular line absorption in Earth's atmosphere.  These telluric lines hamper the unbiased interpretation of \'echelle spectra, so some treatment plan is needed.  Often the regions of known, deep tellurics are simply discarded.  In other cases, the lines are modeled with first principles line-by-line radiative transfer \citep[\emph{e.g.} \texttt{TelFit,}][]{2014AJ....148...53G} or through data-driven means \citep[\emph{e.g.} \texttt{wobble,}][]{2019AJ....158..164B}.  The most demanding EPRV applications require a precision characterization of telluric lines that the astronomical community has not yet been able to achieve, and that may rival even the abilities of Earth Science practitioners.  A hybrid data-/model- driven approach was the chief recommendation of the \emph{Telluric Hack Week} workshop aimed at improving our mitigation of the atmosphere's deleterious effects.  The \texttt{blas\'e} framework achieves a key milestone by introducing such a \emph{hybrid} approach.
 
 \subsection{The \texttt{blas\'e} Telluric Clone Model}
@@ -334,6 +352,8 @@ Even still, the regularization step is in some ways the most subjective, since t
 
 where the prime notation demarcates the amplitudes obtained from cloning, or the ``initial amplitude''.  We assign $\Lambda_{\ln{a}}\sim5$.  This weak degree of regularization has the effect of permitting refinement of only the most conspicuous data-model mismatches; the weakest lines don't both to move from their initial state because doing so would penalize the regularization penalty without enough reduction of the overall loss.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice, they need to be initialized close to their plausible values.
 
+\subsection{Comparison to HPF data of WASP 69}
+
 Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the closest PHOENIX template, post-processed to the HPF resolution and sampling.  Figure \ref{fig_WASP69_transferred} shows the same data spectrum compared to a pixel-level \emph{blas\'e} model regularized to the clone in Figure \ref{fig_cloned_spectrum_demo}.  The latent high-resolution model for WASP 69 is therefore the transfer-learned model, unadjusted for the extrinsic and instrumental properties.  This semi-empirical model is shown in Figure \ref{fig_WASP69_regularized}.
 
 
@@ -359,19 +379,17 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data to the close
 \end{figure*}
 
 
-% \begin{outline}
-%     \1 What is the residual level with bare PHOENIX (i.e. tuning continuum only, not lines)?
-%     \1 What is the residual level with no regularization (i.e. tune all lines and continuum)?
-%     \2 Should be near-zero except for missing lines
-%     \2 What should we do about missing lines?
-%     \1 What is the residual level with modest regularization? What is the typical change to the line?
-%     \2 Plot of cloned FWHM versus FWHM transferred
-%     \2 The pseudo-Voigt line properties can be analytically integrated to give an equivalent width
-%     \2 Plot of cloned EW (before) versus transfer EW (after)
-% \end{outline}
+\subsection{Comparison to IGRINS spectra of a T6 Ultracool Dwarf}
 
-%\section{Injection/recovery tests}\label{secInjRec}
-%Here we conduct injection/recovery tests.
+\lipsum[1-1]\\
+\authorcomment1{Text pending June 24, 2022}
+\lipsum[4-4]
+
+
+\subsection{End-to-end validation with injection/recovery tests}\label{secInjRec}
+\lipsum[2-2]\\
+\authorcomment1{Text pending June 24, 2022}
+\lipsum[3-3]
 
 \section{Discussion}\label{secDiscuss}
 
@@ -391,7 +409,7 @@ The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood f
 For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
 
 
-\section{Conceivable Improvements, Extensions, and Limitations}
+\section{Conceivable Improvements, Extensions, and Limitations}\label{secFutureWork}
 
 As currently implemented, \texttt{blas\'e} represents a minimum viable product: it out-performs some existing approaches for some science cases.  The scaffolding of the framework is designed in a way to promote extensibility, so the future of the framework is bright.  Here we enumerate some planned or conceivable extensions to the framework that would unlock new science arenas.  We order the presentation of these extensions from our perceived ease of implementation, from easiest to hardest.
 
