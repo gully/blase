@@ -18,10 +18,10 @@
 
 \hypersetup{linkcolor=belize, citecolor=belize,filecolor=asbestos,urlcolor=peter}
 
-\setlipsum{
-  par-before = \begingroup\color{clouds},
-  par-after = \endgroup
-}
+%\setlipsum{
+%  par-before = \begingroup\color{clouds},
+%  par-after = \endgroup
+%}
 %\SetLipsumParListSurrounders{\begingroup\color{gray}}{\endgroup}
 
 \hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion Ad-min-is-tra-tion}
@@ -83,7 +83,7 @@ In this paper, we show that autodiff-aware semi-empirical models offer an appeal
 
 \subsection{Overall Architecture and Design Choices}
 
-We start with a high resolution pre-computed synthetic stellar model spectrum, $\mathsf{S}_{\rm abs}(\bm{\lambda})$ at its native resolution sampling and with its original absolute physical flux units. The procedure that follows is largely agnostic to the exact details of how this spectrum was made, or what physics or chemistry it may represent. For the purposes of this paper, we will showcase examples from two well-known families of precomputed synthetic astronomical spectra: \texttt{PHOENIX} \citep{husser13} for stellar spectra $(T_{\mathrm{eff}}\in [2300, 10000]\;K)$ and \texttt{Sonora} \citep{2021ApJ...920...85M} for substellar spectra $(T_{\mathrm{eff}}\in [200, 2300]\;K)$. The algorithms in the framework may also work for precomputed synthetic spectra of reflected light exoplanets, supernovae, galaxies, or even further afield such as laboratory physical chemistry, plasma physics, or materials science.  
+We start with a high resolution pre-computed synthetic stellar model spectrum, $\mathsf{S}_{\rm abs}(\bm{\lambda})$ at its native resolution sampling and with its original absolute physical flux units. The procedure that follows is largely agnostic to the exact details of how this spectrum was made, or what physics or chemistry it may represent. For the purposes of this paper, we will showcase examples from two well-known families of precomputed synthetic astronomical spectra: \texttt{PHOENIX} \citep{husser13} for stellar spectra $(T_{\mathrm{eff}}\in [2300, 10000]\;K)$ and \texttt{Sonora} \citep{2021ApJ...920...85M} for substellar spectra $(T_{\mathrm{eff}}\in [200, 2300]\;K)$. The algorithms in the framework may also work for precomputed synthetic spectra of reflected light exoplanets, supernovae, galaxies, or even further afield such as laboratory physical chemistry, plasma physics, or materials science.
 
 We place mild demands on the precomputed spectra. They should have sporadic regions of discernable continuum devoid of lines, and the continuum should vary smoothly in wavelength. The spectral lines or pseudo-lines should be resolved (and not sub-sampled). We suspect most stellar spectra meet these criteria, except for the coolest M dwarfs and brown dwarfs. The method can handle spectra without discernable continua, with some fine-adjustments to the preprocessing steps. We truncate the red and blue limits of the precomputed synthetic spectrum to match a high-bandwidth echelle spectrograph, extended with a buffer at the edges of size $\pm \Delta \lambda_{\mathrm{buffer}}$, chosen to account for plausible radial velocity and rotational broadening of real stars. A generous buffer of $v \sin{i} < 500 \;\kmps$ and $|RV|<500 \;\kmps$ yields a typical buffer of about 30~\AA.
 
@@ -93,11 +93,11 @@ At this stage, we have the choice of whether to work in linear or log scale flux
 
 \subsection{Initialization}
 
-We initialize the cloned model with a series of preprocessing steps. We divide the entire spectrum by a black body $\mathsf{B}(\bm{\lambda}_S)$ of the same effective temperature $T_{\mathrm{eff}}$ as the model template. The resulting signal usually still has smooth wiggles around the continuum. An optional continuum flattening step ensures that subsequent spectral line finding steps get applied uniformly. This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. Any high-pass filter will work, a Gaussian Process approach would be ideal.  Instead we apply a simple and familiar heuristic: fit a polynomial $\mathsf{P}(\bm{\lambda}_S)$ to a few continuum peaks and divide out the trend.  
+We initialize the cloned model with a series of preprocessing steps. We divide the entire spectrum by a black body $\mathsf{B}(\bm{\lambda}_S)$ of the same effective temperature $T_{\mathrm{eff}}$ as the model template. The resulting signal usually still has smooth wiggles around the continuum. An optional continuum flattening step ensures that subsequent spectral line finding steps get applied uniformly. This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. Any high-pass filter will work, a Gaussian Process approach would be ideal.  Instead we apply a simple and familiar heuristic: fit a polynomial $\mathsf{P}(\bm{\lambda}_S)$ to a few continuum peaks and divide out the trend.
 
 \authorcomment1{Slated for removal:}
 {\color{asbestos}
-    Here, we identify the continuum regions by the most prominent peaks in the spectrum separated by a distance of at least 5,000$-$90,000 pixels from adjacent peaks, yielding between 60 and 5 control points. We then fit an $n_{\mathrm{poly}} = 3^{rd}-15^{th}$ order polynomial to these peaks, evaluate the polynomial on the entire bandwidth $\mathsf{P}(\bm{\lambda}_S)$, and divide the spectrum by this trend. 
+Here, we identify the continuum regions by the most prominent peaks in the spectrum separated by a distance of at least 5,000$-$90,000 pixels from adjacent peaks, yielding between 60 and 5 control points. We then fit an $n_{\mathrm{poly}} = 3^{rd}-15^{th}$ order polynomial to these peaks, evaluate the polynomial on the entire bandwidth $\mathsf{P}(\bm{\lambda}_S)$, and divide the spectrum by this trend.
 }
 The result should be a flattened ``continuum-normalized'' spectrum familiar to practitioners in high-resolution spectroscopy, with the continuum level close to unity.  It is this spectrum that will serve as the centerpiece of subsequent training steps.  We, therefore, drop any subscript and simply refer to this flattened spectrum as $\mathsf{S}$:
 
@@ -108,11 +108,11 @@ The result should be a flattened ``continuum-normalized'' spectrum familiar to p
 \end{eqnarray}
 
 
-where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  
+where the division indicates element-wise division of these arrays or ``vectors'' of flux values.
 
 \authorcomment1{Slated for removal:}
 {\color{asbestos}
-Visual inspection of this continuum-flattened spectrum typically possesses variations at the $<1\%$ level. Tuning the pixel distance and polynomial order can lower the undulations to $<0.05\%$ level for some input spectra. We found a pixel distance of 50,000 and $3^{rd}$ order polynomial worked across the range of effective temperatures for HPF's bandwidth. The IGRINS spectra had more significant continuum opacity and band heads to accommodate and therefore needed to capture finer-scale variation: 5,000 pixels and a $9^{th}$ order polynomial appeared adequate over most of the effective temperature range.
+    Visual inspection of this continuum-flattened spectrum typically possesses variations at the $<1\%$ level. Tuning the pixel distance and polynomial order can lower the undulations to $<0.05\%$ level for some input spectra. We found a pixel distance of 50,000 and $3^{rd}$ order polynomial worked across the range of effective temperatures for HPF's bandwidth. The IGRINS spectra had more significant continuum opacity and band heads to accommodate and therefore needed to capture finer-scale variation: 5,000 pixels and a $9^{th}$ order polynomial appeared adequate over most of the effective temperature range.
 }
 
 \begin{figure}[hbt!]
@@ -214,7 +214,7 @@ We retain a relatively small number of pixels $N_{\rm cut}$ adjacent to the line
 
 \authorcomment1{Slated for removal:}
 {\color{asbestos}
-The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1~\mu$m, so 6000 pixels in the visible is about 30 \AA, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending on whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.  Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
+    The PHOENIX spectra double their pixel sampling shortward of $\lambda = 1~\mu$m, so 6000 pixels in the visible is about 30 \AA, but 6000 pixels in the infrared is about 60 \AA. We \emph{could have} demanded that the wing cut be exactly 30 \AA, or some other heuristic, but that choice would result in so-called \emph{jagged} or \emph{ragged} arrays: collections of 1D arrays that differ in their lengths. Some lines would have 5999 pixels, some would have 6000, and others would have 2999 or 3000 pixels, depending on whether they occur to the red or blue side of the $1 \;\mu$m kink in sampling. Most efficient CPU and GPU algorithms are not equipped to deal with ragged arrays, therefore increasing the computation time. Instead, the standardization choice of exactly 6000 pixels means we can use standard matrix or tensor arithmetic, which somewhat counterintuitively is faster while handling more pixels for all spectral lines: 6000 pixels everywhere is faster than 6000 pixels for some and 2999 for other lines.  Locating the indices of these 6000 ``nearest-neighbor'' pixels is very fast, only occurs once, and then is fixed.
 }
 
 
@@ -223,20 +223,20 @@ The remapping of the sparse matrix can be visualized as the shifting of all line
 
 \begin{equation} \label{eqnPictograph}
     \begin{aligned}
-    \bm{\bar{F}} &=
-    \begin{pmatrix}
-        \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
-        \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
-        \vdots                                                            & \\
-        \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots  &
-    \end{pmatrix} \\
-    \bm{\bar{F}}&\mapsto \bm{\hat{F}} =\begin{pmatrix}
-        \includegraphics[height=1cm]{figures/voigt_01b.pdf} & \\
-        \includegraphics[height=1cm]{figures/voigt_02b.pdf} & \\
-        \vdots                                              & \\
-        \includegraphics[height=1cm]{figures/voigt_03b.pdf} &
-    \end{pmatrix}
-\end{aligned}
+        \bm{\bar{F}} & =
+        \begin{pmatrix}
+            \cdots \includegraphics[height=1cm]{figures/voigt_01.pdf}  \cdots & \\
+            \cdots \includegraphics[height=1cm]{figures/voigt_02.pdf}  \cdots & \\
+            \vdots                                                            & \\
+            \cdots \includegraphics[height=1cm]{figures/voigt_03.pdf} \cdots  &
+        \end{pmatrix}                        \\
+        \bm{\bar{F}} & \mapsto \bm{\hat{F}} =\begin{pmatrix}
+                                                 \includegraphics[height=1cm]{figures/voigt_01b.pdf} & \\
+                                                 \includegraphics[height=1cm]{figures/voigt_02b.pdf} & \\
+                                                 \vdots                                              & \\
+                                                 \includegraphics[height=1cm]{figures/voigt_03b.pdf} &
+                                             \end{pmatrix}
+    \end{aligned}
 \end{equation}
 
 
@@ -324,7 +324,7 @@ Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximatin
 
 where $\bm{v}-v_0$ is the velocity vector going from zero to the velocity associated with the largest wavelength, with \emph{linear} spaced velocity samples.  We choose a sampling in velocity space of 0.5 km/s, which corresponds to about $10\times$ finer than the instrumental resolving power of HPF, and delivers a minimum and maximum wavelength spacing of 0.013 and 0.024 \AA$/\text{pixel}$ respectively for the HPF bandwidth.
 
-Operationally, the radial velocity shift $RV$ gets applied to the line center positions rather than scaling the entire wavelength grid point coordinates, $\bm{\lambda}_Z$. This choice yields a convenience: it cleanly makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can be sensed through backpropagation by affecting only the line center positions.  
+Operationally, the radial velocity shift $RV$ gets applied to the line center positions rather than scaling the entire wavelength grid point coordinates, $\bm{\lambda}_Z$. This choice yields a convenience: it cleanly makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can be sensed through backpropagation by affecting only the line center positions.
 
 
 \subsection{Joint Stellar and Telluric Model}
@@ -336,12 +336,12 @@ Figure \ref{blase_flowchart} shows a visual guide to all the steps in \texttt{bl
 
 It is only at this stage that we may apply the instrumental broadening kernel.  The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation for high-grasp spectra.  The extent to which this effect matters will depend on the science application.  For now, \texttt{blas\'e} simply assumes a fixed resolving power.
 
-As noted, data-pixel sampling is much coarser than the model pixel sampling.  
+As noted, data-pixel sampling is much coarser than the model pixel sampling.
 \authorcomment1{Slated for removal:}
 {\color{asbestos}
-This resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which...}
+    This resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which...}
 
-We evaluate the extrinsic model at all of the super-resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of high resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixel bounds.  
+We evaluate the extrinsic model at all of the super-resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of high resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixel bounds.
 
 The final forward model for \emph{blas\'e} is designated simply as $\mathsf{M}$ without subscripts to emphasize that we have achieved the desired goal of a plausible end-to-end physics-informed yet highly flexible forward model for each datum in the 1D observed spectrum:
 
@@ -362,7 +362,7 @@ We apply some amount of \emph{regularization}, a restriction on the allowed valu
 The degree of regularization will control the extent of overfitting or underfitting. The most extreme regularization---the antithesis of the \emph{laissez-faire} scenario---would yield a model too rigid to respond to the data at all, yielding a model entirely unchanged from the cloned PHOENIX and \texttt{TelFit} models, the extreme end of underfitting.  So regularization constitutes the only hyperparameters worthy of tuning in \texttt{blas\'e}.  The choice of how to set the regularization is problem-specific.  We default to the following choice. We fix all line parameters except for amplitude, which receives a log-normal distribution:
 
 \begin{eqnarray}
-    \mathrm{regularization} &\equiv& -\ln{\mathrm{prior}} \nonumber \\ 
+    \mathrm{regularization} &\equiv& -\ln{\mathrm{prior}} \nonumber \\
     &=& \frac{1}{2} \sum_{j=1}^{N_\mathrm{lines}} \Big(\frac{\ln{a_j} - \ln{a^\prime_j }}{\Lambda}\Big)^2
 \end{eqnarray}
 
@@ -397,7 +397,7 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data of WASP 69 t
 
 \subsection{Comparison to IGRINS spectra of a T6 Ultracool Dwarf}
 
-Here we demo on IGRINS data from \citet{2022MNRAS.tmp.1421T}.  
+Here we demo on IGRINS data from \citet{2022MNRAS.tmp.1421T}.
 
 \begin{figure*}[hbt!]
     \centering
@@ -454,16 +454,16 @@ The main demerit of moving to a GP-likelihood is computational cost.  Fortunatel
 
 \subsection{Minibatches and Stochastic Gradient Descent}
 
-Currently, each training epoch sees the entire dataset, a setup dubbed \emph{full-batch} gradient descent.  
-An alternative scheme allows training with only a portion of the entire dataset at a time in \emph{minibatches}.  The massive data volumes in modern Neural Network applications cannot fit into the GPU memory, so minibatches are a necessity.  Our meager 1 MB dataset can easily fit into the GPU memory, but our model can be large if we have a large number of pixels or lines or both.  
-So while minibatches may not be required due to data size limitations they may be useful for particularly large models.  
+Currently, each training epoch sees the entire dataset, a setup dubbed \emph{full-batch} gradient descent.
+An alternative scheme allows training with only a portion of the entire dataset at a time in \emph{minibatches}.  The massive data volumes in modern Neural Network applications cannot fit into the GPU memory, so minibatches are a necessity.  Our meager 1 MB dataset can easily fit into the GPU memory, but our model can be large if we have a large number of pixels or lines or both.
+So while minibatches may not be required due to data size limitations they may be useful for particularly large models.
 Minibatches also act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}.
 
-We experimented with minibatches by assembling and evaluating only a portion of the dense $\bar{\bm{F}}$ matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a random subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters. 
+We experimented with minibatches by assembling and evaluating only a portion of the dense $\bar{\bm{F}}$ matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a random subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters.
 
 \authorcomment1{Slated for removal:}
 {\color{asbestos}
-The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks (duplicating the sparse matrix approach), or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.  
+    The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks (duplicating the sparse matrix approach), or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.
 }
 
 Overall minibatches as implemented above performed worse than the sparse implementation, with both lower accuracy and slower computation time.
@@ -520,16 +520,16 @@ There exists at least a few demerits of adopting the line lists, and therefore s
 
 \begin{acknowledgments}
 
-These results are based on observations obtained with the Habitable-zone Planet Finder Spectrograph on the HET. The HPF team was supported by NSF grants AST-1006676, AST-1126413, AST-1310885, AST-1517592, AST-1310875, AST-1910954, AST-1907622, AST-1909506, ATI 2009889, ATI-2009982, and the NASA Astrobiology Institute (NNA09DA76A) in the pursuit of precision radial velocities in the NIR. The HPF team was also supported by the Heising-Simons Foundation via grant 2017-0494.
+    These results are based on observations obtained with the Habitable-zone Planet Finder Spectrograph on the HET. The HPF team was supported by NSF grants AST-1006676, AST-1126413, AST-1310885, AST-1517592, AST-1310875, AST-1910954, AST-1907622, AST-1909506, ATI 2009889, ATI-2009982, and the NASA Astrobiology Institute (NNA09DA76A) in the pursuit of precision radial velocities in the NIR. The HPF team was also supported by the Heising-Simons Foundation via grant 2017-0494.
 
-The Hobby-Eberly Telescope (HET) is a joint project of the University of Texas at Austin, the Pennsylvania State University, Ludwig-Maximilians-Universit\"at M\"unchen, and Georg-August-Universit\"at G\"ottingen. The HET is named in honor of its principal benefactors, William P. Hobby and Robert E. Eberly.    
+    The Hobby-Eberly Telescope (HET) is a joint project of the University of Texas at Austin, the Pennsylvania State University, Ludwig-Maximilians-Universit\"at M\"unchen, and Georg-August-Universit\"at G\"ottingen. The HET is named in honor of its principal benefactors, William P. Hobby and Robert E. Eberly.
 
-This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program,
-and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.  
+    This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program,
+    and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.
 
-We acknowledge the National Science Foundation, which supported the work presented here under Grant No. 1910969.  
+    We acknowledge the National Science Foundation, which supported the work presented here under Grant No. 1910969.
 
-This research has made use of NASA's Astrophysics Data System Bibliographic Services.
+    This research has made use of NASA's Astrophysics Data System Bibliographic Services.
 
 \end{acknowledgments}
 
