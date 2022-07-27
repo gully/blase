@@ -448,7 +448,7 @@ Overall minibatches as implemented above performed worse than the sparse impleme
 
 \subsection{Broad lines and advanced lineshapes}
 
-Some lines, such as Hydrogen, sodium, potassium, and others have extremely broad line wings, approaching larger than the $\sim6000$ pixels we allocate for the sparse implementation. These special lines should be handled separately from the weak lines, both from a computational performance perspective and an accuracy perspective.
+Some lines---such as those arising from hydrogen, sodium, potassium, and others---have extremely broad line wings, approaching larger than the $\sim6000$ pixels we allocate for the sparse implementation. These special lines should be handled separately from the weak lines, both from a computational performance perspective and an accuracy perspective.
 
 Extremely broad lines will exhibit truncation effects if the sparse window is small compared to the line wing size. The truncation effects will look like tophat functions severing the asymptotic wings, imbuing artificial step function kinks in the emulated spectrum. We can afford to increase the sparse window on a few, say $N_{broad}\sim20$ of the broadest spectral lines. We then construct and evaluate the entire dense matrix for those lines: $\sim 330\;000 \times 20$. The number of FLOPS in each category scales as about 6 Million for the 20 broad and dense lines versus about 36 Million for the sea of about 7000 narrow and sparse lines, depending on the exact choices for wing cuts and the number of lines.
 
