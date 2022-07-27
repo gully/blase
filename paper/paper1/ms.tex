@@ -326,11 +326,7 @@ Figure \ref{blase_flowchart} shows a visual guide to all the steps in \texttt{bl
 It is only at this stage that we may apply the instrumental broadening kernel.  The instrumental resolving power, $R$, acts as a convolution with a Gaussian line profile of width $\sigma=\frac{c}{2.355 R}$.  Real astronomical instruments usually have wavelength-dependent resolving power, which complicates the implementation for high-grasp spectra.  The extent to which this effect matters will depend on the science application.  For now, \texttt{blas\'e} simply assumes a fixed resolving power.
 
 As noted, data-pixel sampling is much coarser than the model pixel sampling.
-\authorcomment1{Slated for removal:}
-{\color{asbestos}
-    This resampling step could be achieved with two choices.  One would be to simply evaluate the closed-form model at the coordinates of the data pixels $\bm{\lambda_D}$.  This choice would require a closed-form solution to Equation \ref{eqn_convolution}, which has recently been reported \citep{2021arXiv211006271L}.  Instead, we choose the conventional sampled approach, in which...}
-
-We evaluate the extrinsic model at all of the super-resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of high resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixel bounds.
+We therefore resample the model to the data spectrum in the following way.  We evaluate the extrinsic model at all of the super-resolution wavelength coordinates, and then compute the mean value of those pixels within the bounds of each coarse data pixel.  The resampling procedure is autodiff-aware: the same clusters of high resolution coordinates map to the same data pixel coordinates, no matter what the $RV$ is.  The $RV$ only dictates what flux values are realized within those pixel bounds.
 
 The final forward model for \emph{blas\'e} is designated simply as $\mathsf{M}$ without subscripts to emphasize that we have achieved the desired goal of a plausible end-to-end physics-informed yet highly flexible forward model for each datum in the 1D observed spectrum:
 
@@ -447,11 +443,6 @@ So while minibatches may not be required due to data size limitations they may b
 Minibatches also act as a form of regularization, the principal source of stochasticity in the Stochastic Gradient Descent algorithm, which tends to have better convergence than full-batch Gradient Descent \citep{2016arXiv160904747R}.
 
 We experimented with minibatches by assembling and evaluating only a portion of the dense $\bar{\bm{F}}$ matrix at a time, in minibatches. The choice to evaluate only a portion of lines at a time would mean the model is inaccurately evaluated at all wavelength pixels. Instead, we choose to evaluate all lines, but only on a random subset $N_{\mathrm{batch}}$ of the total pixels $N_s$, so that the model can eventually converge to exact at those points. All lines are allowed to update at each glimpse of a minibatch, but many lines with cores far from minibatch pixels will provide only weak information about how the loss scalar changes for their parameters.
-
-\authorcomment1{Slated for removal:}
-{\color{asbestos}
-    The value of $N_{\mathrm{batch}}$ should be set just below the threshold at which the computation runs out of memory. At present, this threshold is determined experimentally. The indices of the wavelength points can either be set to be contiguous in blocks (duplicating the sparse matrix approach), or random with possibly large gaps between indices, or else with some other scheme tailored to the most informative wavelength regions. We experimented with several techniques and settled on random sampling with replacement, meaning that some pixels get revisited more often than others, with some minibatches tailored only to the line cores.
-}
 
 Overall minibatches as implemented above performed worse than the sparse implementation, with both lower accuracy and slower computation time.
 
