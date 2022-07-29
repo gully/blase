@@ -156,8 +156,8 @@ The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in e
 
 \begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.78\textwidth]{figures/blase_flowchart01.png}
-    \caption{Visual flowchart of \texttt{blas\'e}.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for the target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next, this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally, the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines. \authorcomment1{Some of the spectra are placeholders until we re-run the end-to-end-fitting.  Feedback on this figure layout is sought.} }
+    \includegraphics[width=1.0\textwidth]{figures/blase_flowchart03.pdf}
+    \caption{Visual flowchart of the \texttt{blas\'e} forward model.  The technique starts with a precomputed synthetic stellar spectrum and a precomputed synthetic telluric spectrum with properties close to those previously estimated for the target.  Both the stellar and telluric spectra get cloned.  The stellar model is warped to its extrinsic properties, and then the stellar and telluric models get multiplied together.  Next, this joint model is convolved with an instrumental kernel and resampled to the data spectrum.  Finally, the joint model parameters are optimized to match the data, subject to regularization (not shown).  The final products are semi-empirical super-resolution stellar and telluric templates, the $RV$ and $v\sin{i}$ of the star, and the line amplitude, location, width, and shape of all 10,000+ stellar and telluric lines.}
     \label{blase_flowchart}
 \end{figure*}
 
