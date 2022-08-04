@@ -31,6 +31,7 @@ We invite you to engage with us at our `GitHub page
 
    Tutorials <tutorials/index>
    Deep Dives <deep_dives/index>
+   Paper Figures <paper_figures/index>
    Frequently Asked Questions <FAQ/index>
    
 
