@@ -34,9 +34,9 @@
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
 
 \begin{document}
-\shorttitle{Blas\'e}
+\shorttitle{Transfer learning with blas\'e}
 \shortauthors{Gully \& Morley}
-\title{Transfer learning for \'echelle spectroscopy with \texttt{blas\'e}}
+\title{Automatic line-by-line semi-empirical models for high-grasp stellar and telluric spectra}
 
 \author{Michael Gully-Santiago}
 \affiliation{The University of Texas at Austin Department of Astronomy}
@@ -252,6 +252,7 @@ We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning ra
     \label{fig_cloned_spectrum_demo}
 \end{figure*}
 
+
 Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \texttt{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
 
 We store the model parameters to disk and refer to the entire collection of parameters as a \emph{pre-trained model}.  More specifically this fine-tuned model represents an evaluable and interpretable clone of the original static pixel-by-pixel flux values.
@@ -392,6 +393,14 @@ Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data of WASP 69 t
     \includegraphics[width=0.6\textwidth]{figures/blase_super_resolution_template.png}
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
+\end{figure*}
+
+
+\begin{figure*}[hbt!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/WASP_69_multi.pdf}
+    \caption{End-to-end training on a portion of HPF spectrum of WASP-69.  }
+    \label{fig_multi_panel_WASP69}
 \end{figure*}
 
 
