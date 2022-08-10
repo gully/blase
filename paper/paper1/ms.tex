@@ -267,16 +267,16 @@ The number of pixels in the telluric model can be chosen at the time of running 
 
 One guiding principle departs from the stellar case: telluric lines do not require future-proofing for large radial velocity shifts, hypothetically allowing us to reduce the number of pixels needed for a wingcut.  Small radial velocity shifts are possible due to bulk motions in the Earth's atmosphere, but those bulk motions should be much smaller than the speeds of stars towards and away from Earth.  So we can hypothetically tolerate a much smaller wing cut for telluric lines.  In practice, telluric lines can be saturated, and accurately cloning the resulting broad telluric wings still benefits from $N_{\rm cut}\sim6000$ pixels, comparable to the stellar scenario.
 
-\begin{figure}[hbt!]
+\begin{figure*}[hbt!]
     \centering
-    \includegraphics[width=0.48\textwidth]{example-image-a}
-    \caption{Pre-computed TelFit model cloned with \texttt{blase}.}
+    \includegraphics[width=0.98\textwidth]{figures/TelFit_clone_2panel.pdf}
+    \caption{Pre-computed TelFit model cloned with \texttt{blase}.  \textbf{Before:} The top panel shows a forward model evaluated with coarsely initialized line-by-line properties, based on simple threshold-based peak-finding and crude estimation of the shape of the line.  \textbf{After:} The bottom panel shows the \emph{blas\'e} fine-tuned clone, with nearly indentical spectral structure.}
     \label{fig_telluric_clone}
-\end{figure}
+\end{figure*}
 
-\authorcomment1{Figure \ref{fig_telluric_clone} shows the telluric clone for the same region as Figure \ref{fig_cloned_spectrum_demo}.}
 
-We optimize the sparse telluric clone, achieving comparable computational speed as the PHOENIX cloning task.  We are left with $\mathsf{T}_{\rm clone}(\bm{\lambda}_T)$, the tunable telluric clone model evaluated at its original native coordinates.
+We optimize the sparse telluric clone, achieving comparable computational speed as the PHOENIX cloning task.  We are left with $\mathsf{T}_{\rm clone}(\bm{\lambda}_T)$, the tunable telluric clone model evaluated at its original native coordinates.  Figure \ref{fig_telluric_clone} shows a before-and-after view of the blas\'e cloning procedure for a TelFit model zoomed in on a $J-$band region with dense Telluric lines.  We see that the blas\'e fine-tuning appears nearly indistinguishable from the native resolution TelFit precomputed model.
+
 
 
 \section{Cloning Performance}
