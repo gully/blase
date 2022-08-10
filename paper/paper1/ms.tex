@@ -94,7 +94,7 @@ The choice of limiting the bandwidth to a region of interest around a single ech
 
 At this stage, we have the choice of whether to work in linear or log scale flux units. Adopting the log of the flux would ensure that the cloned model possesses only positive flux values, a desirable trait of any physical spectral model. We have implemented both modes in \texttt{blas\'e}, allowing users to choose their preference.  We only narrate the linear flux unit description in the main text of this document, for the sake of clarity, and since most practitioners may tend to think of flux in terms of linear flux units.  The data-model comparison step will always take place in linear flux units, so the only operational difference is the behavior for deep and saturated lines.  Appendix \ref{appendixLogScale} lists the equations adjusted to log flux units.
 
-\subsection{Initialization}
+\subsection{Initialization}\label{subsecInit}
 
 We initialize the cloned model with a series of preprocessing steps. We divide the entire spectrum by a black body $\mathsf{B}(\bm{\lambda}_S)$ of the same effective temperature $T_{\mathrm{eff}}$ as the model template. The resulting signal usually still has smooth wiggles around the continuum. An optional continuum flattening step ensures that subsequent spectral line finding steps get applied uniformly. This high-pass filtering step should be set to capture the genuine spectral shape, without over-fitting broad line wings such as those in deep Hydrogen and sodium lines. Any high-pass filter will work, a Gaussian Process approach would be ideal.  Instead we apply a simple and familiar heuristic: fit a polynomial $\mathsf{P}(\bm{\lambda}_S)$ to a few continuum peaks and divide out the trend.
 
@@ -431,12 +431,29 @@ We initialize \texttt{blas\'e} with the nearest Sonora template with $T_\mathrm{
 
 \subsection{How to interpret line-by-line properties}
 
-Up to this point we have presented the mechanics of blas\'e, and shown that it applies to a wide range of applications from stars, substars, and Earth's atmosphere. 
+Up to this point we have presented the mechanics of blas\'e, and shown that it applies to a wide range of applications including stars, substars, and Earth's atmosphere. The interpretation of the approach and its line-by-line outputs may carry different meaning to different practitioners.  Here we caricature some of these perspectives:
+
+\emph{``Reverse-engineering the line lists''}-- Equation \ref{equation1} (and its exponential twin Equation \ref{equationOpacitySum}) could have been populated with initial line-by-line properties from atomic and molecular line lists, instead of the coarse detection-threshold approach we presented in Section \ref{subsecInit}.  So our cloning procedure can be viewed as reverse-engineering the quantum mechanical properties housed in line lists such as HITRAN, HITEMP, EXOMOL, VALD, or countless other primary source documents.  This interpretation is only partly accurate.  The line lists generally store the temperature and pressure scaling terms that get included in 1-D thermal structure calculations with distinct Voigt coefficient terms computed for each layer in the stellar or substellar or Earth atmosphere.  The cloned properties therefore represent the flux-weighted average line property, having undergone an integral through the radiative transfer in the atmosphere. 
+
+Our deliberate choice not to initialize from the atomic and molecular lines means we do not have to compute an expensive multi-layer atmosphere at each inference step.  The precomputed models have aleady taken care of that step, and so our cloning procedure encodes all the quantum mechanics and stellar atmospheres knowledge written down at the time of the computing of PHOENIX, Sonora, or LBLRTM.  
+
+
+\emph{``Equivalent Width machine''}-- The area under the curve of each $j^{th}$ blas\'e line represents its (neighbor-weighted) Equivalent Width (EW).  That means that blas\'e can automatically and quickly distill a massive high-banwidth spectrum into a catalog of line positions and EWs.  Even more, the catalog would have some resilience to rotaional broadening, line blending, and other friction points that hamper such an industrial-scale approach with existing tooling.  Current applications of Equivalent Widths rely on either isolated lines or---for multi-epoch applications---the assumption of non-variable neighboring lines.  Blas\'e does not have these limitations.  The interpretations of these EWs may have to be treated with care if intercompared with EWs obtained in the conventional way.  This approach may suit stellar abundance applications, such as Galactic archaeology and near-field cosmology.
+
+\emph{``Fancy deconvolution''}-- The blas\'e approach can be viewed as a fancy deconvolution procedure, in which the convolution kernels gets inferred alongside the imperfections of the model template.  This perspective may suit practitioners who wish to obtain a robust rotational broadening estimate in the presence of imperfect templates, and vice versa: robust templates in the presence of imperfect rotational broadening.
+
+\emph{``A surrogate model, emulator, or discrepancy modeling''}-- The machine learning community is increasingly incorporating physics-based emulation into machine learning models.  Blas\'e can be viewed as such a technique, often labeled as ``surrogate models''.  
+
+\emph{``A good enough substrate''}-- The imperfections in pre-computed stellar and substellar models have hampered their use in high-fidelity applications, where model flaws overwhelm the sigal-to-noise in the data.  The adaptability of blas\'e can be viewed as increasing the number of applications that could conceivably benefit from the rich-albeit-imperfect information enoded in these model grid spectra.  In the next section we illustrate how these adaptable models can serve as a subtrate for applications in which the imperfections in precomputed models would have otherwise precluded their use.
+
+
 
 
 \section{Conceivable Improvements, Extensions, and Limitations}\label{secFutureWork}
 
-The scaffolding of \texttt{blase} is designed in a way to promote extensibility, so the future of the framework is bright.  Here we enumerate some planned or conceivable extensions to the framework that would unlock new science arenas.  We order the presentation of these extensions from our perceived ease of implementation, from easiest to hardest.
+The scaffolding of \texttt{blase} is designed in a way to promote extensibility, so the future of the framework appears bright.  Here we enumerate some planned or conceivable extensions to the framework that would unlock new science arenas.  We break up the themes into two categories: scientific extensions (this section) and technical innovations (Section \ref{}).
+
+We order the presentation of these extensions from our perceived ease of implementation, from easiest to hardest.
 
 \subsection{Exact instead of pseudo Voigt Profile}
 We currently employ the pseudo-Voigt profile for its low computational cost.  We have a prototype exact-Voigt-Hjerting implementation following \citet{2022ApJS..258...31K}.  We coarsely estimate that moving to this exact-Voigt implementation could decrease some residual regions by $\sim 30\%$, while increasing the computational cost by more than $10\times$ over the existing pseudo-Voigt approximation.  The exact-Voigt-Hjerting implementation still outbids the higher cost of a direct numerical convolution of a Gaussian and Lorentzian profile.
@@ -657,7 +674,7 @@ The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood f
 
 For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
 
-
+\section{Conceivable Technical Improvements}
 
 
 \end{document}
