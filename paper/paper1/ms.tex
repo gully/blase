@@ -369,39 +369,50 @@ where the hat notation demarcates the amplitudes obtained from cloning, \emph{i.
 
 This weak degree of regularization has the effect of permitting refinement of only the most conspicuous data-model mismatches; the weakest lines do not bother to move from their initial state because doing so would penalize the regularization without enough reduction of the overall loss.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice, they need to be initialized close to their plausible values.
 
-\subsection{Comparison to HPF data of WASP 69}
+\section{Results: Comparison to data}
+\subsection{WASP 69 with HPF}
 
-Figure \ref{fig_WASP69_demo} shows an example of comparing HPF data of WASP 69 to the closest PHOENIX template, post-processed to the HPF resolution and sampling.  Figure \ref{fig_WASP69_transferred} shows the same data spectrum compared to a pixel-level \emph{blas\'e} model regularized to the clone in Figure \ref{fig_cloned_spectrum_demo}.  The latent high-resolution model for WASP 69 is therefore the transfer-learned model, unadjusted for the extrinsic and instrumental properties.  This semi-empirical model is shown in Figure \ref{fig_WASP69_regularized}.
+The planet-host star WASP 69 makes a great benchmark because it has a low $v\sin{i}=2.2\pm0.4~\text{km/s}$ \citep{2017A&A...608A.135C}, making its lines sharp and easy to perceive.  The K5 dwarf has an effective temperature of about 4700 K, $\log{g}=4.535\pm0.023$, and slightly super-solar metallicity \citep{2014MNRAS.445.1114A}.
+
+Figure \ref{fig_WASP69_demo} shows a portion of an HPF spectrum of WASP 69 centered on a region devoid of telluric lines.  This figure highlights a baseline case with no line-by-line fitting, simply conventional template matching: comparing HPF data of WASP 69 to the closest PHOENIX template, convolved and resampled to the HPF resolution and sampling.  Conspicuous residuals of $\pm10\%$ appear throughout the spectrum, with lines in the correct place, but with the amplitudes systematically biased.  These lines residuals arise from bona-fide imperfections in the PHOENIX spectrum, with a minor contribution from the coarse sampling of the PHOENIX grid.
+
+Figure \ref{fig_WASP69_transferred} shows the same data spectrum compared to a pixel-level model trained using the \emph{blas\'e} technique described in Section \ref{transferLearn}.  The model fit appears much better, with typical residuals approaching the photon noise of the data themselves.  The model is not perfect however, especially around line cores.  These residiuals stem from a combination of causes.  First, our finite regularization restricts line amplitudes and widths from straying too far from their values.  This computational tug-of-war makes line cores land just-short of the values the otherwise would have obtained in the absence of regularization.  Second, the spectral resolution kernel may get biased from the domineering model-misspecification of broad lines, setting up a slightly sub-par performance for all the other lines.  
+
+The inferred, semi-empirical high-resolution model for WASP 69 is therefore the transfer-learned model $\mathsf{\hat{S}}_\mathrm{clone}$, unadorned with the extrinsic and instrumental properties.  This semi-empirical model is shown in Figure \ref{fig_WASP69_regularized}.  The departures from the PHOENIX model appear dramatic at this native resolution.  The transfer-learned semi-empirical template exhibits both deeper and shallower lines than the native PHOENIX model.
 
 
-\begin{figure*}[hbt!]
+\begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.6\textwidth]{figures/blase_WASP69_demo.png}
+    \includegraphics[width=0.98\columnwidth]{figures/blase_WASP69_demo.png}
     \caption{WASP 69 observed with HPF, compared to a $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity PHOENIX model warped to $v\sin{i}=2.2$~km/s, $RV=-9.6$~km/s, and HPF resolving power.}
     \label{fig_WASP69_demo}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[hbt!]
+\begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.6\textwidth]{figures/blase_WASP69_regularized.png}
+    \includegraphics[width=0.98\columnwidth]{figures/blase_WASP69_regularized.png}
     \caption{Semi-empirical model of WASP 69 transfer-learned with \texttt{blas\'e}, employing a regularization prior on the learned amplitudes.}
     \label{fig_WASP69_transferred}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[hbt!]
+\begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.6\textwidth]{figures/blase_super_resolution_template.png}
+    \includegraphics[width=0.98\columnwidth]{figures/blase_super_resolution_template.png}
     \caption{The native-resolution semi-empirical model transfer-learned from WASP 69 HPF data. The revised model can be viewed as a super-resolution deconvolution of the HPF spectrum.}
     \label{fig_WASP69_regularized}
-\end{figure*}
+\end{figure}
 
+
+The low $v\sin{i}$ of WASP 69 means that the line profile broadening arises principally from the finite instrumental resolution.  The interplay of telluric lines and stellar lines within an instrumental resolution element is exactly one of the challenges blas\'e was designed to solve, as discussed in Section \ref{sectionTelluric}.  In Figure \ref{fig_multi_panel_WASP69} we show a multi-panel dissection of the HPF spectrum in a wavelength region in which conspicuous stellar and telluric lines coexist.  The blas\'e end-to-end model exhibits excellent agreement with the data when compared to the initial model.
 
 \begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/WASP_69_multi.pdf}
-    \caption{End-to-end training on a portion of HPF spectrum of WASP-69.  }
+    \caption{End-to-end training on a portion of HPF spectrum of WASP-69. The top two panels show the cloning in from Step 1 of the visual guide.  The middle two panels depict the before-and-after of the instrument-convolved and resampled joint model illustrated in Step 4 of the visual guide.  The final two panels show the underlying semi-empirical models learned in the process.}
     \label{fig_multi_panel_WASP69}
 \end{figure*}
+
+
 
 
 \subsection{Comparison to IGRINS spectra of a T6 Ultracool Dwarf}
