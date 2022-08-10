@@ -79,7 +79,7 @@ The designs of these frameworks necessarily have to make a choice in the bias-va
 
 A key new enabling technology breaks these classical tradeoffs in data-model comparisons for astronomical spectroscopy.  Automatic differentiation \citep[``autodiff'' or ``autograd'',][]{2015arXiv150205767G, 2016PhDT.......317M} and its affiliated backpropagation algorithm \citep{kelley1960,Linnainmaa1976TaylorEO, 1986Natur.323..533R, 1990JGCD...13..926D} has revolutionized machine learning and neural network architecture design, and is increasingly applied in astrophysical data analysis contexts, \emph{e.g.} kernel phase coronography with \texttt{poppy} \citep{2021ApJ...907...40P}, and exoplanet orbit fitting with \texttt{exoplanet} \citep{2021JOSS....6.3285F}.  Of the spectroscopy frameworks mentioned above, the \texttt{TensorFlow}-based \citep{tensorflow2015-whitepaper} \texttt{wobble} and the \texttt{JAX}-based \citep{jax2018github} \texttt{ExoJAX} employ autodiff technology.  \texttt{wobble} treats each pixel as a tunable control point, producing $\sim10^5$ parameters for a modern stellar spectrum.  The \texttt{ExoJAX} framework has only $\sim$dozens of tunable parameters that describe the fundamental physical properties controlling a brown dwarf atmosphere.  These two autodiff-aware frameworks span the extreme ends of non-parametric and parametric modeling for spectroscopy.
 
-In this paper, we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed by self-consistent models but refined with data.  This sweet spot in the bias-variance tradoff can be thought of as a hybrid data-and-model driven approach.  The algorithm presented here focuses on modeling the spectra of stars and brown dwarfs.  In Section \ref{methodology} we introduce the interpretable forward-model design and its \texttt{PyTorch}-based \citep{2019arXiv191201703P} implementation, \texttt{blas\'e}.  Existing stellar models \citep[\emph{e.g.}][]{husser13} and substellar models \citep[\emph{e.g.}][]{2021ApJ...920...85M} laboriously solve for a self consistent thermal structure in the atmosphere given the copious opacity sources that themselves depend on temperture and pressure.  Here we build upon that hard work by cloning pre-existing synthetic stellar or substellar models (Section \ref{methodology}), and optionally by cloning models of Earth's atmospheric ``telluric'' absorption (Section \ref{sectionTelluric}). In Section \ref{transferLearn} we describe how to adapt both stellar and telluric cloned models to real-world \'echelle data simultaneously, using a transfer-learning step.  Section \ref{secInjRec} validates the procedure from end-to-end with systematic injection-recovery tests on simulated data of known properties, quantifying the limits of the technique.  Finally, we compare the framework to alternatives (Section \ref{secDiscuss}) and chronicle many conceivable extensions for future work (Section \ref{secFutureWork}).
+In this paper, we show that autodiff-aware semi-empirical models offer an appealing middle ground: informed by self-consistent models but refined with data.  This sweet spot in the bias-variance tradoff can be thought of as a hybrid data-and-model driven approach.  The algorithm presented here focuses on modeling the spectra of stars and brown dwarfs.  In Section \ref{methodology} we introduce the interpretable forward-model design and its \texttt{PyTorch}-based \citep{2019arXiv191201703P} implementation, \texttt{blas\'e}.  Existing stellar models \citep[\emph{e.g.}][]{husser13} and substellar models \citep[\emph{e.g.}][]{2021ApJ...920...85M} laboriously solve for a self consistent thermal structure in the atmosphere given the copious opacity sources that themselves depend on temperture and pressure.  Here we build upon that hard work by cloning pre-existing synthetic stellar or substellar models (Section \ref{methodology}), and optionally by cloning models of Earth's atmospheric ``telluric'' absorption (Section \ref{sectionTelluric}). In Section \ref{transferLearn}  we describe how to adapt both stellar and telluric cloned models simultaneously, using a transfer-learning step.  We obtain semi-empirical models by comparing to real-world \'echelle data in Section \ref{secResults}. Finally, we compare the framework to alternatives (Section \ref{secDiscuss}) and chronicle many conceivable extensions for future work (Section \ref{secFutureWork}).
 
 
 \section{Methodology I: Cloning stellar spectra}\label{methodology}
@@ -245,12 +245,12 @@ Sparse matrix methods generally support an operation known as \emph{coalescing},
 We use the Adam optimizer \citep{2014arXiv1412.6980K} with a typical learning rate $LR\in (0.005, 0.1)$ and all the defaults for \texttt{PyTorch v1.11}.  We defined the number of training epochs $N_{epoch}=100-10,000$ depending on the application. The user can optionally monitor a live view of the training progress with Tensorboard \citep{tensorflow2015-whitepaper} to gain an intuition for the training efficiency.
 
 
-\begin{figure*}[hbt!]
+\begin{figure}[hbt!]
     \centering
-    \includegraphics[width=0.6\textwidth]{figures/blase_clone_demo.png}
+    \includegraphics[width=1.0\columnwidth]{figures/blase_clone_demo.png}
     \caption{PHOENIX spectrum cloned with blas\'e.  This $T_{\mathrm{eff}}=4700\;$K,  $\log{g}=4.5$ solar metallicity model has 9,028 individual cloned spectral lines, each with 3 tuned parameters.  The pictured 50 \AA~ chunk contains 121 spectral lines and represents about 1$\%$ of the entire spectral bandwidth that was cloned.  Some flaws can be seen near the cores of deep lines, or wings of broad lines.}
     \label{fig_cloned_spectrum_demo}
-\end{figure*}
+\end{figure}
 
 
 Figure \ref{fig_cloned_spectrum_demo} shows a portion of a PHOENIX spectrum cloned with \texttt{blas\'e}. The $1000$ epochs of training took 56 seconds on an NVIDIA\textsuperscript{\tiny\textregistered} RTX2070 GPU with \texttt{PyTorch v1.11}, \texttt{CUDA v11.1}, and Intel\textsuperscript{\tiny\textregistered} Core\textsuperscript{\tiny TM} i7-9750H CPUs at 2.60GHz, with all tensors as FP64. The same computation on a 2020 M1 Macbook Air took 1$^h$25$^m$ with \texttt{PyTorch v1.9}, $90\times$ slower than the GPU counterpart.
@@ -369,7 +369,7 @@ where the hat notation demarcates the amplitudes obtained from cloning, \emph{i.
 
 This weak degree of regularization has the effect of permitting refinement of only the most conspicuous data-model mismatches; the weakest lines do not bother to move from their initial state because doing so would penalize the regularization without enough reduction of the overall loss.  The extrinsic $v\sin{i}$ and $RV$ have no regularization, but in practice, they need to be initialized close to their plausible values.
 
-\section{Results: Comparison to data}
+\section{Results: Comparison to data}\label{secResults}
 \subsection{WASP 69 with HPF}
 
 The planet-host star WASP 69 makes a great benchmark because it has a low $v\sin{i}=2.2\pm0.4~\text{km/s}$ \citep{2017A&A...608A.135C}, making its lines sharp and easy to perceive.  The K5 dwarf has an effective temperature of about 4700 K, $\log{g}=4.535\pm0.023$, and slightly super-solar metallicity \citep{2014MNRAS.445.1114A}.
@@ -403,7 +403,7 @@ The inferred, semi-empirical high-resolution model for WASP 69 is therefore the 
 \end{figure}
 
 
-The low $v\sin{i}$ of WASP 69 means that the line profile broadening arises principally from the finite instrumental resolution.  The interplay of telluric lines and stellar lines within an instrumental resolution element is exactly one of the challenges blas\'e was designed to solve, as discussed in Section \ref{sectionTelluric}.  In Figure \ref{fig_multi_panel_WASP69} we show a multi-panel dissection of the HPF spectrum in a wavelength region in which conspicuous stellar and telluric lines coexist.  The blas\'e end-to-end model exhibits excellent agreement with the data when compared to the initial model.
+The low $v\sin{i}$ of WASP 69 means that the line profile broadening arises principally from the finite instrumental resolution.  The interplay of telluric lines and stellar lines within an instrumental resolution element is exactly one of the challenges blas\'e was designed to solve, as discussed in Section \ref{sectionTelluric}.  In Figure \ref{fig_multi_panel_WASP69} we show a multi-panel dissection of the HPF spectrum in a wavelength region in which conspicuous stellar and telluric lines coexist.  The blas\'e end-to-end model exhibits excellent agreement with the data.  The trustworthiness of the line properties inferred in locations where stellar and telluric lines exactly overlap remains an open research question: a tie-breaker is needed to distinguish these overlapping line inferrences.  We discuss conceivable tie-brakers later in the paper.
 
 \begin{figure*}[hbt!]
     \centering
@@ -413,11 +413,9 @@ The low $v\sin{i}$ of WASP 69 means that the line profile broadening arises prin
 \end{figure*}
 
 
-
-
 \subsection{Comparison to IGRINS spectra of a T6 Ultracool Dwarf}
 
-Here we demo on IGRINS data from \citet{2022MNRAS.tmp.1421T}.
+The T6 ultracool dwarf 2MASS J08173001$−$6155158 was recently observed with IGRINS, reveal a spectroscopic atlas of molecules in its $T_\mathrm{eff} = 1060 \pm 50$ cloud-free atmosphere \citet{2022MNRAS.tmp.1421T}.  
 
 \begin{figure*}[hbt!]
     \centering
@@ -426,9 +424,6 @@ Here we demo on IGRINS data from \citet{2022MNRAS.tmp.1421T}.
     \label{fig_IGRINS_sonora_demo}
 \end{figure*}
 
-
-\subsection{End-to-end validation with injection/recovery tests}\label{secInjRec}
-\lipsum[2-3]
 
 \section{Discussion}\label{secDiscuss}
 
