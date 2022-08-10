@@ -474,7 +474,7 @@ Already \texttt{blas\'e} is equipped to fit every single line with its own syste
 To-be-completed
 
 \subsection{Accretion Veiling}
-
+To-be-completed
 
 
 
@@ -628,7 +628,7 @@ For very large bandwidths and very many spectral lines, the problem of identifyi
 
 \section{Conceivable Technical Improvements}\label{technicalInnovations}
 
-
+Blas\'e already performs very well under a wide range of cloning and transfer-learning tasks.  However, some precision applications may demand even-more-strenuous performance than what the current implementation can accomodate.  Here we describe some of these technical improvements, their design, and/or mention some science case they may unlock.
 
 \subsection{Exact instead of pseudo Voigt Profile}
 We currently employ the pseudo-Voigt profile for its low computational cost.  We have a prototype exact-Voigt-Hjerting implementation following \citet{2022ApJS..258...31K}.  We coarsely estimate that moving to this exact-Voigt implementation could decrease some residual regions by $\sim 30\%$, while increasing the computational cost by more than $10\times$ over the existing pseudo-Voigt approximation.  The exact-Voigt-Hjerting implementation still outbids the higher cost of a direct numerical convolution of a Gaussian and Lorentzian profile.
