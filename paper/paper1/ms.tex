@@ -413,34 +413,25 @@ The low $v\sin{i}$ of WASP 69 means that the line profile broadening arises prin
 \end{figure*}
 
 
-\subsection{Comparison to IGRINS spectra of a T6 Ultracool Dwarf}
+\subsection{IGRINS spectrum of a T6 Ultracool Dwarf}
 
-The T6 ultracool dwarf 2MASS J08173001$−$6155158 was recently observed with IGRINS, reveal a spectroscopic atlas of molecules in its $T_\mathrm{eff} = 1060 \pm 50$ cloud-free atmosphere \citet{2022MNRAS.tmp.1421T}.  
+The T6 ultracool dwarf 2MASS J08173001$-$6155158 was recently observed with IGRINS, revealing a rich spectroscopic atlas of molecules in its $T_\mathrm{eff} = 1060 \pm 50$ cloud-free atmosphere \citep{2022MNRAS.tmp.1421T}.  The sea of moleculaar lines are so rich as to blur entirely the notion of isolated lines.  Virtually all lines should instead be considered pseudo lines, computed using the opacity agglomeration technique known as ``correlated-$k$''.  The boundaries of lines for 2MASS J08173001$-$6155158 become even more amorphous in the presence of its moderately high $v\sin{i} = 22.5\pm 0.5 ~ \text{km/s}$ \citep{2022MNRAS.tmp.1421T} rotational broadening.  This T6 IGRINS spectrum therefore represents an extreme end of a test-case, in which the underlying notions of \emph{blas\'e} go outside the comparatively safe stellar spectra.  The application of blas\'e to 2MASS J08173001$-$6155158 can be viewed as conducting a deconvolution step simultaneously paired with its line-by-line inference capability in one-fell-swoop.
+
+We initialize \texttt{blas\'e} with the nearest Sonora template with $T_\mathrm{eff} = 1100~\text{K}$, $\log{g}=5.0$, and solar metallicity.  Figure \ref{fig_IGRINS_sonora_demo} shows the clone of this native spectrum near the peak of the $H-$band. The cloning performance appears adequate to capture most of the molecular pseudo-lines, with a few notable shortcomings. The high signal-to-noise ratio of this IGRINS spectrum lays bare the departures from the broadened Sonora-Bobcat model, albeit with surprisingly close agreement given the challenge of substellar atmosphere modeling.  The line-by-line departures from Sonora exceed any minor flaws from the cloning process, indicating genuine opacity differences between the data and Sonora template.  Our technique automatically detects and reports the underlying structure of data-model mismatches, a key milestone for the assembly of refined opacity tables in this cool dwarf temperature regime.
 
 \begin{figure*}[hbt!]
     \centering
     \includegraphics[width=0.98\textwidth]{figures/IGRINS_T6_sonora_demo.png}
-    \caption{Before, middle, and after the blase transfer learning.  }
+    \caption{Line-by-line dissection of the 2MASS J08173001$-$6155158 IGRINS spectrum.  The \emph{top} panel compares the native Sonora-Bobcat spectrum to the blas\'e clone.  We match the RV shift of the observed spectrum (thick black line) and convolve the initial and learned Sonora template to the large $v\sin{i}$.  The bottom panel shows the locations and extents of line mismatches at the native resolution of Sonora.}
     \label{fig_IGRINS_sonora_demo}
 \end{figure*}
 
 
 \section{Discussion}\label{secDiscuss}
 
-\subsection{Comparison to existing frameworks}
+\subsection{How to interpret line-by-line properties}
 
-Several astronomical spectral frameworks share similar aims as \texttt{blas\'e}.  These existing frameworks will have enduring value for the wide range of problems in the field of stellar spectroscopy.  Here we scrutinize the differences among some of these approaches to clarify how this work fits in.
-
-The \texttt{specmatch} synthetic template matching tool produces noise-free nearest neighbor templates given an input spectrum \citep{2015PhDT........82P}.  Several practical barriers limit the accuracy of using precomputed synthetic spectral models alone. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions that our models do.  Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere is challenging.
-
-
-The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but is still too rigid for some applications and requires the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates with high resolving power and low $v\sin{i}$ has not yet been established in the near-infrared.
-
-The \texttt{wobble} framework \citep{2019AJ....158..164B} modernized the construction of high-SNR templates to account for temporally variable telluric lines. The tool requires dozens of high-SNR spectra acquired at a range of Barycentric Earth Radial Velocities (BERVs).  The final telluric-free combined spectrum would still have to be compared to models for absolute calibration or can be used out-of-the-box for precision relative RVs.  The \texttt{wobble} framework also pioneered the off-label application of automatic differentiation frameworks---in this case \texttt{TensorFlow}---towards their physically-motivated use in stellar spectra.  \texttt{blas\'e} can be viewed as an evaluable and interpretable super-resolution version of \texttt{wobble}, that accepts more bias in the bias-variance tradeoff.
-
-The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with resilience to model imperfections by addressing the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models \citep{2021ApJ...921...95Z}.  The Spectral Inference Crank \citep[\texttt{sick},][]{2016ApJS..223....8C} shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.
-
-For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
+Up to this point we have presented the mechanics of blas\'e, and shown that it applies to a wide range of applications from stars, substars, and Earth's atmosphere. 
 
 
 \section{Conceivable Improvements, Extensions, and Limitations}\label{secFutureWork}
@@ -650,6 +641,24 @@ The sparse matrix gets rebranded as filled with opacity values, instead of log-f
     $\odot$& \emph{Hadamard product}, an elementwise product of two same-length vectors\\
     \enddata
 \end{deluxetable}
+
+
+\section{Comparison to existing spectroscopy frameworks}
+Several astronomical spectral frameworks share similar aims as \texttt{blas\'e}.  These existing frameworks will have enduring value for the wide range of problems in the field of stellar spectroscopy.  Here we scrutinize the differences among some of these approaches to clarify how this work fits in.
+
+The \texttt{specmatch} synthetic template matching tool produces noise-free nearest neighbor templates given an input spectrum \citep{2015PhDT........82P}.  Several practical barriers limit the accuracy of using precomputed synthetic spectral models alone. First and foremost, real stars are usually more complicated than our simplified models of them. Real spectra often vary over more dimensions that our models do.  Conspicuous examples of these hidden variables can be found in protostars: starspots, accretion veiling, dust extinction, and magnetic Zeeman splitting. Jointly modeling all of these phenomena alongside the intrinsic stellar photosphere is challenging.
+
+
+The empirical version, \texttt{specmatch-emp} \citep{2017ApJ...836...77Y} matched spectra better than the synthetic templates, but is still too rigid for some applications and requires the assembly of hundreds of standardized high signal-to-noise-ratio templates, ideally with low intrinsic rotational broadening.  Such a large number of high-quality templates with high resolving power and low $v\sin{i}$ has not yet been established in the near-infrared.
+
+The \texttt{wobble} framework \citep{2019AJ....158..164B} modernized the construction of high-SNR templates to account for temporally variable telluric lines. The tool requires dozens of high-SNR spectra acquired at a range of Barycentric Earth Radial Velocities (BERVs).  The final telluric-free combined spectrum would still have to be compared to models for absolute calibration or can be used out-of-the-box for precision relative RVs.  The \texttt{wobble} framework also pioneered the off-label application of automatic differentiation frameworks---in this case \texttt{TensorFlow}---towards their physically-motivated use in stellar spectra.  \texttt{blas\'e} can be viewed as an evaluable and interpretable super-resolution version of \texttt{wobble}, that accepts more bias in the bias-variance tradeoff.
+
+The \texttt{starfish} framework \citep{czekala15} provides a robust likelihood function for data-model comparisons and retires many of the problems in this domain.  \texttt{starfish} pioneered the use of whole-spectrum fitting with resilience to model imperfections by addressing the problem of what to do when the underlying atomic and molecular data was wrong or approximate or missing.  It has been extended to inferring starspot physical properties \citep{2017ApJ...836..200G}, measuring veiling in Class 0 protostars \citep{2018ApJ...862...85G}, and quantifying imperfections in brown dwarf models \citep{2021ApJ...921...95Z}.  The Spectral Inference Crank \citep[\texttt{sick},][]{2016ApJS..223....8C} shares similar aims as \texttt{starfish}, and provides additional useful grid search capabilities.
+
+For very large bandwidths and very many spectral lines, the problem of identifying and cataloging line imperfections essentially becomes a book-keeping and continuum assignment problem.  \texttt{blas\'e} and \texttt{starfish} provide different strategies for orchestrating the line-mismatch identification procedure, with each route having tradeoffs depending on the application.
+
+
+
 
 \end{document}
 
