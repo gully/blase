@@ -485,7 +485,7 @@ class SparseLinearEmulator(LinearEmulator):
         sparse_matrix = torch.sparse_coo_tensor(
             self.indices, ln_term, size=(self.n_pix,), requires_grad=True
         )
-
+        # The operation below does a COALESCE operation on the sparse matrix by default!
         result_1D = sparse_matrix.to_dense()
 
         return torch.exp(result_1D)
