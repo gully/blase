@@ -304,7 +304,7 @@ class SparseLinearEmulator(LinearEmulator):
         )
 
         if self.flux_native is not None:
-            self.target = jax.array(self.flux_active)
+            self.target = jnp.array(self.flux_active)
         else:
             self.target = None
 
@@ -325,24 +325,32 @@ class SparseLinearEmulator(LinearEmulator):
         # From that, determine the beginning and ending indices
         zero_indices = center_indices - (wing_cut_pixels // 2)
         too_low = zero_indices < 0
-        zero_indices[too_low] = 0
+
+        ## The next lines are a JAX workaround for item assignment:
+        # zero_indices[too_low] = 0 # can't do this in JAX
+        zero_indices = zero_indices.at[too_low].set(0)
+
         end_indices = zero_indices + wing_cut_pixels
         too_high = end_indices > self.n_pix
-        zero_indices[too_high] = self.n_pix - wing_cut_pixels - 1
-        end_indices[too_high] = self.n_pix - 1
+
+        ## The next lines are a JAX workaround for item assignment:
+        # zero_indices[too_low] = 0 # can't do this in JAX
+        zero_indices = zero_indices.at[too_high].set(self.n_pix - wing_cut_pixels - 1)
+        end_indices = end_indices.at[too_high].set(self.n_pix - 1)
 
         # Make a 2D array of the indices
         indices_2D = np.linspace(
             zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
         )
 
-        self.indices_2D = jnp.array(indices_2D.T, dtype=jnp.long)
+        self.indices_2D = jnp.array(indices_2D.T, dtype=jnp.int32)
         self.indices_1D = self.indices_2D.reshape(-1)
-        self.indices = self.indices_1D.unsqueeze(0)
-        self.wl_2D = self.wl_native.to(device)[self.indices_2D]
-        self.wl_1D = self.wl_2D.reshape(-1)
-        self.active_mask = self.active_mask.to(device)
+        self.indices = np.expand_dims(self.indices_1D, axis=0)
 
+        ## TODO ... keep unsqueeze should be expand dims
+        self.wl_2D = self.wl_native[self.indices_2D]
+        self.wl_1D = self.wl_2D.reshape(-1)
+        self.active_mask = self.active_mask
         self.radial_velocity = jnp.array(0.0)
 
     def forward(self):
