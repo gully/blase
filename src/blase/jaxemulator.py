@@ -11,6 +11,8 @@ import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 from tqdm import trange
 
+# jax.config.update("jax_enable_x64", True)
+
 
 class LinearEmulator(object):
     r"""
@@ -353,7 +355,7 @@ class SparseLinearEmulator(LinearEmulator):
         self.active_mask = self.active_mask
         self.radial_velocity = jnp.array(0.0)
 
-    def forward(self):
+    def forward(self, ln_amplitudes):
         r"""The forward pass of the sparse implementation--- no wavelengths needed!
 
         Returns
@@ -361,34 +363,9 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
-        return self.sparse_pseudo_Voigt_model()
+        return self.sparse_pseudo_Voigt_model(ln_amplitudes)
 
-    def sparse_gaussian_model(self):
-        """A sparse Gaussian-only model
-
-        Returns:
-            (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
-        """
-        flux_2D = jnp.exp(self.amplitudes)[:, None] * self.gaussian_line(
-            self.lam_centers[:, None],
-            jnp.exp(self.sigma_widths)[:, None],
-            self.wl_2D,
-        )
-
-        flux_1D = flux_2D.reshape(-1)
-        ln_term = jnp.log(1 - flux_1D)
-
-        ## TODO fix this part!
-
-        # sparse_matrix = jnp.sparse_coo_tensor(
-        #    self.indices, ln_term, size=(self.n_pix,), requires_grad=True
-        # )
-
-        # result_1D = sparse_matrix.to_dense()
-
-        return ln_term
-
-    def sparse_pseudo_Voigt_model(self):
+    def sparse_pseudo_Voigt_model(self, ln_amplitudes):
         r"""A sparse pseudo-Voigt model
 
         The sparse matrix :math:`\hat{F}` is composed of the log flux
@@ -414,7 +391,7 @@ class SparseLinearEmulator(LinearEmulator):
             1.0 + self.radial_velocity / 299_792.458
         )
 
-        flux_2D = jnp.exp(self.amplitudes)[:, None] * (
+        flux_2D = jnp.exp(ln_amplitudes)[:, None] * (
             eta
             * self._lorentzian_line(
                 rv_shifted_centers[:, None],
@@ -440,4 +417,4 @@ class SparseLinearEmulator(LinearEmulator):
         flux_out = jnp.zeros_like(self.flux_native)
         flux_out = flux_out.at[self.indices_1D].add(ln_term)
 
-        return jnp.exp(flux_out)
+        return jnp.exp(flux_out)[self.active_mask]
