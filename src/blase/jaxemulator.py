@@ -241,23 +241,23 @@ class LinearEmulator(object):
         ----------
         .. [1] https://en.wikipedia.org/wiki/Pseudo-Voigt_profile
         """
-        fwhm_G = 2.3548 * jnp.exp(self.sigma_widths).unsqueeze(1)
-        fwhm_L = 2.0 * jnp.exp(self.gamma_widths).unsqueeze(1)
+        fwhm_G = 2.3548 * jnp.expand_dims(jnp.exp(self.sigma_widths), 1)
+        fwhm_L = 2.0 * jnp.expand_dims(jnp.exp(self.gamma_widths), 1)
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
 
-        return jnp.exp(self.amplitudes).unsqueeze(1) * (
+        return jnp.exp(self.amplitudes)[:, None] * (
             eta
             * self._lorentzian_line(
-                self.lam_centers.unsqueeze(1),
-                jnp.exp(self.gamma_widths).unsqueeze(1),
-                wavelengths.unsqueeze(0),
+                self.lam_centers[:, None],
+                jnp.exp(self.gamma_widths)[:, None],
+                wavelengths[:, None],
             )
             + (1 - eta)
             * self._gaussian_line(
-                self.lam_centers.unsqueeze(1),
-                jnp.exp(self.sigma_widths).unsqueeze(1),
-                wavelengths.unsqueeze(0),
+                self.lam_centers[:, None],
+                jnp.exp(self.sigma_widths)[:, None],
+                wavelengths[:, None],
             )
         )
 
@@ -369,9 +369,9 @@ class SparseLinearEmulator(LinearEmulator):
         Returns:
             (torch.tensor): the 1D generative spectral model destined for backpropagation parameter tuning
         """
-        flux_2D = jnp.exp(self.amplitudes).unsqueeze(1) * self.gaussian_line(
-            self.lam_centers.unsqueeze(1),
-            jnp.exp(self.sigma_widths).unsqueeze(1),
+        flux_2D = jnp.exp(self.amplitudes)[:, None] * self.gaussian_line(
+            self.lam_centers[:, None],
+            jnp.exp(self.sigma_widths)[:, None],
             self.wl_2D,
         )
 
@@ -405,8 +405,8 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative sparse spectral model
         """
-        fwhm_G = 2.3548 * jnp.exp(self.sigma_widths).unsqueeze(1)
-        fwhm_L = 2.0 * jnp.exp(self.gamma_widths).unsqueeze(1)
+        fwhm_G = 2.3548 * jnp.exp(self.sigma_widths)[:, None]
+        fwhm_L = 2.0 * jnp.exp(self.gamma_widths)[:, None]
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
 
@@ -414,32 +414,30 @@ class SparseLinearEmulator(LinearEmulator):
             1.0 + self.radial_velocity / 299_792.458
         )
 
-        flux_2D = jnp.exp(self.amplitudes).unsqueeze(1) * (
+        flux_2D = jnp.exp(self.amplitudes)[:, None] * (
             eta
             * self._lorentzian_line(
-                rv_shifted_centers.unsqueeze(1),
-                jnp.exp(self.gamma_widths).unsqueeze(1),
+                rv_shifted_centers[:, None],
+                jnp.exp(self.gamma_widths)[:, None],
                 self.wl_2D,
             )
             + (1 - eta)
             * self._gaussian_line(
-                rv_shifted_centers.unsqueeze(1),
-                jnp.exp(self.sigma_widths).unsqueeze(1),
+                rv_shifted_centers[:, None],
+                jnp.exp(self.sigma_widths)[:, None],
                 self.wl_2D,
             )
         )
 
         # Enforce that you cannot have negative flux or emission lines
-        flux_2D = jnp.clip(flux_2D, min=0.0, max=0.999999999)
+        flux_2D = jnp.clip(flux_2D, 0.0, 0.999999999)
 
         flux_1D = flux_2D.reshape(-1)
         ln_term = jnp.log(1 - flux_1D)
 
-        ## TODO fix this!
-        # sparse_matrix = torch.sparse_coo_tensor(
-        #    self.indices, ln_term, size=(self.n_pix,), requires_grad=True
-        # )
-        # The operation below does a COALESCE operation on the sparse matrix by default!
-        # result_1D = sparse_matrix.to_dense()
+        ## This operation applies a sparse COALESCE operation:
+        # Repeated indices get added together.
+        flux_out = jnp.zeros_like(self.flux_native)
+        flux_out = flux_out.at[self.indices_1D].add(ln_term)
 
-        return ln_term  # torch.exp(result_1D)
+        return jnp.exp(flux_out)
