@@ -124,27 +124,6 @@ class LinearEmulator(object):
 
         self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
 
-    def product_of_pseudovoigt_model(self, wl):
-        r"""Return the Product of pseudo-Voigt profiles
-
-        The product acts like a matrix contraction:
-
-        .. math:: \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
-
-        Parameters
-        ----------
-        wl : torch.tensor
-            The input wavelength :math:`\mathbf{\lambda}_S` at which to
-            evaluate the model
-
-        Returns
-        -------
-        torch.tensor
-            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}`
-            destined for backpropagation parameter tuning
-        """
-        return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
-
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
 
@@ -201,71 +180,6 @@ class LinearEmulator(object):
             + 0.07842 * fwhm_G**1 * fwhm_L**4
             + fwhm_L**5
         ) ** (1 / 5)
-
-    def pseudo_voigt_profiles(self, wavelengths):
-        r"""Compute the pseudo-Voigt Profile for a collection of lines
-
-        Much faster than the exact Voigt profile, but not as accurate:
-
-        .. math::
-
-            \mathsf{V}(\lambda_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)
-
-
-        Parameters
-        ----------
-        wavelengths : torch.tensor
-            The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to
-            evaluate the model
-
-        Returns
-        -------
-        torch.tensor
-            The 1D pseudo-Voigt profiles
-
-        Notes
-        -----
-        The pseudo-Voigt [1]_ is an approximation to the convolution of a
-        Lorentzian profile :math:`L(\lambda,f)` and Gaussian profile :math:`G(\lambda,f)`
-
-        .. math::  V_p(\lambda,f) = \eta \cdot L(\lambda, f) + (1 - \eta) \cdot G(\lambda,f)
-
-        with mixture pre-factor:
-
-        .. math::  \eta = 1.36603 (f_L/f) - 0.47719 (f_L/f)^2 + 0.11116(f_L/f)^3
-
-        and FWHM:
-
-        .. math::  f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}
-
-
-        References
-        ----------
-        .. [1] https://en.wikipedia.org/wiki/Pseudo-Voigt_profile
-        """
-        fwhm_G = 2.3548 * jnp.expand_dims(jnp.exp(self.sigma_widths), 1)
-        fwhm_L = 2.0 * jnp.expand_dims(jnp.exp(self.gamma_widths), 1)
-        fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
-        eta = self._compute_eta(fwhm_L, fwhm)
-
-        return jnp.exp(self.amplitudes)[:, None] * (
-            eta
-            * self._lorentzian_line(
-                self.lam_centers[:, None],
-                jnp.exp(self.gamma_widths)[:, None],
-                wavelengths[:, None],
-            )
-            + (1 - eta)
-            * self._gaussian_line(
-                self.lam_centers[:, None],
-                jnp.exp(self.sigma_widths)[:, None],
-                wavelengths[:, None],
-            )
-        )
-
-    def optimize(self):
-        """Optimize the model parameters"""
-        raise NotImplementedError
 
 
 class SparseLinearEmulator(LinearEmulator):
@@ -355,7 +269,7 @@ class SparseLinearEmulator(LinearEmulator):
         self.active_mask = self.active_mask
         self.radial_velocity = jnp.array(0.0)
 
-    def forward(self, ln_amplitudes):
+    def forward(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
         r"""The forward pass of the sparse implementation--- no wavelengths needed!
 
         Returns
@@ -363,9 +277,13 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
-        return self.sparse_pseudo_Voigt_model(ln_amplitudes)
+        return self.sparse_pseudo_Voigt_model(
+            ln_amplitudes, ln_sigma_widths, ln_gamma_widths
+        )
 
-    def sparse_pseudo_Voigt_model(self, ln_amplitudes):
+    def sparse_pseudo_Voigt_model(
+        self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths
+    ):
         r"""A sparse pseudo-Voigt model
 
         The sparse matrix :math:`\hat{F}` is composed of the log flux
@@ -382,8 +300,8 @@ class SparseLinearEmulator(LinearEmulator):
         torch.tensor
             The 1D generative sparse spectral model
         """
-        fwhm_G = 2.3548 * jnp.exp(self.sigma_widths)[:, None]
-        fwhm_L = 2.0 * jnp.exp(self.gamma_widths)[:, None]
+        fwhm_G = 2.3548 * jnp.exp(ln_sigma_widths)[:, None]
+        fwhm_L = 2.0 * jnp.exp(ln_gamma_widths)[:, None]
         fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
         eta = self._compute_eta(fwhm_L, fwhm)
 
@@ -395,19 +313,19 @@ class SparseLinearEmulator(LinearEmulator):
             eta
             * self._lorentzian_line(
                 rv_shifted_centers[:, None],
-                jnp.exp(self.gamma_widths)[:, None],
+                jnp.exp(ln_gamma_widths)[:, None],
                 self.wl_2D,
             )
             + (1 - eta)
             * self._gaussian_line(
                 rv_shifted_centers[:, None],
-                jnp.exp(self.sigma_widths)[:, None],
+                jnp.exp(ln_sigma_widths)[:, None],
                 self.wl_2D,
             )
         )
 
         # Enforce that you cannot have negative flux or emission lines
-        flux_2D = jnp.clip(flux_2D, 0.0, 0.999999999)
+        flux_2D = jnp.clip(flux_2D, 1e-6, 1 - 1e-6)
 
         flux_1D = flux_2D.reshape(-1)
         ln_term = jnp.log(1 - flux_1D)
