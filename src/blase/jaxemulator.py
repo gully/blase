@@ -14,30 +14,36 @@ from tqdm import trange
 # jax.config.update("jax_enable_x64", True)
 
 
-class LinearEmulator(object):
+class SparseLinearEmulator(object):
     r"""
-    Model for cloning a precomputed synthetic spectrum in linear flux.
-
-    :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
+    A sparse implementation of the LinearEmulator
 
     Parameters
     ----------
-    wl_native :  torch.tensor
-        The vector of input wavelengths at native resolution and sampling
-    flux_native : torch.tensor or None
-        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the
-        optimize method does not work.
-    prominence : int or None
-        The threshold prominence for peak finding, defaults to 0.03.  Ignored if init_state_dict is provided.
+    wl_native : float vector
+        The input wavelength at native sampling
+    flux_native : float vector
+        The continuum-flattened flux at native sampling
+    prominence : int
+        The threshold for detecting lines
+    device : Torch Device or str
+        GPU or CPU?
+    wing_cut_pixels : int
+        The number of pixels centered on the line center to evaluate in the
+        sparse implementation, default: 1000 pixels
     init_state_dict : dict
         A dictionary of model parameters to initialize the model with
     """
 
     def __init__(
-        self, wl_native, flux_native=None, prominence=None, init_state_dict=None
+        self,
+        wl_native,
+        flux_native=None,
+        prominence=None,
+        device=None,
+        wing_cut_pixels=None,
+        init_state_dict=None,
     ):
-        super().__init__()
-
         # Read in the synthetic spectra at native resolution
         self.wl_native = jnp.array(wl_native)
         self.wl_min = wl_native.min()
@@ -124,6 +130,56 @@ class LinearEmulator(object):
 
         self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
 
+        if self.flux_native is not None:
+            self.target = jnp.array(self.flux_active)
+        else:
+            self.target = None
+
+        ## Define the wing cut
+        # Currently defined in *pixels*
+        if wing_cut_pixels is None:
+            wing_cut_pixels = 1000
+        else:
+            wing_cut_pixels = int(wing_cut_pixels)
+
+        lines = self.lam_centers
+        wl_native = self.wl_native
+        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
+
+        # Find the index position of each spectral line
+        center_indices = np.searchsorted(wl_native, lines)
+
+        # From that, determine the beginning and ending indices
+        zero_indices = center_indices - (wing_cut_pixels // 2)
+        too_low = zero_indices < 0
+
+        ## The next lines are a JAX workaround for item assignment:
+        # zero_indices[too_low] = 0 # can't do this in JAX
+        zero_indices = zero_indices.at[too_low].set(0)
+
+        end_indices = zero_indices + wing_cut_pixels
+        too_high = end_indices > self.n_pix
+
+        ## The next lines are a JAX workaround for item assignment:
+        # zero_indices[too_low] = 0 # can't do this in JAX
+        zero_indices = zero_indices.at[too_high].set(self.n_pix - wing_cut_pixels - 1)
+        end_indices = end_indices.at[too_high].set(self.n_pix - 1)
+
+        # Make a 2D array of the indices
+        indices_2D = np.linspace(
+            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
+        )
+
+        self.indices_2D = jnp.array(indices_2D.T, dtype=jnp.int32)
+        self.indices_1D = self.indices_2D.reshape(-1)
+        self.indices = np.expand_dims(self.indices_1D, axis=0)
+
+        ## TODO ... keep unsqueeze should be expand dims
+        self.wl_2D = self.wl_native[self.indices_2D]
+        self.wl_1D = self.wl_2D.reshape(-1)
+        self.active_mask = self.active_mask
+        self.radial_velocity = jnp.array(0.0)
+
     def detect_lines(self, wl_native, flux_native, prominence=0.03):
         """Identify the spectral lines in the native model
 
@@ -180,94 +236,6 @@ class LinearEmulator(object):
             + 0.07842 * fwhm_G**1 * fwhm_L**4
             + fwhm_L**5
         ) ** (1 / 5)
-
-
-class SparseLinearEmulator(LinearEmulator):
-    r"""
-    A sparse implementation of the LinearEmulator
-
-    Parameters
-    ----------
-    wl_native : float vector
-        The input wavelength at native sampling
-    flux_native : float vector
-        The continuum-flattened flux at native sampling
-    prominence : int
-        The threshold for detecting lines
-    device : Torch Device or str
-        GPU or CPU?
-    wing_cut_pixels : int
-        The number of pixels centered on the line center to evaluate in the
-        sparse implementation, default: 1000 pixels
-    init_state_dict : dict
-        A dictionary of model parameters to initialize the model with
-    """
-
-    def __init__(
-        self,
-        wl_native,
-        flux_native=None,
-        prominence=None,
-        device=None,
-        wing_cut_pixels=None,
-        init_state_dict=None,
-    ):
-        super().__init__(
-            wl_native,
-            flux_native=flux_native,
-            prominence=prominence,
-            init_state_dict=init_state_dict,
-        )
-
-        if self.flux_native is not None:
-            self.target = jnp.array(self.flux_active)
-        else:
-            self.target = None
-
-        ## Define the wing cut
-        # Currently defined in *pixels*
-        if wing_cut_pixels is None:
-            wing_cut_pixels = 1000
-        else:
-            wing_cut_pixels = int(wing_cut_pixels)
-
-        lines = self.lam_centers
-        wl_native = self.wl_native
-        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
-
-        # Find the index position of each spectral line
-        center_indices = np.searchsorted(wl_native, lines)
-
-        # From that, determine the beginning and ending indices
-        zero_indices = center_indices - (wing_cut_pixels // 2)
-        too_low = zero_indices < 0
-
-        ## The next lines are a JAX workaround for item assignment:
-        # zero_indices[too_low] = 0 # can't do this in JAX
-        zero_indices = zero_indices.at[too_low].set(0)
-
-        end_indices = zero_indices + wing_cut_pixels
-        too_high = end_indices > self.n_pix
-
-        ## The next lines are a JAX workaround for item assignment:
-        # zero_indices[too_low] = 0 # can't do this in JAX
-        zero_indices = zero_indices.at[too_high].set(self.n_pix - wing_cut_pixels - 1)
-        end_indices = end_indices.at[too_high].set(self.n_pix - 1)
-
-        # Make a 2D array of the indices
-        indices_2D = np.linspace(
-            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
-        )
-
-        self.indices_2D = jnp.array(indices_2D.T, dtype=jnp.int32)
-        self.indices_1D = self.indices_2D.reshape(-1)
-        self.indices = np.expand_dims(self.indices_1D, axis=0)
-
-        ## TODO ... keep unsqueeze should be expand dims
-        self.wl_2D = self.wl_native[self.indices_2D]
-        self.wl_1D = self.wl_2D.reshape(-1)
-        self.active_mask = self.active_mask
-        self.radial_velocity = jnp.array(0.0)
 
     def forward(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
         r"""The forward pass of the sparse implementation--- no wavelengths needed!
