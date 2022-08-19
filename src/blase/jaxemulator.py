@@ -4,6 +4,7 @@ emulator
 
 Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
 """
+from dataclasses import dataclass
 import math
 import jax
 import jax.numpy as jnp
@@ -26,8 +27,6 @@ class SparseLinearEmulator(object):
         The continuum-flattened flux at native sampling
     prominence : int
         The threshold for detecting lines
-    device : Torch Device or str
-        GPU or CPU?
     wing_cut_pixels : int
         The number of pixels centered on the line center to evaluate in the
         sparse implementation, default: 1000 pixels
@@ -40,7 +39,6 @@ class SparseLinearEmulator(object):
         wl_native,
         flux_native=None,
         prominence=None,
-        device=None,
         wing_cut_pixels=None,
         init_state_dict=None,
     ):
@@ -174,7 +172,6 @@ class SparseLinearEmulator(object):
         self.indices_1D = self.indices_2D.reshape(-1)
         self.indices = np.expand_dims(self.indices_1D, axis=0)
 
-        ## TODO ... keep unsqueeze should be expand dims
         self.wl_2D = self.wl_native[self.indices_2D]
         self.wl_1D = self.wl_2D.reshape(-1)
         self.active_mask = self.active_mask
