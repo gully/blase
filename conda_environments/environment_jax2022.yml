@@ -1,0 +1,17 @@
+name: blase_jax2022
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.8
+  - numpy
+  - scipy
+  - matplotlib
+  - astropy
+  - tqdm
+  - pandas
+  - jupyter
+  - ipython
+  - pytest
+  - pip
+  - black
