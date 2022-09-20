@@ -106,9 +106,7 @@ The result should be a flattened ``continuum-normalized'' spectrum familiar to p
     \label{eqnFlattening}
 \end{eqnarray}
 
-
-where the division indicates element-wise division of these arrays or ``vectors'' of flux values.
-
+\noindent where the division indicates element-wise division of these arrays or ``vectors'' of flux values.
 
 \begin{figure}[hbt!]
     \centering
@@ -145,7 +143,7 @@ We have now arrived at the \texttt{blas\'e} clone model $\mathsf{S}_{\rm clone}(
     \mathsf{S}_{\rm clone} = {\displaystyle \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j } \label{equation1}
 \end{eqnarray}
 
-where $\mathsf{V}_j$ is the Voigt profile $\mathsf{V}(\bm{\lambda}_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)$ with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line. The amplitude $a$ is always expected to be positive for absorption lines.
+\noindent where $\mathsf{V}_j$ is the Voigt profile $\mathsf{V}(\bm{\lambda}_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)$ with Gaussian standard deviation $\sigma$, Lorentzian half-width $\gamma$, at line center position $\lambda_c$, for the $j^{th}$ spectral line. The amplitude $a$ is always expected to be positive for absorption lines.
 
 The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in exact closed-form using the Voigt-Hjerting function \citep{1938ApJ....88..508H} as the real part of the complex Fadeeva function \citep[\emph{e.g.}][]{2011arXiv1106.0151Z}. Evaluation of the Fadeeva function can be computationally costly, and so approximate forms may be desirable. Here we adopt the pseudo-Voigt approximation \citep{Ida:nt0146}.
 
@@ -200,7 +198,7 @@ We can rewrite Equation \ref{equation1} as a sum by taking the log of both sides
 \end{eqnarray}
 
 
-where $\mathbf{1}$ is a $1\times N_{\rm lines}$ row vector of all-ones. We re\"emphasize that---in its current form---each spectral line has to be painstakingly evaluated across the entire spectral bandwidth.   Efficient GPU algorithms exist for voluminous matrix manipulations such as this one, so this voluminous computation will proceed as quickly as possible on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{F}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM, which translates roughly to a few thousand spectral lines across $\sim$300,000 pixels.  It is generally not possible to construct Equation \ref{eqnFbar} in its entirety in one-fell-swoop, even on a GPU. A remedy is needed.
+\noindent where $\mathbf{1}$ is a $1\times N_{\rm lines}$ row vector of all-ones. We re\"emphasize that---in its current form---each spectral line has to be painstakingly evaluated across the entire spectral bandwidth.   Efficient GPU algorithms exist for voluminous matrix manipulations such as this one, so this voluminous computation will proceed as quickly as possible on modern machines. In particular, the proprietary CUDA architecture for NVIDIA\textsuperscript{\tiny\textregistered} GPUs contains Tensor cores with specialized matrix math. The chief bottleneck occurs when the storage of the $\bm{\bar{F}}$ matrix exceeds the available RAM of a GPU or CPU: the computation will fail with an ``Out of Memory'' exception. Modern NVIDIA GPUs have $8-40$ GB of RAM, which translates roughly to a few thousand spectral lines across $\sim$300,000 pixels.  It is generally not possible to construct Equation \ref{eqnFbar} in its entirety in one-fell-swoop, even on a GPU. A remedy is needed.
 
 
 \subsection{Sparsity}
@@ -306,7 +304,7 @@ Real stars possess two key extrinsic properties.  Rotational broadening $v\sin{i
     \mathsf{S}_{\rm ext}(\bm{\lambda}_Z) = \mathsf{S}_{\rm clone}(\bm{\lambda}_Z - \frac{RV}{c}\lambda_\mathrm{c}) * \zeta \left(\frac{\bm{v}}{v\sin{i}}\right) \label{eqn_convolution}
 \end{eqnarray}
 
-where $\zeta$ is the convolution kernel for rigid body rotation \citep[\emph{e.g.}][]{2022ApJS..258...31K}, $\bm{v}$ is the spectral axis represented as relative velocity coordinates, and $*$ denotes the convolution operator.
+\noindent where $\zeta$ is the convolution kernel for rigid body rotation \citep[\emph{e.g.}][]{2022ApJS..258...31K}, $\bm{v}$ is the spectral axis represented as relative velocity coordinates, and $*$ denotes the convolution operator.
 
 Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximating kernels as numerically sampled functions.  There exists a special exponential spectral sample spacing that allows the convolution operators to work out of the box for rotational broadening.  The design of \texttt{blas\'e} permits the stellar and telluric models to be re\"evaluated at any wavelength coordinate vector, provided that it adequately samples the underlying lines.  We, therefore, change the sampling from the native stellar and telluric wavelength coordinate grids, $\bm{\lambda}_S$ and $\bm{\lambda}_T$, to this special exponentially sampled wavelength grid, denoted with the subscript $Z$:
 
@@ -314,7 +312,7 @@ Most autodiff-aware \texttt{convolve} operators act in pixel-space, approximatin
     \bm{\lambda}_Z = \lambda_0  \exp{\frac{\bm{v}-v_0}{c}}
 \end{eqnarray}
 
-where $\bm{v}-v_0$ is the velocity vector going from zero to the velocity associated with the largest wavelength, with \emph{linear} spaced velocity samples.  We choose a sampling in velocity space of 0.5 km/s, which corresponds to about $10\times$ finer than the instrumental resolving power of HPF, and delivers a minimum and maximum wavelength spacing of 0.013 and 0.024 \AA$/\text{pixel}$ respectively for the HPF bandwidth.
+\noindent where $\bm{v}-v_0$ is the velocity vector going from zero to the velocity associated with the largest wavelength, with \emph{linear} spaced velocity samples.  We choose a sampling in velocity space of 0.5 km/s, which corresponds to about $10\times$ finer than the instrumental resolving power of HPF, and delivers a minimum and maximum wavelength spacing of 0.013 and 0.024 \AA$/\text{pixel}$ respectively for the HPF bandwidth.
 
 Operationally, the radial velocity shift $RV$ gets applied to the line center positions rather than scaling the entire wavelength grid point coordinates, $\bm{\lambda}_Z$. This choice yields a convenience: it cleanly makes the $RV$ autodiff-aware, meaning that an infinitesimal change to the RV value can be sensed through backpropagation by affecting only the line center positions.
 
@@ -340,7 +338,7 @@ The final forward model for \emph{blas\'e} is designated simply as $\mathsf{M}$ 
     \mathsf{M}(\bm{\lambda}_D) = \resample{\Big[\mathsf{M}_{\rm joint}(\bm{\lambda}_Z) * g(R) \Big]} \label{eqn_final_model}
 \end{eqnarray}
 
-where $g$ is the Gaussian instrumental convolution kernel and the \texttt{resample[]} operation indicates the average of model pixels that fall within each data pixel's red and blue boundaries.
+\noindent where $g$ is the Gaussian instrumental convolution kernel and the \texttt{resample[]} operation indicates the average of model pixels that fall within each data pixel's red and blue boundaries.
 
 \subsection{Regularization}
 
@@ -356,7 +354,7 @@ The degree of regularization will control the extent of overfitting or underfitt
     \mathcal{L}_{reg} &\equiv& \sum_{j=1}^{N_\mathrm{lines}} \Big|\frac{\ln{a_j} - \ln{\hat{a}_j}}{\Lambda}\Big|
 \end{eqnarray}
 
-where the hat notation demarcates the amplitudes obtained from cloning, \emph{i.e.} the ``initial, theory-inspired amplitude''.  We assign $\Lambda\sim5$.  The total, overall loss then becomes:
+\noindent where the hat notation demarcates the amplitudes obtained from cloning, \emph{i.e.} the ``initial, theory-inspired amplitude''.  We assign $\Lambda\sim5$.  The total, overall loss then becomes:
 
 \begin{eqnarray}
     \mathcal{L}_{tot} = \mathcal{L}_{MSE} + \mathcal{L}_{reg}
@@ -472,7 +470,7 @@ A semi-empirical approach could improve on this purely model-based approach.  We
 
 The construction and calibration of these ensembles of spectra represents a tremendous amount of work beyond the scope of this paper.  But its creation could yield an extremely precise, fast, interpretable and reasonably accurate way to measure the properties of stars based solely on their high bandwidth \'echelle spectra.  The overall accuracy hinges on the accuracy of the stellar benchmark labels.  The mechanics of this approach could be adapted to fit within existing pipelines such as SAPP \citep{2022A&A...658A.147G}.
 
-There exists a corrolary from the method described here to the approach of \citet{czekala15}.  There, a 3D heatmap was created for relating the eigenweights of a PCA basis back to the stellar fundamental properties, for spectrum emulation purposes.  Here, the 3D heatmap is created on a line-by-line basis, and is therefore interpretable.  The PCA eigenspectra were generally uninterpretable, at least not easily.  So in the limiting case of obtaining a densely calibrated semi-empirical heatmap for all spectral lines across all grid dimensions, we will have achieved a spectral emulator that would obviate the need to clone spectra in the first place.  We would simply start with this powerful line-by-line emulator as a forward model, and go directly to the extrinsic warping and data-model comparison.
+There exists a corollary from the method described here to the approach of \citet{czekala15}.  There, a 3D heatmap was created for relating the eigenweights of a PCA basis back to the stellar fundamental properties, for spectrum emulation purposes.  Here, the 3D heatmap is created on a line-by-line basis, and is therefore interpretable.  The PCA eigenspectra were generally uninterpretable, at least not easily.  So in the limiting case of obtaining a densely calibrated semi-empirical heatmap for all spectral lines across all grid dimensions, we will have achieved a spectral emulator that would obviate the need to clone spectra in the first place.  We would simply start with this powerful line-by-line emulator as a forward model, and go directly to the extrinsic warping and data-model comparison.
 
 
 
@@ -485,7 +483,7 @@ The automatic abundance determination spirit of blas\'e resembles \texttt{ROBOSP
 
 
 \subsection{Doppler Imaging}
-The fixed $v\sin{i}$ approximation breaks down for stars with large-scale surface features.  Doppler imaging attempts to reverse engineer the surface map from the extent to which observed line profiles depart from a pristine rotational broadening kernel.  This reverse engineering step suffers from a vast number of geometrical degeneracies, but still provides useful constraints on stellar surfaces \citep{2021arXiv211006271L}.  We emphasize a distinction between A) longitudinally symmetric surface features, and B) longitudinally asymmetric surface features.  Most radial velocity practitioners think about the latter, since longitudinally asymmetric surface features imbue changing-in-time skewness to the line profiles, causing radial velocity perturbations easily detectable in radial velocity time series.  These confound exoplanet searches.
+The fixed $v\sin{i}$ approximation breaks down for stars with large-scale surface features.  Doppler imaging attempts to infer the surface map from the extent to which observed line profiles depart from a pristine rotational broadening kernel.  This inference procedure suffers from a vast number of geometrical degeneracies, but still provides useful constraints on stellar surfaces \citep{2021arXiv211006271L}.  We emphasize a distinction between A) longitudinally symmetric surface features, and B) longitudinally asymmetric surface features.  Most radial velocity practitioners think about the latter, since longitudinally asymmetric surface features imbue changing-in-time skewness to the line profiles, causing radial velocity perturbations easily detectable in radial velocity time series.  These confound exoplanet searches.
 
 Longitudinally symmetric surface features---on the other hand---do not change as the star rotates on its axis.  The existence of these features manifest as static-in-time \emph{kurtosis} of the spectral line.  For example, a hypothetical non-emitting (black) polar starspot exhibits a deficit in flux at the line core, resulting in less zero-velocity flux than its homogeneous counterpart.  A dark zonal band results in equal-sized bites out of the red- and blue- sides of the line.
 
@@ -681,7 +679,7 @@ We currently assume the input spectra are adequately normalized to the continuum
     \mathcal{L} =  \frac{1}{2}\mathsf{R^\intercal} \mathsf{C}^{-1} \mathsf{R} +\frac{1}{2}\ln{\det{\mathsf{C}}} \label{GPLikelihood}
 \end{eqnarray}
 
-where we introduce the covariance matrix $\mathsf{C}$, with its associated kernel and collection of typically 2-3 parameters.  We anticipate that this GP likelihood would have the greatest impact on stars with significant band-heads and line-blanketing: spectra with a so-called ``pseudo-continuum''.  M-dwarfs and brown dwarfs fall into this challenging category.
+\noindent where we introduce the covariance matrix $\mathsf{C}$, with its associated kernel and collection of typically 2-3 parameters.  We anticipate that this GP likelihood would have the greatest impact on stars with significant band-heads and line-blanketing: spectra with a so-called ``pseudo-continuum''.  M-dwarfs and brown dwarfs fall into this challenging category.
 
 The main demerit of moving to a GP-likelihood is computational cost.  Fortunately, a few efficient autodiff-aware implementations of GPs exist. The \texttt{celerite} algorithm \emph{celerit\'e} \citep{2017AJ....154..220F} has an exact backpropation implementation \citep{2018RNAAS...2...31F} that scales linearly with the number of data points.  The \emph{celerit\'e} algorithm does not currently have a PyTorch implementation.  The \texttt{GPyTorch} framework \citep{2018arXiv180911165G} has a large category of approximate and exact GPs that could be straight-forwardly dropped into \texttt{blas\'e}.  Even still these GPs could increase the computation cost by of order $10\times$.
 
@@ -710,7 +708,7 @@ One could introduce advanced lineshapes for these $\sim20$ broad lines, perturbi
     \mathsf{G} &=& 1 + (e^{\alpha_j} - 1) \cdot \mathcal{S}\left(\frac{|\bm{\lambda}-\lambda_{c,j}| - \lambda_{t, j}}{b_j}\right)
 \end{eqnarray}
 
-where $\odot$ is again the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $\alpha$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
+\noindent where $\odot$ is again the element-wise product (\emph{a.k.a} Hadamard product), $\mathcal{S}$ is the sigmoid function, and we have introduced three new tunable parameters for each of the $j$ broad lines; $\lambda_t$ is the truncation wavelength, $b$ is a scale parameter for how slowly or how rapidly in wavelength-space the transition from non-Lorentzian proceeds, and $\alpha$ is a possibly negative stretch parameter that controls whether the line wing is sub- or super- Lorentzian.
 
 This functional form has a few advantages. It is smooth. The smoothness of the transition is controlled by a tunable parameter, $b$. It can handle either sub- or super-Lorentzian shapes.  In the limit $\lim_{a\to0} \mathsf{G}$, the lineshape becomes exactly Lorentzian. The sigmoid is efficiently implemented in PyTorch.
 Finally, it enforces that the perturbation only produces absorption and not emission profiles.

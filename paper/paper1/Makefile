@@ -13,5 +13,5 @@ all: ms.pdf
 	rm -rf *.fdb_latexmk
 	rm -rf *.fls
 	rm -rf *.synctex*
-	mv ms.pdf final/
+	# mv ms.pdf final/
 	# open final/ms.pdf
