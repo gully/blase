@@ -1,4 +1,4 @@
-\documentclass[linenumbers]{aastex631}
+\documentclass[trackchanges]{aastex631}
 \usepackage{hyperref}
 \bibliographystyle{aasjournal}
 %\turnoffedit
@@ -111,7 +111,6 @@ The result should be a flattened ``continuum-normalized'' spectrum familiar to p
 \begin{figure}[hbt!]
     \centering
     \includegraphics[width=0.45\textwidth]{N_lines_vs_Teff_prom.png}
-    %\includegraphics[width=0.45\textwidth]{N_lines_vs_Teff_prom.png}
     \includegraphics[width=0.41\textwidth]{line_density_demo.png}
     \caption{Scaling of prominence and density of spectral lines.
         \emph{Top:} Number of lines versus effective temperature for PHOENIX models truncated to IGRINS (\textbf{blue, connected} points) and HPF (\emph{red, free-standing} points) bandwidths, for different prominence thresholds of $0.02$, $0.01$, and $0.005$.
@@ -156,7 +155,7 @@ The Voigt profile $\mathsf{V}(\lambda, \sigma_j, \gamma_j)$ can be computed in e
     \label{blase_flowchart}
 \end{figure*}
 
-\subsection{Goodness of fit metric}
+\subsection{Goodness of fit metric and gradients}
 The model evaluated with its coarse initial values would have terrible performance: it would only vaguely resemble the synthetic spectral model, with up to $\pm 50\%$ undulations from the inexact assignment of widths, lineshapes, and amplitudes. Instead, we tune the parameters of the model, starting from these coarse initial values. This model has between $N_{\mathrm{lines}}\times 1$ and $N_{\mathrm{lines}}\times 4$ free parameters, depending on how many of the 4 physical line properties you wish to tune.  We default to fitting three parameters per line, where the center wavelength is held fixed and the amplitude, width, and lineshape are allowed to vary. We minimize a scalar ``goodness-of-fit'' metric, \emph{aka} loss scalar $\mathcal{L}$, chosen as the mean squared error (MSE), which is proportional to $\chi^2$, the sum of the squares of the residual vector $\mathsf{R} \equiv \mathsf{S}-\mathsf{S}_{\rm clone}$ but has no notion of per-pixel noise since the precomputed synthetic spectrum has no uncertainty:
 
 \begin{eqnarray}
@@ -164,11 +163,13 @@ The model evaluated with its coarse initial values would have terrible performan
 \end{eqnarray}
 
 
-As seen in Figure \ref{fig_Nlines_vs_teff}, the number of lines can exceed 7,000, meaning the clone model has over 21,000 free parameters. Fitting more than about 300 parameters is difficult with conventional optimizers that rely on minmizing a single scalar loss: the search space becomes too large.  Here we employ a variant of Stochastic Gradient Descent (SGD), a transformative optimization technique that can scale to a virtually unlimited number of parameters \citep{2016arXiv160904747R}. This technique computes the derivative of the loss scalar with respect to each of the parameters, the so-called \emph{Jacobian}: $\grad \mathcal{L} = (\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \cdots, \frac{\partial \mathcal{L}}{\partial \gamma_j})$. The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply ``which way and by how much'' you have to change each individual line property to get a better fit.
+As seen in Figure \ref{fig_Nlines_vs_teff}, the number of lines can exceed 7,000, meaning the clone model has over 21,000 free parameters. Fitting more than about 300 parameters is difficult with conventional optimizers\edit1{, and so historically the practice of finding the best settings for all 21,000 parameters would have been considered hopeless, a fool's errand.  A new category of ``gradient-based'' optimizers offers a breakthrough.  Gradient-based optimizers have virtually no restriction on the number of parameters, scaling to functions of possibly millions or billions of tuning parameters.  Gradient-based optimizers get vastly more information per likelihood evaluation: $N_\mathrm{params}+1$ pieces of information-- the scalar value of the loss evaluated for some setting, \emph{and} the derivative of the loss scalar with respect to each of the parameters, the so-called \emph{Jacobian}: $\grad \mathcal{L} = (\frac{\partial \mathcal{L}}{\partial a_j}, \frac{\partial \mathcal{L}}{\partial \sigma_j}, \cdots, \frac{\partial \mathcal{L}}{\partial \gamma_j})$.}  The Jacobian indicates how the MSE would decrease with a change in the parameter-of-interest, or put simply ``which way and by how much'' you have to change each individual line property to get a better fit.
+
+\edit1{We adopt ``Full-batch'' Gradient Descent optimization, as opposed to the more popular Stochastic Gradient Descent \citep[SGD,][]{2016arXiv160904747R}.  In Full-Batch Gradient Descent, the entire dataset is evaluated in Equation \ref{simpleLikelihood}, as opposed to only a portion of the dataset in the Stochastic counterpart.  Appendix \ref{minibatches} discusses the tradeoffs and rationale for ``Full-Batch''.}
 
 The optimizer updates the $a_j, \sigma_j, \gamma_j$ parameters by a small fraction of the Jacobian---called the learning rate (LR)---towards the direction that would improve the fit, for all parameters \emph{simultaneously}. The Jacobian is calculated behind the scenes with automatic differentiation implemented as the so-called backpropagation algorithm or simply ``backprop'' \citep{2015arXiv150205767G}. We choose the \texttt{PyTorch} framework that computes these Jacobians efficiently for all of the mathematical primitives in our \texttt{blas\'e} implementation \citep{2019arXiv191201703P}.
 
-It is this ability to automatically compute Jacobians that sets \texttt{PyTorch} (and \texttt{JAX} and \texttt{TensorFlow}) apart.  These frameworks give exact Jacobians, instantaneously, for free (or cheap).  Without exact Jacobians a conventional optimization step only obtains \emph{one} piece of information: how much the overall loss changed.  With exact Jacobians, we obtain $N_\mathrm{params}$ pieces of information for each evaluation of the forward model.  The power of gradient descent becomes transformative as the number of parameters grows into the tens of thousands, as is the case for \emph{blas\'e}.
+It is this ability to automatically compute Jacobians that sets \texttt{PyTorch} (and \texttt{JAX} and \texttt{TensorFlow}) apart.  These frameworks give exact Jacobians, instantaneously, for free (or cheap).  Without exact Jacobians a conventional optimization step only obtains \emph{one} piece of information: how much the overall loss changed.  With exact Jacobians, we obtain $N_\mathrm{params}+1$ pieces of information for each evaluation of the forward model.  \edit1{ Conventional gradient-free optimizers evaluate the Jacobian through finite differences, which typically results in numerical instabilities.  Those instabilities accrue and break down at around the 300 dimension mark.}  The power of gradient descent becomes transformative as the number of parameters grows into the tens of thousands, as is the case for \emph{blas\'e}.
 
 \subsection{GPU and Autodiff specific considerations}\label{gpuConsiderations}
 
@@ -684,7 +685,7 @@ We currently assume the input spectra are adequately normalized to the continuum
 The main demerit of moving to a GP-likelihood is computational cost.  Fortunately, a few efficient autodiff-aware implementations of GPs exist. The \texttt{celerite} algorithm \emph{celerit\'e} \citep{2017AJ....154..220F} has an exact backpropation implementation \citep{2018RNAAS...2...31F} that scales linearly with the number of data points.  The \emph{celerit\'e} algorithm does not currently have a PyTorch implementation.  The \texttt{GPyTorch} framework \citep{2018arXiv180911165G} has a large category of approximate and exact GPs that could be straight-forwardly dropped into \texttt{blas\'e}.  Even still these GPs could increase the computation cost by of order $10\times$.
 
 
-\subsection{Minibatches and Stochastic Gradient Descent}
+\subsection{Minibatches and Stochastic Gradient Descent}\label{minibatches}
 
 Currently, each training epoch sees the entire dataset, a setup dubbed \emph{full-batch} gradient descent.
 An alternative scheme allows training with only a portion of the entire dataset at a time in \emph{minibatches}.  The massive data volumes in modern Neural Network applications cannot fit into the GPU memory, so minibatches are a necessity.  Our meager 1 MB dataset can easily fit into the GPU memory, but our model can be large if we have a large number of pixels or lines or both.
