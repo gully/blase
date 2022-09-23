@@ -34,8 +34,8 @@
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
 
 \begin{document}
-\shorttitle{Transfer learning with blas\'e}
-\shortauthors{Gully \& Morley}
+\shorttitle{\emph{blas\'e}: Interpretable Machine Learning for Spectroscopy}
+\shortauthors{Gully-Santiago \& Morley}
 \title{An Interpretable Machine Learning Framework for Modeling High-Resolution Spectroscopic Data\footnote{Open source code at \url{https://github.com/gully/blase}}}
 
 \author{Michael Gully-Santiago}
@@ -84,6 +84,8 @@ In this paper, we show that autodiff-aware semi-empirical models offer an appeal
 
 \section{Methodology I: Cloning stellar spectra}\label{methodology}
 
+\edit1{Our first stage is to \emph{clone} a precomputed synthetic spectrum.  Cloning means to mimic, emulate, or otherwise approximate the appearance of a discretely sampled spectrum with some function or combination of functions.  The subject of the cloning shall be a noise-free spectrum generated from physics-based atmosphere models.  The purpose of cloning may appear superficial at first glance, but it serves as a necessary gateway for our ultimate data-model comparison goals.}
+
 \subsection{Overall Architecture and Design Choices}
 
 We start with a high resolution pre-computed synthetic stellar or substellar model spectrum, $\mathsf{S}_{\rm abs}(\bm{\lambda})$ at its native resolution sampling and with its original absolute physical flux units. The procedure that follows is largely agnostic to the exact details of how this spectrum was made, or what physics or chemistry it may represent. For the purposes of this paper, we will showcase examples from two well-known families of precomputed synthetic astronomical spectra: \texttt{PHOENIX} \citep{husser13} for stellar spectra $(T_{\mathrm{eff}}\in [2300, 10000]\;K)$ and \texttt{Sonora} \citep{2021ApJ...920...85M} for substellar spectra $(T_{\mathrm{eff}}\in [200, 2300]\;K)$. The algorithms in the framework may also work for precomputed synthetic spectra of reflected light exoplanets, supernovae, galaxies, or even further afield such as laboratory physical chemistry, plasma physics, materials science, or remote sensing.
@@ -106,7 +108,7 @@ The result should be a flattened ``continuum-normalized'' spectrum familiar to p
     \label{eqnFlattening}
 \end{eqnarray}
 
-\noindent where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  \edit1{For elementwise-multiplication, we will adopt the $\odot$ operator symbol to distinguish that the multiplication occurs elementwise between two ``vectors'' of spectral fluxes, as opposed to a dot product (scalar ouput) or matrix multiplication (matrix output).  This style of vector multiplication and division is standard in numerical numerical array manipulations such as those in \texttt{numpy}, \texttt{IDL}, \texttt{matlab}, \emph{etc.}}
+\noindent where the division indicates element-wise division of these arrays or ``vectors'' of flux values.  \edit1{For elementwise-multiplication, we will adopt the $\odot$ operator symbol to distinguish that the multiplication occurs elementwise between two ``vectors'' of spectral fluxes, as opposed to a dot product (scalar ouput) or matrix multiplication (matrix output).  This style of vector multiplication and division is standard in numerical array manipulations such as those in \texttt{numpy}, \texttt{IDL}, \texttt{matlab}, \emph{etc.}}
 
 \begin{figure}[hbt!]
     \centering
@@ -437,7 +439,9 @@ Our deliberate choice not to initialize from the atomic and molecular lines mean
 
 \emph{``Fancy deconvolution''}-- The  \emph{blas\'e} approach can be viewed as a fancy deconvolution procedure, in which the convolution kernels get inferred alongside the imperfections of the model template.  This perspective may suit practitioners who wish to obtain a robust rotational broadening estimate in the presence of imperfect templates, and vice versa: robust templates in the presence of imperfect rotational broadening.
 
-\emph{``A surrogate model, emulator, or discrepancy modeling''}-- The machine learning community is increasingly incorporating physics-based emulation into machine learning models.   \emph{Blas\'e} can be viewed as such a technique, often labeled as ``surrogate models''.
+\emph{``Surrogate modeling / Simulation Intelligence''}-- \edit1{Our slightly off-label use of machine learning straddles a boundary of machine learning and conventional physics-based models.  The rapidly evolving field of machine learning may therefore classify the approach here using a few related terms.  The phrases surrogate modeling, emulation, discrepancy modeling, transfer learning, simulation intelligence, and physics-informed machine learning could describe some aspects of \emph{blas\'e}, depending on the ultimate application by the end-user.  For example, machine learning has been applied to physical chemistry models using a neural network as a cheaper-but-still-accurate ``surrogate'' for the real theory-based simulations. The realized speedups in quantum chemistry can approach 300,000$\times$ \citep{pmlr-v70-gilmer17a}. The key idea is that information from expensive physics-based simulations has been distilled by machine learning and can be applied to new examples.}
+
+\emph{``Narrowing the Synthetic Gap'}-- \edit1{Callendar et al. describe the notion of a Synthetic Gap: the fact that real astronomical spectra to not resemble their machine learning clones...}
 
 
 \emph{``A good enough substrate''}-- The imperfections in pre-computed stellar and substellar models have hampered their use in high-fidelity applications, where model flaws overwhelm the sigal-to-noise in the data.  The adaptability of  \emph{blas\'e} can be viewed as increasing the number of applications that could conceivably benefit from the rich-albeit-imperfect information encoded in these model grid spectra.  In the next section we illustrate how these adaptable models can serve as a subtrate for applications in which the imperfections in precomputed models would have otherwise precluded their use.
