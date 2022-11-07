@@ -24,6 +24,7 @@ We invite you to engage with us at our `GitHub page
 
    Installation <install>
    Application Programming Interface <api>
+   Testimonials <testimonials>
    
 
 .. toctree::
