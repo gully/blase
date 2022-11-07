@@ -72,6 +72,10 @@ nbsphinx_thumbnails = {
 #
 html_theme = "sphinx_book_theme"
 
+nbsphinx_allow_errors = True
+
+nbsphinx_execute = "never"
+
 pygments_style = "vs"
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -85,5 +89,5 @@ html_theme_options = {
     "use_repository_button": True,
     "repository_branch": "main",
     "home_page_in_toc": True,
-    "announcement": "🆕 blasé will be featured in a talk at the Machine Learning Splinter Session at the Cool Star 21 Conference in Toulouse, France on July 5th, 2022!",
+    "announcement": "Our paper is now published! https://arxiv.org/abs/2210.01827",
 }
