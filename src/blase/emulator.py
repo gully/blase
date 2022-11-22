@@ -931,7 +931,7 @@ class SparseLogEmulator(SparseLinearEmulator):
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
-        return self.sparse_opacity_model()
+        return self.exact_sparse_opacity_model()
 
     def sparse_opacity_model(self):
         r"""A sparse pseudo-Voigt model
@@ -1026,9 +1026,7 @@ class SparseLogEmulator(SparseLinearEmulator):
 
         return torch.exp(result_1D)
 
-    def exact_voigt_profile(
-        self, lam_center, sigma_width, gamma_width, amplitude, wavelengths
-    ):
+    def exact_voigt_profile(self, lam_center, sigma_width, gamma_width, wavelengths):
         r"""The exact Voigt profile ported from exojax (Kawahara et al. 2022)
 
         Returns
@@ -1040,7 +1038,7 @@ class SparseLogEmulator(SparseLinearEmulator):
         x_term = (wavelengths - lam_center) / (math.sqrt(2) * sigma_width)
         # At first the a term should be (N_lines x 1)
         a_term = gamma_width / (math.sqrt(2) * sigma_width)
-        prefactor = amplitude / (math.sqrt(2.0 * math.pi) * sigma_width)
+        prefactor = 1 / (math.sqrt(2.0 * math.pi) * sigma_width)
         # xterm gains an empty dimension for approximation (N_lines x N_wl x 1)
         # aterm gains an empty dimension for approximation (N_lines x 1 x 1)
         unnormalized_voigt = self.rewofz(x_term.unsqueeze(2), a_term.unsqueeze(2))
@@ -1142,7 +1140,51 @@ class SparseLogEmissionEmulator(SparseLogEmulator):
 
         result_1D = sparse_matrix.to_dense()
 
-        return result_1D  # torch.exp(result_1D) - 1
+        ## Hmmm, for emission, these are not opacities, but source terms...
+        ## I think we just want to return Voigt profiles,
+        ## and not exponentials of Voigt profiles
+        # return torch.exp(result_1D) - 1
+        return result_1D
+
+    def exact_sparse_opacity_model(self):
+        r"""A sparse pseudo-Voigt model with exact Voigt profiles
+
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} = \exp{\Big(-\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j\Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model
+        """
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
+
+        opacities_2D = torch.exp(self.amplitudes).unsqueeze(
+            1
+        ) * self.exact_voigt_profile(
+            rv_shifted_centers.unsqueeze(1),
+            torch.exp(self.gamma_widths).unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
+            self.wl_2D,
+        )
+
+        opacities_1D = opacities_2D.reshape(-1)
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, opacities_1D, size=(self.n_pix,), requires_grad=True
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return result_1D
 
 
 # Deprecated class names
