@@ -11,20 +11,39 @@ import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 import torch.optim as optim
 from tqdm import trange
+from torch.special import erfc
+
+
+def erfcx_naive(x):
+    """Erfcx based on erfc"""
+    return torch.exp(x * x) * erfc(x)
+
+
+try:
+    from torch.special import erfcx
+
+    print("Woohoo! You have a version {} of PyTorch".format(torch.__version__))
+except ImportError:
+    erfcx = erfcx_naive
+    print(
+        "Version {} of PyTorch does not offer erfcx, defaulting to unstable...".format(
+            torch.__version__
+        )
+    )
 
 
 class LinearEmulator(nn.Module):
     r"""
     Model for cloning a precomputed synthetic spectrum in linear flux.
-    
+
     :math:`\mathsf{S} \mapsto \mathsf{S}_{\rm clone}`
 
     Parameters
     ----------
     wl_native :  torch.tensor
-        The vector of input wavelengths at native resolution and sampling 
+        The vector of input wavelengths at native resolution and sampling
     flux_native : torch.tensor or None
-        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the 
+        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the
         optimize method does not work.
     prominence : int or None
         The threshold prominence for peak finding, defaults to 0.03.  Ignored if init_state_dict is provided.
@@ -143,32 +162,32 @@ class LinearEmulator(nn.Module):
         between one and three tunable parameters.  The entire spectrum can
         optionally be modulated by a tunable continuum polynomial.
 
-        .. math:: 
-            
+        .. math::
+
             \mathsf{S}_{\rm clone} = \mathsf{P}(\lambda_S) \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
 
         Parameters
         ----------
         wl : torch.tensor
-            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
         torch.tensor
-            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning 
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning
         """
         wl_normed = (wl - 10_500.0) / 2500.0
 
         polynomial_term = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
+            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed**2
         )
 
         return self.product_of_pseudovoigt_model(wl) * polynomial_term
 
     def product_of_pseudovoigt_model(self, wl):
         r"""Return the Product of pseudo-Voigt profiles
-        
+
         The product acts like a matrix contraction:
 
         .. math:: \prod_{j=1}^{N_{\mathrm{lines}}} 1-a_j \mathsf{V}_j(\lambda_S)
@@ -176,14 +195,14 @@ class LinearEmulator(nn.Module):
         Parameters
         ----------
         wl : torch.tensor
-            The input wavelength :math:`\mathbf{\lambda}_S` at which to 
+            The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
         torch.tensor
-            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` 
-            destined for backpropagation parameter tuning     
+            The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}`
+            destined for backpropagation parameter tuning
         """
         return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
@@ -199,8 +218,8 @@ class LinearEmulator(nn.Module):
 
         Returns
         -------
-        tuple of tensors 
-            The wavelength centers, prominences, and widths for all ID'ed 
+        tuple of tensors
+            The wavelength centers, prominences, and widths for all ID'ed
             spectral lines
         """
         peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
@@ -217,7 +236,7 @@ class LinearEmulator(nn.Module):
 
     def _lorentzian_line(self, lam_center, width, wavelengths):
         """Return a Lorentzian line, given properties"""
-        return 1 / 3.141592654 * width / (width ** 2 + (wavelengths - lam_center) ** 2)
+        return 1 / 3.141592654 * width / (width**2 + (wavelengths - lam_center) ** 2)
 
     def _gaussian_line(self, lam_center, width, wavelengths):
         """Return a normalized Gaussian line, given properties"""
@@ -230,35 +249,34 @@ class LinearEmulator(nn.Module):
     def _compute_eta(self, fwhm_L, fwhm):
         """Compute the eta mixture ratio for pseudo-Voigt weighting"""
         f_ratio = fwhm_L / fwhm
-        return 1.36603 * f_ratio - 0.47719 * f_ratio ** 2 + 0.11116 * f_ratio ** 3
+        return 1.36603 * f_ratio - 0.47719 * f_ratio**2 + 0.11116 * f_ratio**3
 
     def _compute_fwhm(self, fwhm_L, fwhm_G):
-        """Compute the fwhm for pseudo Voigt using the approximation
-        """
+        """Compute the fwhm for pseudo Voigt using the approximation"""
 
         return (
-            fwhm_G ** 5
-            + 2.69269 * fwhm_G ** 4 * fwhm_L ** 1
-            + 2.42843 * fwhm_G ** 3 * fwhm_L ** 2
-            + 4.47163 * fwhm_G ** 2 * fwhm_L ** 3
-            + 0.07842 * fwhm_G ** 1 * fwhm_L ** 4
-            + fwhm_L ** 5
+            fwhm_G**5
+            + 2.69269 * fwhm_G**4 * fwhm_L**1
+            + 2.42843 * fwhm_G**3 * fwhm_L**2
+            + 4.47163 * fwhm_G**2 * fwhm_L**3
+            + 0.07842 * fwhm_G**1 * fwhm_L**4
+            + fwhm_L**5
         ) ** (1 / 5)
 
     def pseudo_voigt_profiles(self, wavelengths):
         r"""Compute the pseudo-Voigt Profile for a collection of lines
-        
+
         Much faster than the exact Voigt profile, but not as accurate:
 
-        .. math:: 
-        
+        .. math::
+
             \mathsf{V}(\lambda_S-\lambda_{\mathrm{c},j}, \sigma_j, \gamma_j)
 
-        
+
         Parameters
         ----------
         wavelengths : torch.tensor
-            The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to 
+            The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
@@ -268,15 +286,15 @@ class LinearEmulator(nn.Module):
 
         Notes
         -----
-        The pseudo-Voigt [1]_ is an approximation to the convolution of a 
+        The pseudo-Voigt [1]_ is an approximation to the convolution of a
         Lorentzian profile :math:`L(\lambda,f)` and Gaussian profile :math:`G(\lambda,f)`
 
-        .. math::  V_p(\lambda,f) = \eta \cdot L(\lambda, f) + (1 - \eta) \cdot G(\lambda,f) 
-        
+        .. math::  V_p(\lambda,f) = \eta \cdot L(\lambda, f) + (1 - \eta) \cdot G(\lambda,f)
+
         with mixture pre-factor:
 
         .. math::  \eta = 1.36603 (f_L/f) - 0.47719 (f_L/f)^2 + 0.11116(f_L/f)^3
-        
+
         and FWHM:
 
         .. math::  f = [f_G^5 + 2.69269 f_G^4 f_L + 2.42843 f_G^3 f_L^2 + 4.47163 f_G^2 f_L^3 + 0.07842 f_G f_L^4 + f_L^5]^{1/5}
@@ -319,14 +337,14 @@ class SparseLinearEmulator(LinearEmulator):
     ----------
     wl_native : float vector
         The input wavelength at native sampling
-    flux_native : float vector 
+    flux_native : float vector
         The continuum-flattened flux at native sampling
     prominence : int
         The threshold for detecting lines
     device : Torch Device or str
         GPU or CPU?
     wing_cut_pixels : int
-        The number of pixels centered on the line center to evaluate in the 
+        The number of pixels centered on the line center to evaluate in the
         sparse implementation, default: 1000 pixels
     init_state_dict : dict
         A dictionary of model parameters to initialize the model with
@@ -438,19 +456,19 @@ class SparseLinearEmulator(LinearEmulator):
     def sparse_pseudo_Voigt_model(self):
         r"""A sparse pseudo-Voigt model
 
-        The sparse matrix :math:`\hat{F}` is composed of the log flux 
-        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes 
-        are stored as trios of coordinate values and fluxes.  
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
         :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
 
         .. math::
-        
+
             \mathsf{S}_{\rm clone} = \exp{\Big(\sum_{j=1}^{N_{lines}} \ln{F_{ji}} \Big)}
 
         Returns
         -------
         torch.tensor
-            The 1D generative sparse spectral model 
+            The 1D generative sparse spectral model
         """
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
@@ -492,7 +510,7 @@ class SparseLinearEmulator(LinearEmulator):
 
     def optimize(self, epochs=100, LR=0.01):
         """Optimize the model parameters with backpropagation
-        
+
         Parameters
         ----------
         epochs : int
@@ -508,7 +526,9 @@ class SparseLinearEmulator(LinearEmulator):
         loss_fn = nn.MSELoss(reduction="mean")
 
         optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, self.parameters()), LR, amsgrad=True,
+            filter(lambda p: p.requires_grad, self.parameters()),
+            LR,
+            amsgrad=True,
         )
 
         if self.target is None:
@@ -566,7 +586,7 @@ class ExtrinsicModel(nn.Module):
 
     def forward(self, high_res_model):
         r"""The forward pass of the data-based echelle model implementation
-        
+
         Computes the RV and vsini modulations of the native model:
 
         .. math::
@@ -598,7 +618,7 @@ class ExtrinsicModel(nn.Module):
         .. math::
 
             \mathsf{S}_{\rm clone} * \zeta \left(\frac{v}{v\sin{i}}\right)
-            
+
 
         Parameters
         ----------
@@ -702,12 +722,12 @@ class InstrumentalModel(nn.Module):
 
     def forward(self, high_res_model):
         r"""The forward pass of the instrumental model
-        
+
         Computes the instrumental modulation of the joint model and resamples the spectrum to the coarse data wavelength coordinates.
 
         We start with a joint model composed of the elementwise product of the extrinsic stellar spectrum with the resampled telluric spectrum:
 
-        .. math::  \mathsf{M}_{\rm joint} = \mathsf{S}_{\rm ext} \odot \mathsf{T}(\lambda_S) \\ 
+        .. math::  \mathsf{M}_{\rm joint} = \mathsf{S}_{\rm ext} \odot \mathsf{T}(\lambda_S) \\
 
         An intermediate high resolution spectrum is computed by convolving the joint model with a Gaussian kernel, and weighting by a smooth polynomial shape:
 
@@ -754,7 +774,7 @@ class InstrumentalModel(nn.Module):
         ----------
         input_flux : torch.tensor
             The input flux vector to be broadened
-        sigma_angs : float scalar 
+        sigma_angs : float scalar
             The spectral resolution sigma in Angstroms
 
         Returns
@@ -765,7 +785,7 @@ class InstrumentalModel(nn.Module):
         weights = (
             1
             / (sigma_angs * torch.sqrt(torch.tensor(2 * 3.1415926654)))
-            * torch.exp(-1.0 / 2.0 * self.kernel_grid ** 2 / sigma_angs ** 2)
+            * torch.exp(-1.0 / 2.0 * self.kernel_grid**2 / sigma_angs**2)
         ) * 0.01  # kernel step size!
 
         output = torch.nn.functional.conv1d(
@@ -784,14 +804,14 @@ class SparseLogEmulator(SparseLinearEmulator):
     ----------
     wl_native : float vector
         The input wavelength at native sampling
-    lnflux_native : float vector 
+    lnflux_native : float vector
         The natural log of the continuum-flattened flux at native sampling
     prominence : int
         The threshold for detecting lines
     device : Torch Device or str
         GPU or CPU?
     wing_cut_pixels : int
-        The number of pixels centered on the line center to evaluate in the 
+        The number of pixels centered on the line center to evaluate in the
         sparse implementation, default: 1000 pixels
     init_state_dict : dict
         The initial state of the model
@@ -831,6 +851,78 @@ class SparseLogEmulator(SparseLinearEmulator):
         else:
             self.target = None
 
+        self.an = (
+            torch.tensor(
+                [
+                    0.5,
+                    1.0,
+                    1.5,
+                    2.0,
+                    2.5,
+                    3.0,
+                    3.5,
+                    4.0,
+                    4.5,
+                    5.0,
+                    5.5,
+                    6.0,
+                    6.5,
+                    7.0,
+                    7.5,
+                    8.0,
+                    8.5,
+                    9.0,
+                    9.5,
+                    10.0,
+                    10.5,
+                    11.0,
+                    11.5,
+                    12.0,
+                    12.5,
+                    13.0,
+                    13.5,
+                ]
+            )
+            .unsqueeze(0)
+            .unsqueeze(1)
+        ).to(device)
+
+        self.a2n2 = (
+            torch.tensor(
+                [
+                    0.25,
+                    1.0,
+                    2.25,
+                    4.0,
+                    6.25,
+                    9.0,
+                    12.25,
+                    16.0,
+                    20.25,
+                    25.0,
+                    30.25,
+                    36.0,
+                    42.25,
+                    49.0,
+                    56.25,
+                    64.0,
+                    72.25,
+                    81.0,
+                    90.25,
+                    100.0,
+                    110.25,
+                    121.0,
+                    132.25,
+                    144.0,
+                    156.25,
+                    169.0,
+                    182.25,
+                ]
+            )
+            .unsqueeze(0)
+            .unsqueeze(1)
+        ).to(device)
+
     def forward(self):
         r"""The forward pass of the sparse implementation--- no wavelengths needed!
 
@@ -844,19 +936,19 @@ class SparseLogEmulator(SparseLinearEmulator):
     def sparse_opacity_model(self):
         r"""A sparse pseudo-Voigt model
 
-        The sparse matrix :math:`\hat{F}` is composed of the log flux 
-        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes 
-        are stored as trios of coordinate values and fluxes.  
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
         :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
 
         .. math::
-        
+
             \mathsf{S}_{\rm clone} = \exp{\Big(-\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j\Big)}
 
         Returns
         -------
         torch.tensor
-            The 1D generative sparse spectral model 
+            The 1D generative sparse spectral model
         """
         fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
         fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
@@ -892,6 +984,100 @@ class SparseLogEmulator(SparseLinearEmulator):
         result_1D = sparse_matrix.to_dense()
 
         return torch.exp(result_1D)
+
+    def exact_sparse_opacity_model(self):
+        r"""A sparse pseudo-Voigt model with exact Voigt profiles
+
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} = \exp{\Big(-\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j\Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model
+        """
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
+
+        opacities_2D = torch.exp(self.amplitudes).unsqueeze(
+            1
+        ) * self.exact_voigt_profile(
+            rv_shifted_centers.unsqueeze(1),
+            torch.exp(self.gamma_widths).unsqueeze(1),
+            torch.exp(self.sigma_widths).unsqueeze(1),
+            self.wl_2D,
+        )
+
+        opacities_1D = opacities_2D.reshape(-1)
+        negative_opacities = -1 * opacities_1D
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, negative_opacities, size=(self.n_pix,), requires_grad=True
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return torch.exp(result_1D)
+
+    def exact_voigt_profile(self):
+        r"""The exact Voigt profile ported from exojax (Kawahara et al. 2022)
+
+        Returns
+        -------
+        torch.tensor
+            The exact Voigt profile for
+        """
+        pass
+
+    def rewofz(self, x, y):
+        """Real part of wofz (Faddeeva) function based on Algorithm 916
+
+        We apply a=0.5 for Algorithm 916.
+        Ported from exojax to PyTorch by gully
+
+        Args:
+            x: Torch tensor
+        Must be shape (N_lines x N_wl x  1)
+            y: Torch tensor
+        Must be shape (N_lines x 1 x 1)
+
+        Returns:
+             Torch tensor:
+             (N_wl x N_lines)
+        """
+        xy = x * y
+        exx = torch.exp(-1.0 * x * x)
+        f = exx * (
+            erfcx(y) * torch.cos(2.0 * xy)
+            + x * torch.sin(xy) / 3.141592654 * torch.sinc(xy / 3.141592654)
+        )
+        y2 = y**2
+        Sigma23 = torch.sum(
+            (torch.exp(-((self.an + x) ** 2)) + torch.exp(-((self.an - x) ** 2)))
+            / (self.a2n2 + y2),
+            axis=2,
+        ).unsqueeze(2)
+
+        Sigma1 = exx * (
+            7.78800786e-01 / (0.25 + y2)
+            + 3.67879450e-01 / (1.0 + y2)
+            + 1.05399221e-01 / (2.25 + y2)
+            + 1.83156393e-02 / (4.0 + y2)
+            + 1.93045416e-03 / (6.25 + y2)
+            + 1.23409802e-04 / (9.0 + y2)
+            + 4.78511765e-06 / (12.25 + y2)
+            + 1.12535176e-07 / (16.0 + y2)
+        )
+
+        f = f + y / math.pi * (-1 * torch.cos(2.0 * xy) * Sigma1 + 0.5 * Sigma23)
+        return f
 
 
 # Deprecated class names
