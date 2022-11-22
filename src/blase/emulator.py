@@ -1026,7 +1026,9 @@ class SparseLogEmulator(SparseLinearEmulator):
 
         return torch.exp(result_1D)
 
-    def exact_voigt_profile(self):
+    def exact_voigt_profile(
+        self, lam_center, sigma_width, gamma_width, amplitude, wavelengths
+    ):
         r"""The exact Voigt profile ported from exojax (Kawahara et al. 2022)
 
         Returns
@@ -1034,7 +1036,15 @@ class SparseLogEmulator(SparseLinearEmulator):
         torch.tensor
             The exact Voigt profile for
         """
-        pass
+        # At first the x term should be (N_lines x N_wl)
+        x_term = (wavelengths - lam_center) / (math.sqrt(2) * sigma_width)
+        # At first the a term should be (N_lines x 1)
+        a_term = gamma_width / (math.sqrt(2) * sigma_width)
+        prefactor = amplitude / (math.sqrt(2.0 * math.pi) * sigma_width)
+        # xterm gains an empty dimension for approximation (N_lines x N_wl x 1)
+        # aterm gains an empty dimension for approximation (N_lines x 1 x 1)
+        unnormalized_voigt = self.rewofz(x_term.unsqueeze(2), a_term.unsqueeze(2))
+        return prefactor * unnormalized_voigt.squeeze()
 
     def rewofz(self, x, y):
         """Real part of wofz (Faddeeva) function based on Algorithm 916
@@ -1078,6 +1088,61 @@ class SparseLogEmulator(SparseLinearEmulator):
 
         f = f + y / math.pi * (-1 * torch.cos(2.0 * xy) * Sigma1 + 0.5 * Sigma23)
         return f
+
+
+class SparseLogEmissionEmulator(SparseLogEmulator):
+    """An emission line version of the sparse emulator"""
+
+    def sparse_opacity_model(self):
+        r"""A sparse pseudo-Voigt model
+
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} = \exp{\Big(-\sum_{j=1}^{N_{\mathrm{lines}}} a_j \mathsf{V}_j\Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model
+        """
+        fwhm_G = 2.3548 * torch.exp(self.sigma_widths).unsqueeze(1)
+        fwhm_L = 2.0 * torch.exp(self.gamma_widths).unsqueeze(1)
+        fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
+        eta = self._compute_eta(fwhm_L, fwhm)
+
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
+
+        opacities_2D = torch.exp(self.amplitudes).unsqueeze(1) * (
+            eta
+            * self._lorentzian_line(
+                rv_shifted_centers.unsqueeze(1),
+                torch.exp(self.gamma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
+            + (1 - eta)
+            * self._gaussian_line(
+                rv_shifted_centers.unsqueeze(1),
+                torch.exp(self.sigma_widths).unsqueeze(1),
+                self.wl_2D,
+            )
+        )
+
+        opacities_1D = opacities_2D.reshape(-1)
+
+        sparse_matrix = torch.sparse_coo_tensor(
+            self.indices, opacities_1D, size=(self.n_pix,), requires_grad=True
+        )
+
+        result_1D = sparse_matrix.to_dense()
+
+        return result_1D  # torch.exp(result_1D) - 1
 
 
 # Deprecated class names
