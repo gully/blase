@@ -762,7 +762,7 @@ class InstrumentalModel(nn.Module):
         """Resample the high resolution model to the data wavelength sampling"""
         vs = torch.split_with_sizes(convolved_flux, self.label_spacings)
         resampled_model_flux = torch.stack([torch.mean(v) for v in vs])
-        resampled_model_flux = torch.clamp(resampled_model_flux, min=0.0, max=1.0)
+        # resampled_model_flux = torch.clamp(resampled_model_flux, min=0.0, max=1.0)
 
         # Discard the first and last bins outside the spectrum extents
         return resampled_model_flux[1:-1]
@@ -1041,8 +1041,26 @@ class SparseLogEmulator(SparseLinearEmulator):
         prefactor = 1 / (math.sqrt(2.0 * math.pi) * sigma_width)
         # xterm gains an empty dimension for approximation (N_lines x N_wl x 1)
         # aterm gains an empty dimension for approximation (N_lines x 1 x 1)
-        unnormalized_voigt = self.rewofz(x_term.unsqueeze(2), a_term.unsqueeze(2))
+        unnormalized_voigt = self.hjert(x_term.unsqueeze(2), a_term.unsqueeze(2))
+
         return prefactor * unnormalized_voigt.squeeze()
+
+    def hjert(self, x, a):
+        """custom JVP version of the Voigt-Hjerting function, consisting of a
+        combination of rewofz and real(wofzs2).
+
+        Code is ported to pytorch from ExoJAX fadeeva.py
+        # Kawahara et al. 2022:
+        # http://arxiv.org/abs/2105.14782
+
+        Args:
+            x:
+            a:
+        Returns:
+            H(x,a) or Real(wofz(x+ia))
+        """
+        r2 = x * x + a * a
+        return torch.where(r2 < 111.0, self.rewofz(x, a), self.rewofzs2(x, a))
 
     def rewofz(self, x, y):
         """Real part of wofz (Faddeeva) function based on Algorithm 916
@@ -1064,7 +1082,7 @@ class SparseLogEmulator(SparseLinearEmulator):
         exx = torch.exp(-1.0 * x * x)
         f = exx * (
             erfcx(y) * torch.cos(2.0 * xy)
-            + x * torch.sin(xy) / 3.141592654 * torch.sinc(xy / 3.141592654)
+            + x * torch.sin(xy) / math.pi * torch.sinc(xy / math.pi)
         )
         y2 = y**2
         Sigma23 = torch.sum(
@@ -1086,6 +1104,26 @@ class SparseLogEmulator(SparseLinearEmulator):
 
         f = f + y / math.pi * (-1 * torch.cos(2.0 * xy) * Sigma1 + 0.5 * Sigma23)
         return f
+
+    def rewofzs2(self, x, y):
+        """Asymptotic representation of wofz (Faddeeva) function 1 for |z|**2 > 112 (for e = 10e-6)
+        See Zaghloul (2018) arxiv:1806.01656
+
+        Code is ported to pytorch from ExoJAX fadeeva.py
+        # Kawahara et al. 2022:
+        # http://arxiv.org/abs/2105.14782
+
+        Args:
+            x:
+            y:
+        Returns:
+            H=real(wofz(x+iy)),L=imag(wofz(x+iy))
+        """
+
+        z = x + y * (1j)
+        a = 1.0 / (2.0 * z * z)
+        q = (1j) / (z * math.sqrt(math.pi)) * (1.0 + a * (1.0 + a * (3.0 + a * 15.0)))
+        return q.real
 
 
 class SparseLogEmissionEmulator(SparseLogEmulator):
