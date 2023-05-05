@@ -6,7 +6,7 @@
 
 Hybrid data/model-driven approach to astronomical echelle spectroscopy data built on PyTorch
 
-We do fit up to 40,000+ spectral lines simultaneously, with the magic of autodiff:
+We fit up to 40,000+ spectral lines simultaneously, with the magic of autodiff:
 <video src='https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4' width=680></video>
 
 ## HITRAN
