@@ -1,0 +1,95 @@
+\documentclass[twocolumn]{aastex631}
+\usepackage{hyperref}
+\bibliographystyle{aasjournal}
+\usepackage[caption=false]{subfig}
+\usepackage{booktabs}
+\usepackage{censor}
+\usepackage[arrowdel]{physics}
+\usepackage{mathtools}
+\usepackage{outlines}
+\usepackage{lipsum}  
+\usepackage{amsmath,bm}
+
+\definecolor{belize}{RGB}{41, 128, 185}
+\definecolor{peter}{RGB}{52, 152, 219}
+\definecolor{nephritis}{RGB}{39, 174, 96}
+\definecolor{asbestos}{RGB}{127, 140, 141}
+\definecolor{clouds}{RGB}{236, 240, 241}
+
+\hypersetup{linkcolor=belize, citecolor=belize,filecolor=asbestos,urlcolor=peter}
+
+%\setlipsum{
+%  par-before = \begingroup\color{clouds},
+%  par-after = \endgroup
+%}
+%\SetLipsumParListSurrounders{\begingroup\color{gray}}{\endgroup}
+
+\hyphenation{long-it-udin-ally hy-po-thet-ical de-mon-stra-tion Ad-min-is-tra-tion}
+
+\DeclareMathOperator{\resample}{resample}
+
+\def\Teff{T_{\rm eff}}
+\def\vsini{v\sin{i}}
+\def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
+
+\begin{document}
+\shorttitle{\emph{blas\'e3D}: Interpretable Machine Learning for Spectroscopy}
+\shortauthors{Shankar \& Gully-Santiago \& Morley}
+\title{Blase3D\footnote{Open source code at \url{https://github.com/gully/blase}}}
+
+\author{Sujay Shankar}
+\affiliation{The University of Texas at Austin Department of Astronomy}
+
+\author{Michael Gully-Santiago}
+\affiliation{The University of Texas at Austin Department of Astronomy}
+
+\author{Caroline V. Morley}
+\affiliation{The University of Texas at Austin Department of Astronomy}
+
+
+
+\begin{abstract}
+    TBD
+\end{abstract}
+
+\keywords{High resolution spectroscopy (2096), Stellar spectral lines (1630), Astronomy data modeling(1859), GPU Computing (1969), Calibration (2179), Radial Velocity (1332), Maximum likelihood estimation (1901), Deconvolution (1910), Atomic spectroscopy (2099), Stellar photospheres (1237)}
+
+\section{Introduction}\label{sec:intro}
+\lipsum[1-2]
+
+\pagebreak
+\newpage
+
+\begin{acknowledgments}
+        This material is based upon work supported by the National Aeronautics and Space Administration under Grant Numbers 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program,
+        and 80NSSC20K0257 for the XRP program issued through the Science Mission Directorate.
+\end{acknowledgments}
+
+
+\facilities{HET (HPF)}
+
+\software{ pandas \citep{mckinney10},
+    matplotlib \citep{hunter07},
+    astropy \citep{exoplanet:astropy13,exoplanet:astropy18},
+    exoplanet \citep{2021JOSS....6.3285F},
+    numpy \citep{harris2020array},
+    scipy \citep{2020SciPy-NMeth},
+    ipython \citep{perez07},
+    starfish \citep{czekala15},
+    seaborn \citep{Waskom2021},
+    pytorch \citep{2019arXiv191201703P},
+    muler \citep{2022JOSS....7.4302G}}
+
+
+\bibliography{ms}
+
+
+\clearpage
+
+\appendix
+\restartappendixnumbering
+
+\section{TBD} \label{appendixLogScale}
+
+\end{document}
+
