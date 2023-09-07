@@ -1,21 +1,25 @@
 # blasé
 
-`v0.3`
+Interpretable Machine Learning for high-resolution astronomical spectroscopy.
 
 <a href="https://blase.readthedocs.io/en/latest/"><img src="https://img.shields.io/badge/Read-the%20docs-blue"></a>
+<a href="https://ui.adsabs.harvard.edu/abs/2022ApJ...941..200G/abstract"><img src="https://img.shields.io/badge/Paper-Gully--Santiago & Morley (2022)-green"></a>
 
-Hybrid data/model-driven approach to astronomical echelle spectroscopy data built on PyTorch
+## Massively scalable
 
-We fit up to 40,000+ spectral lines simultaneously, with the magic of autodiff:
-<video src='https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4' width=680></video>
+By using autodiff, we can fit over 40,000 spectral lines simultaneously.
+<video width="320" autoplay loop muted playsinline>
 
-## HITRAN
+  <source src="'https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
-The [HITRAN database](https://hitran.org/) stores atomic data used here for bespoke modeling of Earth's atmospheric absorption and emission. To tap into this database, we use the HITRAN Python API [hapi](https://hitran.org/hapi/). You may need to install the bleeding-edge version of HAPI from source.
+## Rooted in physics
 
-### Authors:
+We first clone a precomputed synthetic spectrum, such as PHOENIX, and then **transfer learn** with data.
 
-- Michael Gully-Santiago (UT Austin)
-- Caroline Morley (UT Austin)
+## Blazing fast with GPUs
 
-Copyright 2020, 2021, 2022 Michael Gully-Santiago
+We achieve $>60 \times$ speedups with NVIDIA GPUs, so training takes minutes instead of hours.
+
+Copyright 2020, 2021, 2022, 2023 The Authors
