@@ -2,17 +2,24 @@ r"""
 emulator
 --------------
 
-Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
+Precomputed synthetic spectral models are awesome but imperfect and rigid.  
+Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models 
+to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties 
+of the pre-computed models with a neural network training loop, and then transfer those weights 
+to real data, where a second transfer-learning training step can take place. 
+The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  
+The number of lines is set by the `prominence=` kwarg: lower produces more lines 
+and higher (up to about 0.3) produces fewer lines.  
 """
 import math
-import torch
-from torch import nn
 import numpy as np
-from scipy.signal import find_peaks, peak_prominences, peak_widths
+import torch
 import torch.optim as optim
-from tqdm import trange
-from torch.special import erfc
 
+from scipy.signal import find_peaks, peak_prominences, peak_widths
+from torch import nn
+from torch.special import erfc
+from tqdm import trange
 
 def erfcx_naive(x):
     """Erfcx based on erfc"""
@@ -22,13 +29,11 @@ def erfcx_naive(x):
 try:
     from torch.special import erfcx
 
-    print("Woohoo! You have a version {} of PyTorch".format(torch.__version__))
+    print(f"Woohoo! You have PyTorch version {torch.__version__}")
 except ImportError:
     erfcx = erfcx_naive
     print(
-        "Version {} of PyTorch does not offer erfcx, defaulting to unstable...".format(
-            torch.__version__
-        )
+        f"PyTorch version {torch.__version__} does not offer erfcx, defaulting to unstable..."
     )
 
 
@@ -40,14 +45,14 @@ class LinearEmulator(nn.Module):
 
     Parameters
     ----------
-    wl_native :  torch.tensor
+    wl_native :  `torch.Tensor`
         The vector of input wavelengths at native resolution and sampling
-    flux_native : torch.tensor or None
-        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the
-        optimize method does not work.
-    prominence : int or None
-        The threshold prominence for peak finding, defaults to 0.03.  Ignored if init_state_dict is provided.
-    init_state_dict : dict
+    flux_native : `torch.Tensor` | `None`
+        The vector of continuum-flattened input fluxes. If None, line-finding is skipped, init_state_dict is required, 
+        and the optimize method does not work
+    prominence : `int` | `None`
+        The threshold prominence for peak finding, defaults to 0.03. Ignored if init_state_dict is provided
+    init_state_dict : `dict`
         A dictionary of model parameters to initialize the model with
     """
 
@@ -58,8 +63,7 @@ class LinearEmulator(nn.Module):
 
         # Read in the synthetic spectra at native resolution
         self.wl_native = torch.tensor(wl_native)
-        self.wl_min = wl_native.min()
-        self.wl_max = wl_native.max()
+        self.wl_min, self.wl_max = wl_native.min(), wl_native.max()
         self.n_pix = len(wl_native)
 
         ## Set up "active area", where the region-of-interest is:
@@ -103,7 +107,11 @@ class LinearEmulator(nn.Module):
         elif init_state_dict is None and self.flux_native is not None:
             if prominence is None:
                 prominence = 0.03
-            (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            (
+                lam_centers,
+                amplitudes,
+                widths_angstroms,
+            ) = self.detect_lines(
                 self.wl_native, self.flux_native, prominence=prominence
             )
 
@@ -153,7 +161,7 @@ class LinearEmulator(nn.Module):
             torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
         )
 
-        self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
+        self.wl_normed = (self.wl_native - 10500.0) / 2500.0
 
     def forward(self, wl):
         r"""The forward pass of the `blase` clone model
@@ -168,13 +176,13 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wl : torch.tensor
+        wl : `torch.Tensor`
             The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning
         """
         wl_normed = (wl - 10_500.0) / 2500.0
@@ -194,13 +202,13 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wl : torch.tensor
+        wl : `torch.Tensor`
             The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}`
             destined for backpropagation parameter tuning
         """
@@ -211,14 +219,14 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wl_native : torch.tensor
+        wl_native : `torch.Tensor`
             The 1D vector of native model wavelengths (Angstroms)
-        flux_native: torch.tensor
+        flux_native: `torch.Tensor`
             The 1D vector of continuum-flattened model fluxes
 
         Returns
         -------
-        tuple of tensors
+        `tuple[torch.Tensor, torch.Tensor, torch.Tensor]`
             The wavelength centers, prominences, and widths for all ID'ed
             spectral lines
         """
