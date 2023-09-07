@@ -4,12 +4,12 @@ from sys import argv
 
 extract = lambda x: x.detach().cpu().numpy()
 
-def main(spec: PHOENIXSpectrum, 
-         wing_cut: int = 6000, 
-         prominence: float = 0.005, 
-         epochs: int = 100, 
-         LR: float = 0.05, 
-         device: str = 'cpu'):
+def run_emulator(spec: PHOENIXSpectrum, 
+                 wing_cut: int = 6000, 
+                 prominence: float = 0.005, 
+                 epochs: int = 100, 
+                 LR: float = 0.05, 
+                 device: str = 'cpu'):
     # Preprocessing step
     norm_spec = spec.divide_by_blackbody().normalize()
     continuum = norm_spec.fit_continuum(polyorder=5)
@@ -25,6 +25,3 @@ def main(spec: PHOENIXSpectrum,
     gammas = extract(emulator.gamma_widths)
     
     return centers, amps, sigmas, gammas
-
-if __name__ == '__main__':
-    main(argv[1:])
