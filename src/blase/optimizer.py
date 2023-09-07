@@ -20,15 +20,10 @@ def run_emulator(spec: PHOENIXSpectrum,
     # Create emulator
     emulator = SLE(clean_spec.wavelength.value, clean_spec.flux.value, prominence, device, wing_cut)
     emulator.to(device)
-    # Obtain relevant data
-    centers = extract(emulator.lam_centers)
     emulator.optimize(epochs=epochs, LR=LR)
-    amps = extract(emulator.amplitudes)
-    sigmas = extract(emulator.sigma_widths)
-    gammas = extract(emulator.gamma_widths)
+    # Write state dict to .pt file
+    torch.save(emulator.state_dict(), f'emulator_states/T{spec.teff}G{spec.logg}Z{spec.Z}.pt')
     # Tie up loose ends
     del emulator
     gc.collect()
     torch.cuda.empty_cache()
-    
-    return centers, amps, sigmas, gammas
