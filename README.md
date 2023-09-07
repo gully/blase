@@ -12,8 +12,7 @@ We can combine stellar, [telluric](https://en.wikipedia.org/wiki/Telluric_contam
 ## _Massively scalable_
 
 By using autodiff, we can fit over 10,000 spectral lines simultaneously. This enormous amount of flexibility is unavailable in conventional frameworks that do not have [autodiff](https://en.wikipedia.org/wiki/Automatic_differentiation).  
-<video width="320" src="https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" autoplay loop>
-</video>  
+![optimize lines](https://user-images.githubusercontent.com/860227/266395385-1d938fda-fb89-4bc7-bd88-d26a5762b8a5.gif)
 ^ We do this for 10,000 lines simultaneously.
 
 ## _Rooted in physics_
