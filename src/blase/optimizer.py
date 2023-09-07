@@ -18,7 +18,7 @@ def run_emulator(spec: PHOENIXSpectrum,
     continuum = norm_spec.fit_continuum(polyorder=5)
     clean_spec = norm_spec.divide(continuum, handle_meta='ff')
     # Create emulator
-    emulator = SLE(*clean_spec.data, prominence, device, wing_cut)
+    emulator = SLE(clean_spec.wavelength.value, clean_spec.flux.value, prominence, device, wing_cut)
     emulator.to(device)
     # Obtain relevant data
     centers = extract(emulator.lam_centers)
