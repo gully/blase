@@ -5,15 +5,20 @@ Interpretable Machine Learning for high-resolution astronomical spectroscopy.
 <a href="https://blase.readthedocs.io/en/latest/"><img src="https://img.shields.io/badge/Read-the%20docs-blue"></a>
 <a href="https://ui.adsabs.harvard.edu/abs/2022ApJ...941..200G/abstract"><img src="https://img.shields.io/badge/Paper-Gully--Santiago & Morley (2022)-green"></a>
 
+## _Handles stellar and telluric lines simultaneously_
+
+We can combine stellar, [telluric](https://en.wikipedia.org/wiki/Telluric_contamination), and instrumental models into a unified forward model of your entire high-bandwidth, high-resolution spectrum. We can obtain best-in-class models of Earth's atmosphere, line-by-line, automatically, for free (or cheap).
+
 ## _Massively scalable_
 
-By using autodiff, we can fit over 40,000 spectral lines simultaneously.
-<video width="320" src="https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" autoplay loop muted>
-</video>
+By using autodiff, we can fit over 10,000 spectral lines simultaneously. This enormous amount of flexibility is unavailable in conventional frameworks that do not have [autodiff](https://en.wikipedia.org/wiki/Automatic_differentiation).  
+<video width="320" src="https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" autoplay loop>
+</video>  
+^ We do this for 10,000 lines simultaneously.
 
 ## _Rooted in physics_
 
-We first clone a precomputed synthetic spectrum, such as PHOENIX, and then **transfer learn** with data.
+We first clone a precomputed synthetic spectrum, such as PHOENIX, and then **transfer learn** with data. By regularizing to the cloned model, we get the best of both worlds: data driven when the Signal-to-Noise ratio is high, and model-driven when we lack data to say otherwise.
 
 ## _Blazing fast with GPUs_
 
