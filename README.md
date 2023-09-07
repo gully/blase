@@ -8,7 +8,7 @@ Interpretable Machine Learning for high-resolution astronomical spectroscopy.
 ## _Massively scalable_
 
 By using autodiff, we can fit over 40,000 spectral lines simultaneously.
-<video width="320" src="https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" autoplay loop muted playsinline>
+<video width="320" src="https://user-images.githubusercontent.com/860227/236579123-1acf7f23-e202-4c97-95d4-fc149ecdd191.mp4" autoplay loop muted>
 </video>
 
 ## _Rooted in physics_
