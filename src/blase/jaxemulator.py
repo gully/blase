@@ -12,6 +12,8 @@ import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 from tqdm import trange
 
+from exojax.spec import voigt, vvoigt
+
 # jax.config.update("jax_enable_x64", True)
 
 
@@ -245,10 +247,9 @@ class SparseLinearEmulator(object):
         return self.sparse_pseudo_Voigt_model(
             ln_amplitudes, ln_sigma_widths, ln_gamma_widths
         )
+    
 
-    def sparse_pseudo_Voigt_model(
-        self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths
-    ):
+    def sparse_pseudo_Voigt_model(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
         r"""A sparse pseudo-Voigt model
 
         The sparse matrix :math:`\hat{F}` is composed of the log flux
@@ -301,3 +302,67 @@ class SparseLinearEmulator(object):
         flux_out = flux_out.at[self.indices_1D].add(ln_term)
 
         return jnp.exp(flux_out)[self.active_mask]
+
+
+
+
+class SparseLinearEmissionEmulator(SparseLinearEmulator):
+    """An emission line version of the sparse emulator"""
+
+    def forward(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
+        r"""The forward pass of the sparse implementation--- no wavelengths needed!
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative spectral model destined for backpropagation
+        """
+        return self.sparse_Voigt_model(
+            ln_amplitudes, ln_sigma_widths, ln_gamma_widths
+        )
+
+
+    def sparse_Voigt_model(
+        self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths
+    ):
+        r"""A sparse pseudo-Voigt model
+
+        The sparse matrix :math:`\hat{F}` is composed of the log flux
+        values.  Instead of a dense matrix  :math:`\bar{F}`, the log fluxes
+        are stored as trios of coordinate values and fluxes.
+        :math:`(i, j, \ln{F_{ji}})`.  The computation proceeds as follows:
+
+        .. math::
+
+            \mathsf{S}_{\rm clone} = \exp{\Big(\sum_{j=1}^{N_{lines}} \ln{F_{ji}} \Big)}
+
+        Returns
+        -------
+        torch.tensor
+            The 1D generative sparse spectral model
+        """
+        #fwhm_G = 2.3548 * jnp.exp(ln_sigma_widths)[:, None]
+        #fwhm_L = 2.0 * jnp.exp(ln_gamma_widths)[:, None]
+        #fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
+  
+
+        rv_shifted_centers = self.lam_centers * (
+            1.0 + self.radial_velocity / 299_792.458
+        )
+
+        flux_2D = jnp.exp(ln_amplitudes)[:, None] * vvoigt(
+                self.wl_2D - rv_shifted_centers[:, None],
+                jnp.exp(ln_sigma_widths)[:, None],
+                jnp.exp(ln_gamma_widths)[:, None]).squeeze()
+
+
+        flux_1D = flux_2D.reshape(-1)
+
+        ## This operation applies a sparse COALESCE operation:
+        # Repeated indices get added together.
+        flux_out = jnp.zeros_like(self.flux_native)
+        flux_out = flux_out.at[self.indices_1D].add(flux_1D)
+
+        return flux_out
+
+
