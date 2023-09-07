@@ -1,3 +1,6 @@
+import gc
+import torch
+
 from blase.emulator import SparseLinearEmulator as SLE
 from gollum.phoenix import *
 from sys import argv
@@ -23,5 +26,9 @@ def run_emulator(spec: PHOENIXSpectrum,
     amps = extract(emulator.amplitudes)
     sigmas = extract(emulator.sigma_widths)
     gammas = extract(emulator.gamma_widths)
+    # Tie up loose ends
+    del emulator
+    gc.collect()
+    torch.cuda.empty_cache()
     
     return centers, amps, sigmas, gammas
