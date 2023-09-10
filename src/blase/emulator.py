@@ -21,20 +21,18 @@ from torch import nn
 from torch.special import erfc
 from tqdm import trange
 
-def erfcx_naive(x):
-    """Erfcx based on erfc"""
-    return torch.exp(x * x) * erfc(x)
-
-
 try:
     from torch.special import erfcx
 
-    print(f"Woohoo! You have PyTorch version {torch.__version__}")
+    print(f"PyTorch {torch.__version__} active")
 except ImportError:
-    erfcx = erfcx_naive
-    print(
-        f"PyTorch version {torch.__version__} does not offer erfcx, defaulting to unstable..."
-    )
+    erfcx = lambda x: torch.exp(x * x) * erfc(x)
+    print(f"PyTorch {torch.__version__} doesn't offer erfcx, defaulting to unstable...")
+
+
+def twin(x: torch.Tensor, grad: bool = False):
+    """Return a twin of the input tensor, with gradient tracking disabled by default"""
+    return x.clone().detach().requires_grad_(grad)
 
 
 class LinearEmulator(nn.Module):
@@ -48,7 +46,7 @@ class LinearEmulator(nn.Module):
     wl_native :  `torch.Tensor`
         The vector of input wavelengths at native resolution and sampling
     flux_native : `torch.Tensor` | `None`
-        The vector of continuum-flattened input fluxes. If None, line-finding is skipped, init_state_dict is required, 
+        The vector of continuum-flattened input fluxes. If None, line-finding is skipped, init_state_dict is required,
         and the optimize method does not work
     prominence : `int` | `None`
         The threshold prominence for peak finding, defaults to 0.03. Ignored if init_state_dict is provided
@@ -57,7 +55,11 @@ class LinearEmulator(nn.Module):
     """
 
     def __init__(
-        self, wl_native, flux_native=None, prominence=None, init_state_dict=None
+        self,
+        wl_native: torch.Tensor,
+        flux_native: torch.Tensor = None,
+        prominence: int = 0.03,
+        init_state_dict: dict = None,
     ):
         super().__init__()
 
@@ -66,16 +68,18 @@ class LinearEmulator(nn.Module):
         self.wl_min, self.wl_max = wl_native.min(), wl_native.max()
         self.n_pix = len(wl_native)
 
-        ## Set up "active area", where the region-of-interest is:
-        ## Restrict the lines to the active region plus 30 A buffer region
-        ## These are hardcoded, and care should be taken if changing them
+        # Set up "active area", where the region-of-interest is:
+        # Restrict the lines to the active region plus 30 A buffer region
+        # These are hardcoded, and care should be taken if changing them
         line_buffer = 30  # Angstroms
         active_buffer = 60  # Angstroms
 
-        active_lower, active_upper = (
-            self.wl_min + active_buffer,
-            self.wl_max - active_buffer,
-        )
+        active_lower = self.wl_min + active_buffer
+        active_upper = self.wl_max - active_buffer
+        # Set up line threshold, where lines are computed outside the active area
+        line_threshold_lower = self.wl_min + line_buffer
+        line_threshold_upper = self.wl_max - line_buffer
+
         active_mask = (wl_native > active_lower) & (wl_native < active_upper)
         self.active_mask = torch.tensor(active_mask)
 
@@ -85,36 +89,17 @@ class LinearEmulator(nn.Module):
             self.flux_native = torch.tensor(flux_native)
             self.flux_active = self.flux_native[active_mask]
         else:
-            self.flux_native = None
-            self.flux_active = None
-
-        # Set up line threshold, where lines are computed outside the active area
-        line_threshold_lower, line_threshold_upper = (
-            self.wl_min + line_buffer,
-            self.wl_max - line_buffer,
-        )
+            self.flux_native = self.flux_active = None
 
         if init_state_dict is not None:
-            if prominence is not None:
-                print(
-                    "You have entered both an initial state dict and a prominence kwarg.  Discarding prominence kwarg in favor of state dict."
-                )
             lam_centers = init_state_dict["lam_centers"]
             log_amps = init_state_dict["amplitudes"]
             log_sigma_widths = init_state_dict["sigma_widths"]
             log_gamma_widths = init_state_dict["gamma_widths"]
-
-        elif init_state_dict is None and self.flux_native is not None:
-            if prominence is None:
-                prominence = 0.03
-            (
-                lam_centers,
-                amplitudes,
-                widths_angstroms,
-            ) = self.detect_lines(
-                self.wl_native, self.flux_native, prominence=prominence
+        elif self.flux_native is not None:
+            lam_centers, amplitudes, widths_angstroms = self.detect_lines(
+                self.wl_native, self.flux_native, prominence
             )
-
             # Experimentally determined scale factor tweaks
             amp_tweak = 0.14
             sigma_width_tweak = 1.28
@@ -125,43 +110,25 @@ class LinearEmulator(nn.Module):
             )
             lam_centers = lam_centers[mask]
             log_amps = torch.log(amplitudes[mask] * amp_tweak)
-            log_sigma_widths = torch.log(
-                widths_angstroms[mask] / math.sqrt(2) * sigma_width_tweak
-            )
-            log_gamma_widths = torch.log(
-                widths_angstroms[mask] / math.sqrt(2) * gamma_width_tweak
-            )
-        elif init_state_dict is None and self.flux_native is None:
-            raise ValueError(
-                "Either flux_native or init_state_dict must be provided to specify the spectral lines"
-            )
+            norm_widths = widths_angstroms[mask] / math.sqrt(2)
+            log_sigma_widths = torch.log(norm_widths * sigma_width_tweak)
+            log_gamma_widths = torch.log(norm_widths * gamma_width_tweak)
+        else:
+            raise ValueError("flux_native or init_state_dict must be provided")
 
         # Fix the wavelength centers as gospel for now.
-        self.lam_centers = nn.Parameter(
-            lam_centers.clone().detach().requires_grad_(False)
-        )
-        self.amplitudes = nn.Parameter(log_amps.clone().detach().requires_grad_(True))
-        self.sigma_widths = nn.Parameter(
-            log_sigma_widths.clone().detach().requires_grad_(True)
-        )
-
-        self.gamma_widths = nn.Parameter(
-            log_gamma_widths.clone().detach().requires_grad_(True)
-        )
-
+        self.lam_centers = nn.Parameter(twin(lam_centers))
         self.n_lines = len(lam_centers)
 
-        self.a_coeff = nn.Parameter(
-            torch.tensor(1.0, requires_grad=False, dtype=torch.float64)
-        )
-        self.b_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
-        )
-        self.c_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
-        )
+        self.amplitudes = nn.Parameter(twin(log_amps, True))
+        self.sigma_widths = nn.Parameter(twin(log_sigma_widths, True))
+        self.gamma_widths = nn.Parameter(twin(log_gamma_widths, True))
 
-        self.wl_normed = (self.wl_native - 10500.0) / 2500.0
+        self.a_coeff = nn.Parameter(torch.tensor(1, dtype=torch.float64))
+        self.b_coeff = nn.Parameter(torch.tensor(0, dtype=torch.float64))
+        self.c_coeff = nn.Parameter(torch.tensor(0, dtype=torch.float64))
+
+        self.wl_normed = (self.wl_native - 10500) / 2500.0
 
     def forward(self, wl):
         r"""The forward pass of the `blase` clone model
@@ -383,9 +350,7 @@ class SparseLinearEmulator(LinearEmulator):
         device = torch.device(device)
 
         if self.flux_native is not None:
-            self.target = torch.tensor(
-                self.flux_active, dtype=torch.float64, device=device
-            )
+            self.target = self.flux_active.clone().detach().to(device, torch.float64)
         else:
             self.target = None
 
@@ -398,7 +363,6 @@ class SparseLinearEmulator(LinearEmulator):
 
         lines = self.lam_centers.detach().cpu().numpy()
         wl_native = self.wl_native.cpu().numpy()
-        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
 
         # Find the index position of each spectral line
         center_indices = np.searchsorted(wl_native, lines)
