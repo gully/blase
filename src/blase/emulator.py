@@ -16,6 +16,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+from numpy.typing import ArrayLike
 from scipy.signal import find_peaks, peak_prominences, peak_widths
 from torch import nn
 from torch.special import erfc
@@ -48,7 +49,7 @@ class LinearEmulator(nn.Module):
     flux_native : `torch.Tensor` | `None`
         The vector of continuum-flattened input fluxes. If None, line-finding is skipped, init_state_dict is required,
         and the optimize method does not work
-    prominence : `int` | `None`
+    prominence : `float` | `None`
         The threshold prominence for peak finding, defaults to 0.03. Ignored if init_state_dict is provided
     init_state_dict : `dict`
         A dictionary of model parameters to initialize the model with
@@ -58,7 +59,7 @@ class LinearEmulator(nn.Module):
         self,
         wl_native: torch.Tensor,
         flux_native: torch.Tensor = None,
-        prominence: int = 0.03,
+        prominence: float = 0.03,
         init_state_dict: dict = None,
     ):
         super().__init__()
@@ -130,7 +131,7 @@ class LinearEmulator(nn.Module):
 
         self.wl_normed = (self.wl_native - 10500) / 2500.0
 
-    def forward(self, wl):
+    def forward(self, wl: torch.Tensor):
         r"""The forward pass of the `blase` clone model
 
         Conducts the product of PseudoVoigt profiles for each line, with
@@ -152,16 +153,13 @@ class LinearEmulator(nn.Module):
         `torch.Tensor`
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning
         """
-        wl_normed = (wl - 10_500.0) / 2500.0
+        wl_norm = (wl - 10500) / 2500.0
+        polynomial = self.a_coeff + self.b_coeff * wl_norm + self.c_coeff * wl_norm**2
 
-        polynomial_term = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed**2
-        )
+        return self.product_of_pseudovoigt_model(wl) * polynomial
 
-        return self.product_of_pseudovoigt_model(wl) * polynomial_term
-
-    def product_of_pseudovoigt_model(self, wl):
-        r"""Return the Product of pseudo-Voigt profiles
+    def product_of_pseudovoigt_model(self, wl: torch.Tensor):
+        r"""Return the product of pseudo-Voigt profiles
 
         The product acts like a matrix contraction:
 
@@ -181,7 +179,12 @@ class LinearEmulator(nn.Module):
         """
         return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
-    def detect_lines(self, wl_native, flux_native, prominence=0.03):
+    def detect_lines(
+        self,
+        wl_native: torch.Tensor,
+        flux_native: torch.Tensor,
+        prominence: float = 0.03,
+    ):
         """Identify the spectral lines in the native model
 
         Parameters
@@ -197,28 +200,29 @@ class LinearEmulator(nn.Module):
             The wavelength centers, prominences, and widths for all ID'ed
             spectral lines
         """
-        peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
+        peaks = find_peaks(-flux_native, distance=4, prominence=prominence)[0]
         prominence_data = peak_prominences(-flux_native, peaks)
-        width_data = peak_widths(-flux_native, peaks, prominence_data=prominence_data)
+        widths = peak_widths(-flux_native, peaks, prominence_data=prominence_data)[0]
         lam_centers = wl_native[peaks]
         prominences = torch.tensor(prominence_data[0])
-        widths = width_data[0]
         d_lam = np.diff(wl_native)[peaks]
         # Convert FWHM in pixels to Gaussian sigma in Angstroms
         widths_angs = torch.tensor(widths * d_lam / 2.355)
 
         return (lam_centers, prominences, widths_angs)
 
-    def _lorentzian_line(self, lam_center, width, wavelengths):
+    def _lorentzian_line(
+        self, lam_center: float, width: float, wavelengths: torch.Tensor
+    ):
         """Return a Lorentzian line, given properties"""
-        return 1 / 3.141592654 * width / (width**2 + (wavelengths - lam_center) ** 2)
+        return width / (math.pi * (width**2 + (wavelengths - lam_center) ** 2))
 
-    def _gaussian_line(self, lam_center, width, wavelengths):
+    def _gaussian_line(
+        self, lam_center: float, width: float, wavelengths: torch.Tensor
+    ):
         """Return a normalized Gaussian line, given properties"""
-        return (
-            1.0
-            / (width * 2.5066)
-            * torch.exp(-0.5 * ((wavelengths - lam_center) / width) ** 2)
+        return torch.exp(-0.5 * ((wavelengths - lam_center) / width) ** 2) / (
+            width * math.sqrt(2 * math.pi)
         )
 
     def _compute_eta(self, fwhm_L, fwhm):
@@ -228,7 +232,6 @@ class LinearEmulator(nn.Module):
 
     def _compute_fwhm(self, fwhm_L, fwhm_G):
         """Compute the fwhm for pseudo Voigt using the approximation"""
-
         return (
             fwhm_G**5
             + 2.69269 * fwhm_G**4 * fwhm_L**1
@@ -236,7 +239,7 @@ class LinearEmulator(nn.Module):
             + 4.47163 * fwhm_G**2 * fwhm_L**3
             + 0.07842 * fwhm_G**1 * fwhm_L**4
             + fwhm_L**5
-        ) ** (1 / 5)
+        ) ** 0.2
 
     def pseudo_voigt_profiles(self, wavelengths):
         r"""Compute the pseudo-Voigt Profile for a collection of lines
@@ -250,13 +253,13 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wavelengths : torch.tensor
+        wavelengths : `torch.Tensor`
             The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D pseudo-Voigt profiles
 
         Notes
@@ -310,56 +313,38 @@ class SparseLinearEmulator(LinearEmulator):
 
     Parameters
     ----------
-    wl_native : float vector
+    wl_native : `ArrayLike`
         The input wavelength at native sampling
-    flux_native : float vector
+    flux_native : `ArrayLike`
         The continuum-flattened flux at native sampling
-    prominence : int
+    prominence : `float`
         The threshold for detecting lines
-    device : Torch Device or str
+    device : `torch.device` or `str`
         GPU or CPU?
-    wing_cut_pixels : int
+    wing_cut_pixels : `int`
         The number of pixels centered on the line center to evaluate in the
         sparse implementation, default: 1000 pixels
-    init_state_dict : dict
+    init_state_dict : `dict`
         A dictionary of model parameters to initialize the model with
     """
 
     def __init__(
         self,
-        wl_native,
-        flux_native=None,
-        prominence=None,
-        device=None,
-        wing_cut_pixels=None,
-        init_state_dict=None,
+        wl_native: ArrayLike,
+        flux_native: ArrayLike = None,
+        prominence: float = 0.03,
+        device: torch.device | str = "cuda" if torch.cuda.is_available() else "cpu",
+        wing_cut_pixels: int = 1000,
+        init_state_dict: dict = None,
     ):
-        super().__init__(
-            wl_native,
-            flux_native=flux_native,
-            prominence=prominence,
-            init_state_dict=init_state_dict,
-        )
-
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-
-        device = torch.device(device)
+        super().__init__(wl_native, flux_native, prominence, init_state_dict)
 
         if self.flux_native is not None:
-            self.target = self.flux_active.clone().detach().to(device, torch.float64)
+            self.target = twin(self.flux_active).to(device, torch.float64)
         else:
             self.target = None
 
-        ## Define the wing cut
-        # Currently defined in *pixels*
-        if wing_cut_pixels is None:
-            wing_cut_pixels = 1000
-        else:
-            wing_cut_pixels = int(wing_cut_pixels)
+        wing_cut_pixels = int(wing_cut_pixels)
 
         lines = self.lam_centers.detach().cpu().numpy()
         wl_native = self.wl_native.cpu().numpy()
@@ -369,17 +354,14 @@ class SparseLinearEmulator(LinearEmulator):
 
         # From that, determine the beginning and ending indices
         zero_indices = center_indices - (wing_cut_pixels // 2)
-        too_low = zero_indices < 0
-        zero_indices[too_low] = 0
+        zero_indices[zero_indices < 0] = 0
         end_indices = zero_indices + wing_cut_pixels
-        too_high = end_indices > self.n_pix
+        too_high = end_indices >= self.n_pix
         zero_indices[too_high] = self.n_pix - wing_cut_pixels - 1
         end_indices[too_high] = self.n_pix - 1
 
         # Make a 2D array of the indices
-        indices_2D = np.linspace(
-            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
-        )
+        indices_2D = np.linspace(zero_indices, end_indices, wing_cut_pixels)
 
         self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
         self.indices_1D = self.indices_2D.reshape(-1)
@@ -389,7 +371,7 @@ class SparseLinearEmulator(LinearEmulator):
         self.active_mask = self.active_mask.to(device)
 
         self.radial_velocity = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0, requires_grad=True, dtype=torch.float64)
         )
 
     def forward(self):
@@ -510,7 +492,7 @@ class SparseLinearEmulator(LinearEmulator):
                 )
             )
 
-        t_iter = trange(epochs, desc="Training", leave=True)
+        t_iter = trange(epochs, desc="Training", leave=False)
         for epoch in t_iter:
             self.train()
             high_res_model = self.forward()[self.active_mask]

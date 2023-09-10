@@ -35,7 +35,6 @@ def run_emulator(
         clean_spec.wavelength.value, clean_spec.flux.value, prominence, device, wing_cut
     )
     emulator.to(device)
-    print(emulator)
     emulator.optimize(epochs=epochs, LR=LR)
     # Write state dict to .pt file
     torch.save(emulator.state_dict(), f"emulator_states/{file_name}")
