@@ -331,6 +331,12 @@ class LinearEmulator(nn.Module):
 
     def animate(self, old_state_dict):
         """Animate the model from a previous state to the current state"""
+        try: 
+            import manim
+        except ImportError:
+            print("Manim is required for the .animate() feature, but it is not installed.  Please install manim and try again.")
+            return
+
         raise NotImplementedError
 
 
