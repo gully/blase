@@ -327,6 +327,12 @@ class LinearEmulator(nn.Module):
     def optimize(self):
         """Optimize the model parameters"""
         raise NotImplementedError
+    
+
+    def animate(self, old_state_dict):
+        """Animate the model from a previous state to the current state"""
+        raise NotImplementedError
+
 
 
 class SparseLinearEmulator(LinearEmulator):
