@@ -34,10 +34,13 @@ def run_emulator(
     emulator = SLE(
         clean_spec.wavelength.value, clean_spec.flux.value, prominence, device, wing_cut
     )
+    pre_line_centers = emulator.lam_centers.clone().detach()
     emulator.to(device)
     emulator.optimize(epochs=epochs, LR=LR)
     # Write state dict to .pt file
-    torch.save(emulator.state_dict(), f"emulator_states/{file_name}")
+    state_dict = emulator.state_dict()
+    state_dict['pre_line_centers'] = pre_line_centers
+    torch.save(state_dict, f"emulator_states/{file_name}")
     # Tie up loose ends
     del emulator
     gc.collect()
