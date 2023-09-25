@@ -28,4 +28,4 @@ if __name__ == "__main__":
                 device = torch.device("cpu") 
     main(argv[1], argv[2], device)
     end_time = dt.now()
-    system(f"echo {f'{start_time} -> {end_time}: {end_time - start_time}'} >> delta.txt")
+    system(f"echo {f'{start_time} to {end_time}: {end_time - start_time}'} >> delta.txt")
