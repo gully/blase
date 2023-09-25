@@ -22,6 +22,7 @@ def run_emulator(
     epochs: int = 100,
     LR: float = 0.05,
     device: str = "cpu",
+    verbose: bool = False,
 ):
     file_name = f"T{spec.teff}G{spec.logg}Z{spec.Z}.pt"
     if os.path.exists(f"emulator_states/{file_name}"):
@@ -36,7 +37,7 @@ def run_emulator(
     )
     pre_line_centers = emulator.lam_centers.clone().detach()
     emulator.to(device)
-    emulator.optimize(epochs=epochs, LR=LR)
+    emulator.optimize(epochs=epochs, LR=LR, verbose=verbose)
     # Write state dict to .pt file
     state_dict = emulator.state_dict()
     state_dict['pre_line_centers'] = pre_line_centers
