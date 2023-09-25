@@ -1,8 +1,10 @@
+from datetime import datetime as dt
 import torch
 
 from blase.emulator import SparseLinearEmulator as SLE
 from blase.optimizer import default_clean, run_emulator
 from gollum.phoenix import PHOENIXGrid
+from os import system
 from sys import argv
 from tqdm import tqdm
 
@@ -13,6 +15,7 @@ def main(device):
         run_emulator(spec, device=device)
 
 if __name__ == "__main__":
+    start_time = dt.now()
     try:
         device = argv[1]
     except IndexError:
@@ -24,3 +27,5 @@ if __name__ == "__main__":
             except RuntimeError:
                 device = torch.device("cpu") 
     main(device)
+    end_time = dt.now()
+    system(f"echo {f'{start_time} -> {end_time}: {end_time - start_time}'} >> delta.txt")
