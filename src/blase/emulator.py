@@ -462,7 +462,7 @@ class SparseLinearEmulator(LinearEmulator):
 
         return torch.exp(result_1D)
 
-    def optimize(self, epochs=100, LR=0.01):
+    def optimize(self, epochs=100, LR=0.01, verbose=True):
         """Optimize the model parameters with backpropagation
 
         Parameters
@@ -492,7 +492,7 @@ class SparseLinearEmulator(LinearEmulator):
                 )
             )
 
-        t_iter = trange(epochs, desc="Training", leave=False)
+        t_iter = trange(epochs, desc="Training", leave=False, disable=not verbose)
         for epoch in t_iter:
             self.train()
             high_res_model = self.forward()[self.active_mask]
