@@ -1,0 +1,45 @@
+\documentclass{article}
+
+\usepackage{physics}
+\usepackage{mathtools}
+
+\begin{document}
+\centering
+INDEXES\\
+$n$: grid point index\\
+$p$: pixel index\\
+$l$: line index\\
+
+MODIFIERS\\
+$\vec{q}$: sequence\\
+$\tilde{q}$: model approximation\\
+$\hat{q}$: continuous value\\
+
+SYMBOLS\\
+$\rho$: stellar properties\\
+$S$: PHOENIX spectrum\\
+$\vec{G}$: PHOENIX grid\\
+$\vec{\phi}$: Flux vector\\
+$\vec{\lambda}$: Wavelength axis\\
+$\mu$: Line center\\
+$A$: Line amplitude\\
+$\sigma$: Gaussian line width\\
+$\gamma$: Lorentzian line width\\
+$M$: Manifold model\\
+$\Phi$: Model flux vector
+
+\begin{gather*}
+\rho = \mqty[T_{eff}, \log{(g)}, [\text{Fe/H}]] \\\\
+\rho_n \mapsto S_n \\\\
+S_n = \mqty[\vec{\phi}_n \coloneqq (\phi_{np})_{p=1}^P \\\\ \vec{\lambda} \coloneqq (\lambda_{p})_{p=1}^P] \\\\
+\vec{G} = (S_n)_{n=1}^N \\\\
+\vec{\phi}_n \mapsto \left(\mqty[\mu_{l} & A_{nl} & \sigma_{nl} & \gamma_{nl}]\right)_{l=1}^L \\\\
+M_{l}: \vec{\rho} \to \mqty[\vec{A}_l & \vec{\sigma}_l & \vec{\gamma}_l] \coloneqq \left(\mqty[A_{nl} & \sigma_{nl} & \gamma_{nl}]\right)_{n=1}^N \\\\
+\tilde{M}_l \approx M_l \\\\
+\tilde{M}_l: \vec{\rho} \to \mqty[\vec{\tilde{A}}_l & \vec{\tilde{\sigma}}_l & \vec{\tilde{\gamma}}_l] \\\\
+\vec{\tilde{M}} = (\tilde{M_l})_{l=1}^L \\\\
+\vec{\tilde{M}}(\hat{\rho}) = \left(\mqty[\hat{A}_l & \hat{\sigma}_l & \hat{\gamma}_l]\right)_{l=1}^L \\\\
+\mqty[(\mu_l)_{l=1}^L ~|~ \vec{\tilde{M}}(\hat{\rho})] \mapsto \vec{\Phi}
+\end{gather*}
+
+\end{document}
