@@ -4,13 +4,15 @@ import torch
 
 from collections import defaultdict
 from functools import reduce
+from itertools import product
 from numpy.polynomial.polynomial import polyvander2d, polyvander3d
 from os import listdir
 from re import split
+from scipy.interpolate import RegularGridInterpolator
 from scipy.linalg import lstsq
 from tqdm import tqdm
 
-def main():
+def main(scheme=None):
     path = "/home/sujay/data/10K_12.5K_clones"
 
     line_stats = defaultdict(list)
@@ -42,40 +44,42 @@ def main():
     line_counts = df.value_counts('center')
 
     current_line = line_counts.index[0]
-    MAX_DEGREE = 3
     df_line = df.query('center == @current_line')
-    '''
-    print('Creating Design and Observation Matrices...')
-    design_matrix = polyvander3d(df_line['amp'], df_line['sigma'], df_line['gamma'], deg=(MAX_DEGREE, MAX_DEGREE, MAX_DEGREE)).astype(float)
-    observation_matrix = df_line[['teff', 'logg', 'Z']].to_numpy(dtype=float)
-    print('Solving for Least Squares Coefficients...')
-    coefficients, residuals = lstsq(design_matrix, observation_matrix)[0:2]
-    print('Evaluating Akaike Information Criterion...')
-    loss_function = np.sum(residuals**2)
-    AIC = 2 * (coefficients.size - np.log(loss_function))
-    # Use inflect ordinals in the future, because why not
-    print(f'{MAX_DEGREE}-th Order Raw Model AIC: {AIC}')
-    # Loop over design matrix, and test drop columns to improve AIC
-    # Refined Model AIC here
-    manifold = design_matrix @ coefficients
-    df_visual = pd.DataFrame({'amp': df_line['amp'], 'sigma': df_line['sigma'], 'gamma': df_line['gamma'], 'teff': manifold[:, 0], 'logg': manifold[:, 1], 'Z': manifold[:, 2]})
-    print('Writing Manifold to Parquet...')
-    df_visual.to_parquet('experiments/09_surface_fitting/surface_visualization_sparse.parquet.gz', compression='gzip')'''
 
-    print('Creating Design and Observation Matrices...')
-    design_matrix = polyvander2d(df_line['teff'], df_line['logg'], deg=(7, 7)).astype(float)
-    observation_matrix = df_line[['amp', 'sigma', 'gamma']].to_numpy(dtype=float)
-    print('Solving for Least Squares Coefficients...')
-    coefficients, residuals = lstsq(design_matrix, observation_matrix)[0:2]
-    print('Evaluating Akaike Information Criterion...')
-    loss_function = np.sum(residuals**2)
-    AIC = 2 * (coefficients.size - np.log(loss_function))
-    # Use inflect ordinals in the future, because why not
-    print(f'{MAX_DEGREE}-th Order Raw Model AIC: {AIC}')
-    print(f'Design Matrix Shape: {design_matrix.shape}')
-    manifold = design_matrix @ coefficients
-    df_visual = pd.DataFrame({'teff': df_line['teff'], 'logg': df_line['logg'], 'amp': manifold[:, 0], 'sigma': manifold[:, 1], 'gamma': manifold[:, 2]})
-    df_visual.to_parquet('experiments/09_surface_fitting/surface_visualization_grid.parquet.gz', compression='gzip')
+    if scheme == 'polylinear':
+        MAX_DEGREE = 4
+        print('Creating Design and Observation Matrices...')
+        design_matrix = polyvander2d(df_line['teff'], df_line['logg'], deg=(MAX_DEGREE, MAX_DEGREE)).astype(float)
+        observation_matrix = df_line[['amp', 'sigma', 'gamma']].to_numpy(dtype=float)
+        print('Solving for Least Squares Coefficients...')
+        coefficients, residuals = lstsq(design_matrix, observation_matrix)[0:2]
+        print('Evaluating Akaike Information Criterion...')
+        loss_function = np.sum(residuals**2)
+        AIC = 2 * (coefficients.size - np.log(loss_function))
+        # Use inflect ordinals in the future, because why not
+        print(f'{MAX_DEGREE}-th Order Raw Model AIC: {AIC}')
+        print(f'Design Matrix Shape: {design_matrix.shape}')
+        manifold = design_matrix @ coefficients
+        df_visual = pd.DataFrame({'teff': df_line['teff'], 'logg': df_line['logg'], 'amp': manifold[:, 0], 'sigma': manifold[:, 1], 'gamma': manifold[:, 2]})
+        df_visual.to_parquet('experiments/09_surface_fitting/surface_visualization_grid.parquet.gz', compression='gzip')
+
+    elif scheme == 'interpolation':
+        METHOD = 'linear' # linear, slinear, cubic, quintic, pchip
+        df_line.sort_values(by=['teff', 'logg'], inplace=True)
+        teff_points = np.sort(df.teff.unique()).astype(float)
+        logg_points = np.sort(df.logg.unique()).astype(float)
+        print('Creating Interpolators...')
+        amp_interpolator = RegularGridInterpolator((teff_points, logg_points), values=df_line.groupby('teff')['amp'].apply(list).to_list(), method=METHOD)
+        sigma_interpolator = RegularGridInterpolator((teff_points, logg_points), values=df_line.groupby('teff')['sigma'].apply(list).to_list(), method=METHOD)
+        gamma_interpolator = RegularGridInterpolator((teff_points, logg_points), values=df_line.groupby('teff')['gamma'].apply(list).to_list(), method=METHOD)
+        print('Creating Forward Model...')
+        teff_points = np.linspace(teff_points.min(), teff_points.max(), 100)
+        logg_points = np.linspace(logg_points.min(), logg_points.max(), 100)
+        T, G = np.meshgrid(teff_points, logg_points, indexing='ij')
+        df_visual = pd.DataFrame({'teff': T.flatten(), 'logg': G.flatten(), 'amp': amp_interpolator((T.flatten(), G.flatten())), 
+                                  'sigma': sigma_interpolator((T.flatten(), G.flatten())), 'gamma': gamma_interpolator((T.flatten(), G.flatten()))})
+        print('Saving Forward Model...')
+        df_visual.to_parquet('experiments/09_surface_fitting/surface_visualization_grid_interp.parquet.gz', compression='gzip')
 
 if __name__ == '__main__':
-    main()
+    main('interpolation')
