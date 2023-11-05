@@ -64,7 +64,7 @@ def main(scheme=None):
         df_visual.to_parquet('experiments/09_surface_fitting/surface_visualization_grid.parquet.gz', compression='gzip')
 
     elif scheme == 'interpolation':
-        METHOD = 'linear' # linear, slinear, cubic, quintic, pchip
+        METHOD = 'slinear' # linear, slinear, cubic, quintic, pchip
         df_line.sort_values(by=['teff', 'logg'], inplace=True)
         teff_points = np.sort(df.teff.unique()).astype(float)
         logg_points = np.sort(df.logg.unique()).astype(float)

@@ -3,6 +3,7 @@
 
 \usepackage{amsmath}
 \usepackage{blindtext}
+\usepackage{bm}
 % Temporary packages
 \usepackage{mdframed}
 \usepackage{verbatim}
@@ -176,23 +177,27 @@
 
 \appendix
 \section{Notation}
+We adopt a mostly similar notation to the blas\'e paper, with some modifications.
 
-\begin{deluxetable}{cp{10cm}}
-    \tabletypesize{\scriptsize}
+\begin{deluxetable}{cp{10cm}}[h]
+    \tabletypesize{\small}
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
         \colhead{Symbol} & \colhead{Meaning}
     }
     \startdata
     \hline
+    \multicolumn{2}{c}{Indexes}\\
+    \hline
+    $i$ & Pixel index of the precomputed spectrum\\
+    $j$ & Spectral line index\\
+    $k$ & Grid point index\\
+    \hline
     \multicolumn{2}{c}{Spectra}\\
     \hline
-    $\bm{\lambda}_S$ & Native wavelength coordinates of the precomputed stellar spectrum\\
-    $\bm{\lambda}_T$ & Native wavelength coordinates of the telluric spectrum\\
-    $\bm{\lambda}_D$ & Native wavelength coordinates of the data spectrum\\
-    $\mathsf{S}_{\rm abs}$ & Flux values of the precomputed synthetic stellar spectral model $\bm{\lambda}_S$\\
-    $\mathsf{B}$ & Blackbody of temperature $T_{\mathrm{eff}}$ to coarsely normalize $\mathsf{S}_{\rm native}$\\
-    $\mathsf{P}$ & Smooth polynomial to refine continuum-normalization\\
+    $\bm{\lambda}$ & Native wavelength coordinate axis of the PHOENIX model grid\\
+    $\mathsf{S}_k$ & Flux values of the $k^{th}$ precomputed spectrum\\
+    $\mathsf{P}_k$ & Smooth polynomial to refine continuum-normalization\\
     $\mathsf{S}$ & Continuum normalized augmentation of $\mathsf{S}_{\rm abs}$\\
     $\mathsf{T}$ & Transmission values of the precomputed synthetic telluric model \\
     $\mathsf{D}$ & The observed data spectrum flux values\\
@@ -213,7 +218,7 @@
     $\sigma_j$ & Gaussian line profile scale of the $j^{th}$ spectral line\\
     $\gamma_j$ & Lorentzian line profile half width of the $j^{th}$ spectral line\\
     $\mathsf{V}_j$ & The Voigt profile of the $j^{th}$ spectral line \\
-    $\bar{\bm{F}}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all line fluxes stacked vertically \\
+    $\bar{\bm{F}}\bar{F}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all line fluxes stacked vertically \\
     $\hat{\bm{F}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all line fluxes stacked vertically \\
     $\zeta$ & The rotational broadening convolution kernel\\
     $g$ & The instrumental broadening convolution kernel, typically a Gaussian\\
