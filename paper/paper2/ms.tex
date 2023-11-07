@@ -4,6 +4,7 @@
 \usepackage{amsmath}
 \usepackage{blindtext}
 \usepackage{bm}
+\usepackage{enumitem}
 % Temporary packages
 \usepackage{mdframed}
 \usepackage{verbatim}
@@ -117,7 +118,13 @@
     \textbf{Problem: missing lines}
     - Conceivable Solution 1: treat as NaNs and deal with sparsity
     - Conceivable Solution 2: increase model complexity
-    \textcolor{lightgray}{\blindtext}
+    \\--------\\
+    When using blas\'e, we aggregate the detected lines from all of the grid points
+    into one superset of lines. However, not all of the lines in this superset are 
+    detected at every grid point. In order to deal with this sparsity, we ignore lines
+    have $xx$ detections or less. This removes the most sparse lines, but some sparsity still
+    remains. The remaining 'missing lines' are dealt with by treating them as Voigt profiles 
+    with amplitudes of 0, and Gaussian and Lorentzian widths equal to $xx$ and $xx$ respectively.
 \end{mdframed}
 
 \section{Performance evaluation}
@@ -155,8 +162,12 @@
 
 \begin{mdframed}
     \textbf{Conceivable Extensions}
-
-    \textcolor{lightgray}{\blindtext}
+    \\-------------\\
+    Future studies can extend this work in several ways:
+    \begin{enumerate}[label=-]
+        \item Extending the data from just the PHOENIX Grid to additional synthethic spectral
+        model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
+    \end{enumerate}
 \end{mdframed}
 
 
@@ -194,7 +205,7 @@ We adopt similar notation to the blas\'e paper, with some small modifications.
     \multicolumn{2}{c}{Spectra}\\
     \hline
     $\bm{\lambda}$ & Spectral axis of the model grid\\
-    $\mathbb{G}$ & The grid of synthetic spectral models\\
+    $\bm{G}$ & The grid of synthetic spectral models\\
     $\mathsf{B}_k$ & Blackbody spectrum of the $k^{th}$ model\\
     $\mathsf{P}_k$ & Continuum polynomial of the $k^{th}$ model\\
     $\mathsf{S}_k$ & Preprocessed flux vector of the $k^{th}$ model\\
@@ -213,8 +224,8 @@ We adopt similar notation to the blas\'e paper, with some small modifications.
     $I$ & Number of pixels in the model grid's spectral axis\\
     $J$ & Number of spectral lines detected across the grid \\
     $K$ & Number of grid points in the model grid\\
-    $p$ & The prominence threshold of spectral lines to identify\\
-    $v\sin(i)$ & Observed stellar rotation for inclination $i$ and true rotation $v$\\
+    $p$ & The prominence threshold for spectral line identification\\
+    $w$ & Wing cut pixel threshold for spectral line identification\\
     $v_r$ & Radial velocity of the star\\
     $R$ & Spectrograph resolving power $\lambda/\delta\lambda$\\
     $Q$ & Quality of a spectral reconstruction\\
