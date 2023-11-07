@@ -8,8 +8,6 @@
 \usepackage{mdframed}
 \usepackage{verbatim}
 
-\DeclareMathOperator{\resample}{resample}
-
 \def\Teff{T_{\rm eff}}
 \def\vsini{v\sin{i}}
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
@@ -177,7 +175,7 @@
 
 \appendix
 \section{Notation}
-We adopt a mostly similar notation to the blas\'e paper, with some modifications.
+We adopt similar notation to the blas\'e paper, with some small modifications.
 
 \begin{deluxetable}{cp{10cm}}[h]
     \tabletypesize{\small}
@@ -195,51 +193,33 @@ We adopt a mostly similar notation to the blas\'e paper, with some modifications
     \hline
     \multicolumn{2}{c}{Spectra}\\
     \hline
-    $\bm{\lambda}$ & Native wavelength coordinate axis of the PHOENIX model grid\\
-    $\mathsf{S}_k$ & Flux values of the $k^{th}$ precomputed spectrum\\
-    $\mathsf{P}_k$ & Smooth polynomial to refine continuum-normalization\\
-    $\mathsf{S}$ & Continuum normalized augmentation of $\mathsf{S}_{\rm abs}$\\
-    $\mathsf{T}$ & Transmission values of the precomputed synthetic telluric model \\
-    $\mathsf{D}$ & The observed data spectrum flux values\\
-    $\bm{\epsilon}$ & The estimated uncertainties in the data spectrum\\
-    $\mathsf{S}_{\rm clone}$ & Evaluable and tunable cloned flux model of $\mathsf{S}$\\
-    $\mathsf{T}_{\rm clone}$ & Evaluable and tunable cloned transmission model of $\mathsf{T}$\\
-    $\mathsf{S}_{\rm ext}$ & An augmentation of $\mathsf{S}_{\rm clone}$ with $v\sin{i}$ convolution and $RV$ translation\\
-    $\mathsf{M}_{\rm joint}$ & The joint stellar and telluric model: $\mathsf{S}_{\rm ext} \odot \mathsf{T}_{\rm clone}(\bm{\lambda}_S)$ \\
-    $\mathsf{M}$ & Joint model convolved
-    with instrumental kernel and resampled to $\bm{\lambda}_D$\\
-    $\mathsf{R}$ & The residual spectrum between a pair of inputs, \emph{e.g.} $\mathsf{D} - \mathsf{M}$\\
-    $\bm{v}$ & The spectral coordinate axis $\bm{\lambda}$ expressed as a velocity difference\\
+    $\bm{\lambda}$ & Spectral axis of the model grid\\
+    $\mathbb{G}$ & The grid of synthetic spectral models\\
+    $\mathsf{B}_k$ & Blackbody spectrum of the $k^{th}$ model\\
+    $\mathsf{P}_k$ & Continuum polynomial of the $k^{th}$ model\\
+    $\mathsf{S}_k$ & Preprocessed flux vector of the $k^{th}$ model\\
+    $\mathsf{\hat{S}}$ & Flux vector of the continuous model reconstruction\\
+    $\mathsf{R}_k$ & Residual between a $\mathsf{S}_k$ and its reconstruction\\
     \hline
-    \multicolumn{2}{c}{Line properties}\\
+    \multicolumn{2}{c}{Spectral Line Properties}\\
     \hline
-    $\lambda_{\mathrm{c},j}$ & Line center position of the $j^{th}$ spectral line\\
-    $a_j$ & Gaussian line profile amplitude of the $j^{th}$ spectral line \\
-    $\sigma_j$ & Gaussian line profile scale of the $j^{th}$ spectral line\\
-    $\gamma_j$ & Lorentzian line profile half width of the $j^{th}$ spectral line\\
-    $\mathsf{V}_j$ & The Voigt profile of the $j^{th}$ spectral line \\
-    $\bar{\bm{F}}\bar{F}$ & The dense $(N_{\rm lines} \times N_{x})$ matrix of all line fluxes stacked vertically \\
-    $\hat{\bm{F}}$ & The sparse $(N_{\rm lines} \times N_{\rm sparse})$ matrix of all line fluxes stacked vertically \\
-    $\zeta$ & The rotational broadening convolution kernel\\
-    $g$ & The instrumental broadening convolution kernel, typically a Gaussian\\
+    $\mu_{jk}$ & Center position of the $j^{th}$ line in the $k^{th}$ model\\
+    $A_{jk}$ & Amplitude of the $j^{th}$ line in the $k^{th}$ model\\
+    $\sigma_{jk}$ & Gaussian shape parameter of the $j^{th}$ line in the $k^{th}$ model\\
+    $\gamma_{jk}$ & Lorentzian shape parameter of the $j^{th}$ line in the $k^{th}$ model\\
     \hline
     \multicolumn{2}{c}{Scalars}\\
     \hline
-    $N_{\rm lines}$ & Number of spectral lines \\
-    $N_{x}$ & Number of pixel coordinates in the precomputed spectrum $\bm{\lambda}_x$\\
-    $N_{\rm sparse}$ & Number of non-zero pixels computed in the sparse implementation\\
-    $\pm \Delta \lambda_{\mathrm{buffer}}$ & Buffer exceeding the red and blue limits of the data spectrum\\
-    $P_{\rm rom}$ & The prominence threshold of spectral lines to include in cloning \\
-    $v\sin{i}$ & Rotational broadening for stellar inclination $i$ and equatorial velocity $v$\\
-    $RV$ & Radial velocity of the star\\
+    $I$ & Number of pixels in the model grid's spectral axis\\
+    $J$ & Number of spectral lines detected across the grid \\
+    $K$ & Number of grid points in the model grid\\
+    $p$ & The prominence threshold of spectral lines to identify\\
+    $v\sin(i)$ & Observed stellar rotation for inclination $i$ and true rotation $v$\\
+    $v_r$ & Radial velocity of the star\\
     $R$ & Spectrograph resolving power $\lambda/\delta\lambda$\\
-    $\mathcal{L}$ & The loss scalar, usually the sum of the squares of the residuals\\
-    \hline
-    \multicolumn{2}{c}{Operators}\\
-    \hline
-    $\resample \big[ \mathsf{F(\bm{\lambda}_x)} \big]$ & The resample operator, takes in a flux spectrum $\mathsf{F}$ evaluated at $\bm{\lambda}_x$ coordinates and returns the mean flux within the pixel boundaries of coordinate $\bm{\lambda}_z$\\
-    $*$& The convolution operator\\
-    $\odot$& \emph{Hadamard product}, an elementwise product of two same-length vectors\\
+    $Q$ & Quality of a spectral reconstruction\\
+    $H$ & The average storage impact of a spectral reconstruction\\
+    $T$ & The average computational impact of a spectral reconstruction\\
     \enddata
 \end{deluxetable}
 
