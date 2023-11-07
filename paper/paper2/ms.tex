@@ -66,19 +66,28 @@ This paper implements ths
 \end{mdframed}
 
 \begin{mdframed}
-    \textbf{Emulation with blas\'e}
+    \textbf{Cloning with blas\'e}
 
     - Per-grid point optimization procedure
     - Pretrained model caching
     - Output storage
-
-    \textcolor{lightgray}{\blindtext}
+    \\---------------\\
+    Blas\'e's algorithm is designed to take a spectrum as input, and outputs two products:
+    1. A list of detected spectral line properties, all assumed to be Voigt profiles, and 2.
+    A cloned spectrum, which is the aggregation of all of those detected lines into a spectrum. We
+    don't use the cloned spectrum from this process, and only focus on the line properties that are output.
+    These two products are stored as a .pt file, which can then be loaded in in order to 
+    analyze all the lines in bulk. Each grid point is processed in this way, and the resulting .pt files'
+    line properties are aggregated into a single DataFrame, which can then be queried by $T_eff$, $\log(g)$, $Z$,
+    in addition to the actual line in question, identified by its center $\mu_j$.
 \end{mdframed}
 
 \begin{mdframed}
     \textbf{Open Source Availability}
-
-    \textcolor{lightgray}{\blindtext}
+    \\--------------\\
+    The PHOENIX model grid is available open-source at $xx$, and can be interfaced with gollum,
+    also available open-source at $xx$. Blas\'e is also available open-source at $xx$, with this work
+    existing as a fork named blas\'e3D, available at $xx$.
 \end{mdframed}
 
 \begin{mdframed}
