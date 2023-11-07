@@ -31,7 +31,27 @@
 
 
 \section{Introduction}
-\blindtext
+
+
+
+\subsection{General spectroscopy ideas}
+
+\textbf{what do we want}\\
+Key goal: semi-empirical models-- a model that can continuously learn from and adapt to data.  Each new observed data spectrum informs changes to our preconceived theories of how stellar atmospheres produce spectra.  We seek model flexibility where we expect there to be deficiencies in these theories, and rigidity where we expect our theories to be most robust.
+
+\textbf{Why is that hard}\\
+
+
+
+Comparison to \citet{czekala15}.  Describe limitation of pre-designating 1 grid point.
+
+
+
+
+blasePaper1 describes a way to overcome this limitation by building up a so-called ``heatmap'' of line properties.  The realization of such a function enables a key capability: semi-empirical models.
+This paper implements ths
+
+
 
 \begin{mdframed}
     \textbf{Figure: Flowchart-with-words}
@@ -120,10 +140,10 @@
     - Conceivable Solution 2: increase model complexity
     \\--------\\
     When using blas\'e, we aggregate the detected lines from all of the grid points
-    into one superset of lines. However, not all of the lines in this superset are 
+    into one superset of lines. However, not all of the lines in this superset are
     detected at every grid point. In order to deal with this sparsity, we ignore lines
     have $xx$ detections or less. This removes the most sparse lines, but some sparsity still
-    remains. The remaining 'missing lines' are dealt with by treating them as Voigt profiles 
+    remains. The remaining 'missing lines' are dealt with by treating them as Voigt profiles
     with amplitudes of 0, and Gaussian and Lorentzian widths equal to $xx$ and $xx$ respectively.
 \end{mdframed}
 
@@ -166,7 +186,7 @@
     Future studies can extend this work in several ways:
     \begin{enumerate}[label=-]
         \item Extending the data from just the PHOENIX Grid to additional synthethic spectral
-        model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
+              model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
     \end{enumerate}
 \end{mdframed}
 
