@@ -215,13 +215,16 @@ This paper implements ths
 
 \appendix
 \section{Notation}
-We adopt similar notation to the blas\'e paper, with some small modifications.
+We adopt similar notation to the original blas\'e paper, with some small modifications. We make indexes and
+their limits consistent, and remove the use of subscript labeling. We also add new symbols for
+wing cut pixels, and radial velocity, as well as introducing three new metrics for reconstruction quality,
+storage impact, and computational impact.
 
 \begin{deluxetable}{cp{10cm}}[h]
     \tabletypesize{\small}
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
-        \colhead{Symbol} & \colhead{Meaning}
+        \colhead{Symbol} & \colhead{Meaning [former symbol, if applicable]}
     }
     \startdata
     \hline
@@ -233,7 +236,7 @@ We adopt similar notation to the blas\'e paper, with some small modifications.
     \hline
     \multicolumn{2}{c}{Spectra}\\
     \hline
-    $\bm{\lambda}$ & Spectral axis of the model grid\\
+    $\bm{\lambda}$ & Spectral axis of the model grid [$\bm{\lambda}_S$]\\
     $\bm{G}$ & The grid of synthetic spectral models\\
     $\mathsf{B}_k$ & Blackbody spectrum of the $k^{th}$ model\\
     $\mathsf{P}_k$ & Continuum polynomial of the $k^{th}$ model\\
@@ -243,23 +246,22 @@ We adopt similar notation to the blas\'e paper, with some small modifications.
     \hline
     \multicolumn{2}{c}{Spectral Line Properties}\\
     \hline
-    $\mu_{jk}$ & Center position of the $j^{th}$ line in the $k^{th}$ model\\
-    $A_{jk}$ & Amplitude of the $j^{th}$ line in the $k^{th}$ model\\
+    $\mu_{jk}$ & Center position of the $j^{th}$ line in the $k^{th}$ model [$\lambda_c$]\\
+    $A_{jk}$ & Amplitude of the $j^{th}$ line in the $k^{th}$ model [$a$]\\
     $\sigma_{jk}$ & Gaussian shape parameter of the $j^{th}$ line in the $k^{th}$ model\\
     $\gamma_{jk}$ & Lorentzian shape parameter of the $j^{th}$ line in the $k^{th}$ model\\
     \hline
     \multicolumn{2}{c}{Scalars}\\
     \hline
-    $I$ & Number of pixels in the model grid's spectral axis\\
-    $J$ & Number of spectral lines detected across the grid \\
+    $I$ & Number of pixels in the model grid's spectral axis [$N_x$]\\
+    $J$ & Number of spectral lines detected across the grid [$N_{lines}$]\\
     $K$ & Number of grid points in the model grid\\
-    $p$ & The prominence threshold for spectral line identification\\
     $w$ & Wing cut pixel threshold for spectral line identification\\
-    $v_r$ & Radial velocity of the star\\
+    $v_r$ & Radial velocity of the star [$RV$]\\
     $R$ & Spectrograph resolving power $\lambda/\delta\lambda$\\
     $Q$ & Quality of a spectral reconstruction\\
     $H$ & The average storage impact of a spectral reconstruction\\
-    $T$ & The average computational impact of a spectral reconstruction\\
+    $Y$ & The average computational impact of a spectral reconstruction\\
     \enddata
 \end{deluxetable}
 
