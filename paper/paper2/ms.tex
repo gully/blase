@@ -5,6 +5,7 @@
 \usepackage{blindtext}
 \usepackage{bm}
 \usepackage{enumitem}
+\usepackage{graphicx}
 % Temporary packages
 \usepackage{mdframed}
 \usepackage{verbatim}
@@ -158,6 +159,27 @@ This paper implements ths
 
 \section{Performance evaluation}
 
+Here is a table of the performance of different manifold choices:
+
+\begin{deluxetable*}{cccc}[h]
+    \tabletypesize{\small}
+    \tablecaption{Notation used in this paper\label{table2}}
+    \tablehead{
+        \colhead{Model Architecture} & \colhead{Reconstruction RMS} & \colhead{Model Size} & \colhead{Training Time}
+        \\\colhead{} & \colhead{RMS \%} & \colhead{MB} & \colhead{x} 
+        }
+    \startdata
+    Linear Polynomial & a & b & c\\
+    FFT & a & b & c\\
+    Random Forest & a & b & c\\
+    Gaussian Process & a & b & c\\
+    Interpolation & a & b & c\\
+    Interpolation & a & b & c\\ 
+    \enddata
+\end{deluxetable*}
+
+
+
 \begin{mdframed}
     \textbf{Typical Line reconstruction performance}
     \textcolor{lightgray}{\blindtext}
@@ -198,6 +220,7 @@ This paper implements ths
               model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
     \end{enumerate}
 \end{mdframed}
+
 
 
 \pagebreak
