@@ -37,6 +37,10 @@
 
 \subsection{General spectroscopy ideas}
 
+Precomputed synthetic stellar spectral models represent a distillation of all available physics and chemistry theory into effortlessly-reproducible comparisons for spectral observations.  Practitioners may simply download a file and overplot it against an observed spectrum, and apply human pattern recognition to obtain insights on fundamental stellar properties.  But such exercises typically fall short.  Inevitably, individual line depth and shape predictions do not match the observed spectrum.   \citet{2022ApJ...941..200G} introduced a two-stage interpretable Machine Learning (ML) technique to alleviate some of these challenges.  First clone the lines in a precomuted spectrum with fine-tuned Voigt profiles, and then warp those line properties in response to data using the power of automatic differentiation.  This design satisfied a common use case, the desire to obtain a semi-empirical super-resolution stellar template for the observed star: the pristine $R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star, having accounted for rotational broadening, instrumental resolution, and telluric artifacts.  We called this algorithm \emph{blas\'e}.
+
+This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation of \emph{bla\'e} was its requirement to pre-select a grid point as the initial starting point.
+
 \textbf{what do we want}\\
 Key goal: semi-empirical models-- a model that can continuously learn from and adapt to data.  Each new observed data spectrum informs changes to our preconceived theories of how stellar atmospheres produce spectra.  We seek model flexibility where we expect there to be deficiencies in these theories, and rigidity where we expect our theories to be most robust.
 
@@ -77,7 +81,7 @@ This paper implements ths
     1. A list of detected spectral line properties, all assumed to be Voigt profiles, and 2.
     A cloned spectrum, which is the aggregation of all of those detected lines into a spectrum. We
     don't use the cloned spectrum from this process, and only focus on the line properties that are output.
-    These two products are stored as a .pt file, which can then be loaded in in order to 
+    These two products are stored as a .pt file, which can then be loaded in in order to
     analyze all the lines in bulk. Each grid point is processed in this way, and the resulting .pt files'
     line properties are aggregated into a single DataFrame, which can then be queried by $T_eff$, $\log(g)$, $Z$,
     in addition to the actual line in question, identified by its center $\mu_j$.
@@ -166,15 +170,15 @@ Here is a table of the performance of different manifold choices:
     \tablecaption{Notation used in this paper\label{table2}}
     \tablehead{
         \colhead{Model Architecture} & \colhead{Reconstruction RMS} & \colhead{Model Size} & \colhead{Training Time}
-        \\\colhead{} & \colhead{RMS \%} & \colhead{MB} & \colhead{x} 
-        }
+        \\\colhead{} & \colhead{RMS \%} & \colhead{MB} & \colhead{x}
+    }
     \startdata
     Linear Polynomial & a & b & c\\
     FFT & a & b & c\\
     Random Forest & a & b & c\\
     Gaussian Process & a & b & c\\
     Interpolation & a & b & c\\
-    Interpolation & a & b & c\\ 
+    Interpolation & a & b & c\\
     \enddata
 \end{deluxetable*}
 
