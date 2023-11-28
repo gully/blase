@@ -40,20 +40,20 @@
 \subsection{General spectroscopy ideas}
 
 Precomputed synthetic stellar spectral models represent a distillation of all available physics
-and chemistry theory into effortlessly-reproducible comparisons for spectral observations.  
-Practitioners may simply download a file and overplot it against an observed spectrum, relying on 
-human pattern recognition to obtain insights on fundamental stellar properties. But such exercises 
-typically fall short. Inevitably, individual line depth and shape predictions do not match the 
-observed spectrum. \citet{2022ApJ...941..200G} introduced a two-stage interpretable machine learning (ML) 
-technique to alleviate some of these challenges. First, cloning the lines in a precomputed spectrum 
-with fine-tuned Voigt profiles, and then warping their line properties in response to data using 
-the power of automatic differentiation. This design satisfied a common use case, the desire to 
-obtain a semi-empirical super-resolution stellar template for the observed star: the pristine 
-$R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star, 
-having accounted for rotational broadening, instrumental resolution, and telluric artifacts. 
+and chemistry theory into effortlessly-reproducible comparisons for spectral observations.
+Practitioners may simply download a file and overplot it against an observed spectrum, relying on
+human pattern recognition to obtain insights on fundamental stellar properties. But such exercises
+typically fall short. Inevitably, individual line depth and shape predictions do not match the
+observed spectrum. \citet{2022ApJ...941..200G} introduced a two-stage interpretable machine learning (ML)
+technique to alleviate some of these challenges. First, cloning the lines in a precomputed spectrum
+with fine-tuned Voigt profiles, and then warping their line properties in response to data using
+the power of automatic differentiation. This design satisfied a common use case, the desire to
+obtain a semi-empirical super-resolution stellar template for the observed star: the pristine
+$R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star,
+having accounted for rotational broadening, instrumental resolution, and telluric artifacts.
 We called this algorithm \emph{blas\'e}, available with the Python package \texttt{blase}.
 
-This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation 
+This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation
 of \emph{blas\'e} was its requirement to pre-select a grid point as the initial starting point. The code
 introduced in this study bypasses this requirement by comparing spectral reconstructions to an input
 spectrum in order to automatically ascertain the fundamental stellar parameters.
@@ -79,13 +79,18 @@ This paper implements ths
     \textbf{Figure: Flowchart-with-words}
 \end{mdframed}
 
+\begin{figure*}
+    \includegraphics[width=\textwidth]{images/flowchart_frame1_v0p3.png}
+    \caption{Flowchart of the cloning steps for emulating precomputed spectra.}
+\end{figure*}
+
 \section{Emulating the PHOENIX grid}
 
 For the purposes of this study, we use a slice of the PHOENIX grid where the alpha abundance
 is set to zero. Within this slice, we allow the full range of $\Teff, \logg, \Z$. The specific
 sampling of the grid points is shown in Figure $XX$. Our approach could feasibly be extended to
 include alpha abundances, but given that the \texttt{gollum} interface does not yet support the access
-of spectra with nonzero alpha abundances, as well as bearing a significant increase in computational 
+of spectra with nonzero alpha abundances, as well as bearing a significant increase in computational
 impact, we leave this for future work.
 
 The \texttt{blase} code takes in any spectrum as input, and outputs a cloned
@@ -94,8 +99,8 @@ procedure, the state dictionary of the model itself, stored as a \texttt{.pt} fi
 where spectral lines were identified by \texttt{blase}, as well as those lines'
 specific properties, namely amplitude, Gaussian shape, and Lorentzian shape.
 In addition, \texttt{blase} also allows the line centers to shift slightly during
-cloning, meaning that in addition to the initial line centers, we 
-also have access to the shifted line centers. This hidden metadata is 
+cloning, meaning that in addition to the initial line centers, we
+also have access to the shifted line centers. This hidden metadata is
 what formed the backbone for this study and allowed us to retrieve line-by-line data
 that could then be interpolated. We input the PHOENIX grid spectra into \texttt{blase}
 and accessed the state dictionaries of each clone. Once this data was retrieved from the state dictionaries
@@ -148,7 +153,7 @@ the PHOENIX grid. The best way to visualize this is with heatmaps. This means th
 each line, for each line property, we have one heatmap, where the axes are the fundamental
 parameters, and the `temperature' is the value of the line property. As you can imagine, this
 is a lot of heatmaps, each of which is incredibly hard to visualize due to the dimensionality.
-So, we slice the heatmaps at solar metallicity to reduce them to 2D, and then we can easily 
+So, we slice the heatmaps at solar metallicity to reduce them to 2D, and then we can easily
 visualize the trend of any one line property of any one line across the grid on demand.
 
 \begin{mdframed}
@@ -157,7 +162,7 @@ visualize the trend of any one line property of any one line across the grid on 
 
 While we see heatmaps for lines that have values at all grid points, this is only true for
 a select few spectral lines. The vast majority of lines do not seem to show up at certain
-grid points, meaning that our heatmaps are sparse. Initially this seems like it would not be an 
+grid points, meaning that our heatmaps are sparse. Initially this seems like it would not be an
 issue; when reconstructing, simply retain knowledge of which points were missing and override
 the interpolated value with a missing value. Now, in addition to an
 interpolator, a sequence of grid points with missing values must be stored for each line just to
@@ -184,6 +189,14 @@ the storage impact through the roof.
 \begin{mdframed}
     \textbf{Figure: Flowchart-with-equations}
 \end{mdframed}
+
+
+\begin{figure*}
+    \includegraphics[width=\textwidth]{images/flowchart_frame2_v0p3.png}
+    \caption{Flowchart of the manifold steps for reconstructing a precomputed spectrum.}
+\end{figure*}
+
+
 
 \begin{mdframed}
     \textbf{Problem: missing lines}
