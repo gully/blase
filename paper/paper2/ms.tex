@@ -6,17 +6,19 @@
 \usepackage{bm}
 \usepackage{enumitem}
 \usepackage{graphicx}
+\usepackage{hyperref}
 % Temporary packages
 \usepackage{mdframed}
 \usepackage{verbatim}
 
 \def\Teff{T_{\rm eff}}
-\def\vsini{v\sin{i}}
+\def\logg{\log(g)}
+\def\Z{\mathrm{[Fe/H]}}
+\def\vsini{v\sin(i)}
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
 
 \begin{document}
-\title{Blas\'e3D}
-\shorttitle{\emph{blas\'e3D}}
+\title{Estimating Fundamental Stellar Properties using PHOENIX Grid Interpolators}
 
 \author[0000-0002-2290-6810]{Sujay Shankar}
 \author[0000-0002-4020-3457]{Michael Gully-Santiago}
@@ -37,9 +39,24 @@
 
 \subsection{General spectroscopy ideas}
 
-Precomputed synthetic stellar spectral models represent a distillation of all available physics and chemistry theory into effortlessly-reproducible comparisons for spectral observations.  Practitioners may simply download a file and overplot it against an observed spectrum, and apply human pattern recognition to obtain insights on fundamental stellar properties.  But such exercises typically fall short.  Inevitably, individual line depth and shape predictions do not match the observed spectrum.   \citet{2022ApJ...941..200G} introduced a two-stage interpretable Machine Learning (ML) technique to alleviate some of these challenges.  First clone the lines in a precomuted spectrum with fine-tuned Voigt profiles, and then warp those line properties in response to data using the power of automatic differentiation.  This design satisfied a common use case, the desire to obtain a semi-empirical super-resolution stellar template for the observed star: the pristine $R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star, having accounted for rotational broadening, instrumental resolution, and telluric artifacts.  We called this algorithm \emph{blas\'e}.
+Precomputed synthetic stellar spectral models represent a distillation of all available physics
+and chemistry theory into effortlessly-reproducible comparisons for spectral observations.  
+Practitioners may simply download a file and overplot it against an observed spectrum, relying on 
+human pattern recognition to obtain insights on fundamental stellar properties. But such exercises 
+typically fall short. Inevitably, individual line depth and shape predictions do not match the 
+observed spectrum. \citet{2022ApJ...941..200G} introduced a two-stage interpretable machine learning (ML) 
+technique to alleviate some of these challenges. First, cloning the lines in a precomputed spectrum 
+with fine-tuned Voigt profiles, and then warping their line properties in response to data using 
+the power of automatic differentiation. This design satisfied a common use case, the desire to 
+obtain a semi-empirical super-resolution stellar template for the observed star: the pristine 
+$R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star, 
+having accounted for rotational broadening, instrumental resolution, and telluric artifacts. 
+We called this algorithm \emph{blas\'e}, available with the Python package \texttt{blase}.
 
-This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation of \emph{bla\'e} was its requirement to pre-select a grid point as the initial starting point.
+This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation 
+of \emph{blas\'e} was its requirement to pre-select a grid point as the initial starting point. The code
+introduced in this study bypasses this requirement by comparing spectral reconstructions to an input
+spectrum in order to automatically ascertain the fundamental stellar parameters.
 
 \textbf{what do we want}\\
 Key goal: semi-empirical models-- a model that can continuously learn from and adapt to data.  Each new observed data spectrum informs changes to our preconceived theories of how stellar atmospheres produce spectra.  We seek model flexibility where we expect there to be deficiencies in these theories, and rigidity where we expect our theories to be most robust.
@@ -64,36 +81,36 @@ This paper implements ths
 
 \section{Emulating the PHOENIX grid}
 
-\begin{mdframed}
-    \textbf{The PHOENIX grid subset}
+For the purposes of this study, we use a slice of the PHOENIX grid where the alpha abundance
+is set to zero. Within this slice, we allow the full range of $\Teff, \logg, \Z$. The specific
+sampling of the grid points is shown in Figure $XX$. Our approach could feasibly be extended to
+include alpha abundances, but given that the \texttt{gollum} interface does not yet support the access
+of spectra with nonzero alpha abundances, as well as bearing a significant increase in computational 
+impact, we leave this for future work.
 
-    \textcolor{lightgray}{\blindtext}
-\end{mdframed}
+The \texttt{blase} code takes in any spectrum as input, and outputs a cloned
+version of that spectrum. However, there is a hidden product to this
+procedure, the state dictionary of the model itself, stored as a \texttt{.pt} file. In this lies metadata about
+where spectral lines were identified by \texttt{blase}, as well as those lines'
+specific properties, namely amplitude, Gaussian shape, and Lorentzian shape.
+In addition, \texttt{blase} also allows the line centers to shift slightly during
+cloning, meaning that in addition to the initial line centers, we 
+also have access to the shifted line centers. This hidden metadata is 
+what formed the backbone for this study and allowed us to retrieve line-by-line data
+that could then be interpolated. We input the PHOENIX grid spectra into \texttt{blase}
+and accessed the state dictionaries of each clone. Once this data was retrieved from the state dictionaries
+across the grid, it was then aggregated into a single \texttt{pandas} DataFrame, enabling
+querying of the data by any property, be it a fundamental stellar parameter or the output
+line properties.
 
-\begin{mdframed}
-    \textbf{Cloning with blas\'e}
-
-    - Per-grid point optimization procedure
-    - Pretrained model caching
-    - Output storage
-    \\---------------\\
-    Blas\'e's algorithm is designed to take a spectrum as input, and outputs two products:
-    1. A list of detected spectral line properties, all assumed to be Voigt profiles, and 2.
-    A cloned spectrum, which is the aggregation of all of those detected lines into a spectrum. We
-    don't use the cloned spectrum from this process, and only focus on the line properties that are output.
-    These two products are stored as a .pt file, which can then be loaded in in order to
-    analyze all the lines in bulk. Each grid point is processed in this way, and the resulting .pt files'
-    line properties are aggregated into a single DataFrame, which can then be queried by $T_eff$, $\log(g)$, $Z$,
-    in addition to the actual line in question, identified by its center $\mu_j$.
-\end{mdframed}
-
-\begin{mdframed}
-    \textbf{Open Source Availability}
-    \\--------------\\
-    The PHOENIX model grid is available open-source at $xx$, and can be interfaced with gollum,
-    also available open-source at $xx$. Blas\'e is also available open-source at $xx$, with this work
-    existing as a fork named blas\'e3D, available at $xx$.
-\end{mdframed}
+All data and code used in this study is available online and is open source. The PHOENIX grid itself takes quite a while to download
+due to server bandwidth limitations; this is something that \texttt{gollum} aims to
+improve upon by implementing both caching behavior and underlying data structure compression.
+\texttt{gollum} itself is available on GitHub and is pip installable, although this
+method lags in features significantly compared to the bleeding edge code from GitHub.
+\texttt{blase} is the main library of note here, also on GitHub, while the
+materials related to this study are currently residing as a fork named \texttt{blase3D}. When polished and complete,
+the fork is set to merge into \texttt{blase} itself. Links to all of these are provided in the appendix.
 
 \begin{mdframed}
     \textbf{Figure: Line density across the grid heatmap}
@@ -105,27 +122,51 @@ This paper implements ths
     \textbf{Conceptual Illustration: Faceted Plot (Teff, Logg, Z) -> Line Profiles}
 \end{mdframed}
 
-\begin{mdframed}
-    \textbf{Line Recognition}
-    - Need: Identifying unique lines
-    - Anticipated friction points: line centroids drift
-    - Strategy: (Pre-shift centers)
-    \textcolor{lightgray}{\blindtext}
-\end{mdframed}
+We have established that the \texttt{blase} code is capable of cloning a spectrum and
+returning a set of line properties for each line. In order to visualize line-by-line
+properties across the grid, we need to be able to identify unique lines. This begs the question:
+what property lets us uniquely identify a spectral line? We have two possible solutions.
+First, we consider the shifted line centers. However, this shifting comes from \texttt{blase}'s
+emulating physics from its training dataset, meaning that the same line at two grid points could
+be shifted differently. Could we then round or truncate the wavelength coordinate of the line centers?
+The answer is no, because these shifts vary in precision, and some lines are close enough to begin with
+that what should have been two different lines get identified as the same line. This, obviously is incorrect;
+one spectral line is just that, one spectral line. So we now consider the original unshifted line centers.
+These are the same across the grid, and there is no issue with unintentionally binning lines together
+thanks to a uniform precision. This means that we now use the unshifted line centers as the unique
+identifier for lines, which vary across the grid in their properties, namely amplitude, Gaussian shape,
+and Lorentzian shape.
+
+The next thing that we want to do is to visualize the trends of line properties over
+the PHOENIX grid. The best way to visualize this is with heatmaps. This means that for
+each line, for each line property, we have one heatmap, where the axes are the fundamental
+parameters, and the `temperature' is the value of the line property. As you can imagine, this
+is a lot of heatmaps, each of which is incredibly hard to visualize due to the dimensionality.
+So, we slice the heatmaps at solar metallicity to reduce them to 2D, and then we can easily 
+visualize the trend of any one line property of any one line across the grid on demand.
 
 \begin{mdframed}
-    \textbf{Line property bulk trends across the grid}
-    \textcolor{lightgray}{\blindtext}
+    \textbf{Figure: Heatmap $\Teff$ vs $\logg$ for a single line $2\times2$ panels for $\sigma$, $\gamma$, $A$, $\lambda$ }
 \end{mdframed}
 
-\begin{mdframed}
-    \textbf{Figure: Heatmap $T_\mathrm{eff}$ vs $\log{g}$ for a single line $2\times2$ panels for $\sigma$, $\gamma$, $A$, $\lambda$ }
-\end{mdframed}
-
-\begin{mdframed}
-    \textbf{Anomalies in Heatmaps}
-    \textcolor{lightgray}{\blindtext}
-\end{mdframed}
+While we see heatmaps for lines that have values at all grid points, this is only true for
+a select few spectral lines. The vast majority of lines do not seem to show up at certain
+grid points, meaning that our heatmaps are sparse. Initially this seems like it would not be an 
+issue; when reconstructing, simply retain knowledge of which points were missing and override
+the interpolated value with a missing value. Now, in addition to an
+interpolator, a sequence of grid points with missing values must be stored for each line just to
+override the interpolator. This increases the storage cost of the model. In addition to this, we would
+not be able to deal with points lying on the boundary between missing and visible lines. So, we need
+to process these missing lines. Since the line properties are on a logarithmic scale,
+a line with an amplitude of 0 would have a log amplitude of $-\infty$. This means that we should just
+set all missing lines to have log amplitudes of $-\infty$, right? Close, however interpolation
+algorithms absolutely despise infinities. So, we set the log amplitude of missing lines to be
+$-1000$, which is a large enough negative number that it will effectively evaluate to zero without
+causing problems with the interpolation process. We do not really have to worry about the Gaussian
+and Lorentzian shape parameters; no matter how `wrong' their interpolated values are, an amplitude of
+zero will override that and make the line disappear. This way, we have effectively dealt with
+pathological behavior in such a way that interpolation returns a sensible value without sending
+the storage impact through the roof.
 
 \section{Mapping Line Parameters to Fundamental Properties}
 \begin{mdframed}
@@ -163,27 +204,6 @@ This paper implements ths
 
 \section{Performance evaluation}
 
-Here is a table of the performance of different manifold choices:
-
-\begin{deluxetable*}{cccc}[h]
-    \tabletypesize{\small}
-    \tablecaption{Notation used in this paper\label{table2}}
-    \tablehead{
-        \colhead{Model Architecture} & \colhead{Reconstruction RMS} & \colhead{Model Size} & \colhead{Training Time}
-        \\\colhead{} & \colhead{RMS \%} & \colhead{MB} & \colhead{x}
-    }
-    \startdata
-    Linear Polynomial & a & b & c\\
-    FFT & a & b & c\\
-    Random Forest & a & b & c\\
-    Gaussian Process & a & b & c\\
-    Interpolation & a & b & c\\
-    Interpolation & a & b & c\\
-    \enddata
-\end{deluxetable*}
-
-
-
 \begin{mdframed}
     \textbf{Typical Line reconstruction performance}
     \textcolor{lightgray}{\blindtext}
@@ -214,17 +234,15 @@ Here is a table of the performance of different manifold choices:
     \textcolor{lightgray}{\blindtext}
 \end{mdframed}
 
-
-\begin{mdframed}
-    \textbf{Conceivable Extensions}
-    \\-------------\\
-    Future studies can extend this work in several ways:
-    \begin{enumerate}[label=-]
-        \item Extending the data from just the PHOENIX Grid to additional synthethic spectral
-              model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
-    \end{enumerate}
-\end{mdframed}
-
+Future studies can expand upon this work in several ways:
+\begin{enumerate}[label=-]
+    \item Extending the data from just the PHOENIX grid to additional synthetic spectral
+          model grids, such as the Sonora substellar model grids or the COOLTLUSTY substellar model grid.
+    \item Expanding the section of the PHOENIX grid on which \texttt{blase} was run to include all available alpha abundances, encompassing all of PHOENIX.
+    \item Using more advanced regressors with ML techniques to predict line properties instead of using interpolation to brute-force the model predictions.
+    \item Extending support to accommodate large-bandwidth spectra across the full electromagnetic spectrum.
+    \item Identifying spectral lines using species-based line lists rather than fitting Voigt profiles whenever possible.
+\end{enumerate}
 
 
 \pagebreak

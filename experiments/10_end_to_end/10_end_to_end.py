@@ -4,6 +4,7 @@ import torch
 
 from collections import defaultdict
 from functools import partial
+from multiprocessing import Pool
 from os import listdir
 from re import split
 from scipy.interpolate import griddata
@@ -31,19 +32,27 @@ def optimize_memory(df: pd.DataFrame):
     df[fcols] = df[fcols].apply(pd.to_numeric, downcast='float')
     df[icols] = df[icols].apply(pd.to_numeric, downcast='integer')
 
+def interpolate(line: float, df: pd.DataFrame) -> partial:
+    df_line = df.query('center == @line')
+    return partial(griddata, points=(df_line.teff, df_line.logg), values=df_line[['amp', 'sigma', 'gamma']].to_numpy(), method='linear')
+
 def local_run():
     path = '/home/sujay/data/10K_12.5K_clones'
-    df = read_state_dicts(path).query('Z == 0').explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
+    df_native = read_state_dicts(path).query('Z == 0 & 4000 <= teff <= 7000 & 2 <= logg <= 4')
+    df = df_native.explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
     print('DataFrame created')
     optimize_memory(df)
     print('DataFrame memory optimized')
     interpolator_list = []
-    for line in tqdm(df.center.unique()):
-        df_line = df.query('center == @line')
-        interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg), values=df_line[['amp', 'sigma', 'gamma']].to_numpy(), method='linear'))
-    print('Interpolator partials created')
-    for interpolator in interpolator_list:
-        print(interpolator(xi=(5777, 4.44))) 
+    #for line in tqdm(df.center.unique()):
+    #    df_line = df.query('center == @line')
+    #    interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg), values=df_line[['amp', 'sigma', 'gamma']].to_numpy(), method='linear'))
+    df_gp = df_native[['teff', 'logg', 'Z']]
+    df_line = df.query('center == @df.center.unique()[-1]')
+    print(df_line.merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000))
+    #print('Interpolator partials created')
+    #for interpolator in interpolator_list:
+    #    print(interpolator(xi=(5777, 4.44))) 
 
 def triton_run():
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
