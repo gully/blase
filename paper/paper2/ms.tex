@@ -7,6 +7,7 @@
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{physics}
 % Temporary packages
 \usepackage{mdframed}
 \usepackage{verbatim}
@@ -19,7 +20,7 @@
 
 \begin{document}
 \title{Precision Fundamental Stellar Properties with Interpretable Machine Learning}
-
+    
 \author[0000-0002-2290-6810]{Sujay Shankar}
 \author[0000-0002-4020-3457]{Michael Gully-Santiago}
 \author[0000-0002-4404-0456]{Caroline V. Morley}
@@ -87,34 +88,41 @@ This paper implements ths
 \section{Emulating the PHOENIX grid}
 
 For the purposes of this study, we use a slice of the PHOENIX grid where the alpha abundance
-is set to zero. Within this slice, we allow the full range of $\Teff, \logg, \Z$. The specific
-sampling of the grid points is shown in Figure $XX$. Our approach could feasibly be extended to
+is set to zero. Within this slice, we allow the full range of $\Teff, \logg, \Z$, leaving us with 1,959
+grid points, each with its own PHOENIX spectrum. The specific domain and
+sampling of the grid points are shown in Figure $XX$. Our approach could feasibly be extended to
 include alpha abundances, but given that the \texttt{gollum} interface does not yet support the access
 of spectra with nonzero alpha abundances, as well as bearing a significant increase in computational
 impact, we leave this for future work.
 
 The \texttt{blase} code takes in any spectrum as input, and outputs a cloned
 version of that spectrum. However, there is a hidden product to this
-procedure, the state dictionary of the model itself, stored as a \texttt{.pt} file. In this lies metadata about
+procedure, the state dictionary of the model itself, which can be written to a file. In this lies metadata about
 where spectral lines were identified by \texttt{blase}, as well as those lines'
 specific properties, namely amplitude, Gaussian shape, and Lorentzian shape.
 In addition, \texttt{blase} also allows the line centers to shift slightly during
 cloning, meaning that in addition to the initial line centers, we
-also have access to the shifted line centers. This hidden metadata is
-what formed the backbone for this study and allowed us to retrieve line-by-line data
-that could then be interpolated. We input the PHOENIX grid spectra into \texttt{blase}
-and accessed the state dictionaries of each clone. Once this data was retrieved from the state dictionaries
+also have access to the shifted line centers. This hidden metadata is what
+formed the backbone for this study and allowed us to retrieve line-by-line data
+that could then be interpolated. 
+
+The ability to store these models on disk in itself is quite novel, as it offers a reduction
+in storage space while also being interpretable. What we effectively do is store the
+generator for the data rather than the data itself, which is a new paradigm in the 
+storage of model grids such as PHOENIX.
+Using this method, we input the PHOENIX grid spectra into \texttt{blase},
+which wrote the models to disk, and then accessed the state dictionaries of each clone. Once this data was retrieved from the state dictionaries
 across the grid, it was then aggregated into a single \texttt{pandas} DataFrame, enabling
 querying of the data by any property, be it a fundamental stellar parameter or the output
 line properties.
 
-All data and code used in this study is available online and is open source. The PHOENIX grid itself takes quite a while to download
+Before we proceed further, it is important to mention that all data and code used in this study is available online and is open source. The PHOENIX grid itself takes quite a while to download
 due to server bandwidth limitations; this is something that \texttt{gollum} aims to
 improve upon by implementing both caching behavior and underlying data structure compression.
 \texttt{gollum} itself is available on GitHub and is pip installable, although this
 method lags in features significantly compared to the bleeding edge code from GitHub.
 \texttt{blase} is the main library of note here, also on GitHub, while the
-materials related to this study are currently residing as a fork named \texttt{blase3D}. When polished and complete,
+materials related to this study are currently residing in a fork named \texttt{blase3D}. When polished and complete,
 the fork is set to merge into \texttt{blase} itself. Links to all of these are provided in the appendix.
 
 \begin{figure*}
@@ -178,45 +186,38 @@ pathological behavior in such a way that interpolation returns a sensible value 
 the storage impact through the roof.
 
 \section{Mapping Line Parameters to Fundamental Properties}
-\begin{mdframed}
-    \textbf{Statement: A Bidirectonal Relation exists}
-    
-    Now that we have our list of line properties for each grid point, we need to find the link 
-    between these line properties and the fundamental stellar parameters. We know that there is
-    some relation between the two, but we do not even know its functional form. While we have a
-    ridiculously large array of methods to choose from, we can start with a simple linear
-    regression with a polynomial basis. We can quickly test the efficacy of this method by 
-    running it on the line we visualized earlier.
-\end{mdframed}
+
+Now that we have our list of line properties for each grid point, we need to find the link 
+between these line properties and the fundamental stellar parameters, and we want to obtain
+some relation between the two. For this study, we decided to use linear interpolation to
+supersample the mapping between fundamental stellar parameters and spectral line properties.
 
 \begin{figure*}
     \includegraphics[width=\textwidth]{images/heatmap_poly.png}
 \end{figure*}
 
-\begin{mdframed}
-    \textbf{Big equation section}
-\end{mdframed}
+While we have discussed the process so far fairly qualitatively, we now establish the
+mathematical notation for the methods that we employ in this study. Our input
+fundamental line properties can be written as a vector with entries as follows:
 
+\begin{gather}
+    \theta: \mqty[\Teff, \logg, \Z]
+\end{gather}
+
+The PHOENIX grid $\bm{G}$ has $K$ grid points, indexed as $k$, and gollum
+evaluates the following mapping:
+\begin{gather}
+    \theta_k \mapsto \bm{G}_k
+\end{gather}
+
+where $\bm{G}_k$ is the $k^{th}$ PHOENIX spectrum. All PHOENIX spectra share the same
+spectral axis but differ in their flux axis.
 
 \begin{figure*}
     \includegraphics[width=\textwidth]{images/flowchart_frame2_v0p3.png}
     \caption{Flowchart of the manifold steps for reconstructing a precomputed spectrum.}
 \end{figure*}
 
-
-
-\begin{mdframed}
-    \textbf{Problem: missing lines}
-    - Conceivable Solution 1: treat as NaNs and deal with sparsity
-    - Conceivable Solution 2: increase model complexity
-    \\--------\\
-    When using blas\'e, we aggregate the detected lines from all of the grid points
-    into one superset of lines. However, not all of the lines in this superset are
-    detected at every grid point. In order to deal with this sparsity, we ignore lines
-    have $xx$ detections or less. This removes the most sparse lines, but some sparsity still
-    remains. The remaining 'missing lines' are dealt with by treating them as Voigt profiles
-    with amplitudes of 0, and Gaussian and Lorentzian widths equal to $xx$ and $xx$ respectively.
-\end{mdframed}
 
 \section{Performance evaluation}
 
@@ -232,23 +233,21 @@ the storage impact through the roof.
     \textcolor{lightgray}{\blindtext}
 \end{mdframed}
 
-
 \section{Discussion}
-\begin{mdframed}
-    \textbf{Revisiting Model Assumptions}
 
-    \textcolor{lightgray}{\blindtext}
-\end{mdframed}
+While we used interpolation to model the mapping between fundamental stellar parameters
+and spectral line properties, there are also other methods that could feasibly used. Very early in the study, we considered a rather simple
+solution such as polynomial linear regression, but this was quickly discarded as the regressors
+had difficulty retaining detail in the dataset and scaled poorly, with the number
+of terms growing as the cube of the desired degree. The scaling issue would quickly lead to the regression's design matrix
+having more columns than it did rows, which would cause regression to fail due to having more degrees
+of freedom than data points. Interpolation was our better solution, but others exist that we 
+intend to explore, such as random forest regression, Gaussian processes, and neural networks. These methods offer an increase in the generalization of
+PHOENIX's spectral features by not simply memorizing the data as an interpolator would,
+with the drawback that they can be trickier to implement correctly. We also make
+the assumption that every single spectral line follows a Voigt profile, which gets us 
+most of the way there but does admittedly fall flat in some cases. 
 
-\begin{mdframed}
-    \textbf{Functional Form}
-    - Describe functional form options and refinement procedures
-    - List possibilities, Linreg, GPs \citep{2023ARA&A..61..329A}, NNs, etc.
-    - We choose LSTSQ
-    - Enumerate functional form
-    - Adapting model complexity-- AIC
-    \textcolor{lightgray}{\blindtext}
-\end{mdframed}
 
 \begin{mdframed}
     \textbf{Limitations}
