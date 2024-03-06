@@ -1,10 +1,12 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 
+from blase.emulator import SparseLinearEmulator as SLE
+from blase.utils import doppler_grid
 from collections import defaultdict
 from functools import partial
-from multiprocessing import Pool
 from os import listdir
 from re import split
 from scipy.interpolate import griddata
@@ -14,7 +16,7 @@ from tqdm import tqdm
 def read_state_dicts(path: str) -> pd.DataFrame:
     line_stats = defaultdict(list)
     for f in tqdm(listdir(path)):
-        state_dict = state_dict = torch.load(f'{path}/{f}', map_location='cuda:0')
+        state_dict = torch.load(f'{path}/{f}', map_location='cuda:0')
         tokens = split('[TGZ]', f[:-3])
         line_stats['teff'].append(int(tokens[1]))
         line_stats['logg'].append(float(tokens[2]))
@@ -32,27 +34,57 @@ def optimize_memory(df: pd.DataFrame):
     df[fcols] = df[fcols].apply(pd.to_numeric, downcast='float')
     df[icols] = df[icols].apply(pd.to_numeric, downcast='integer')
 
-def interpolate(line: float, df: pd.DataFrame) -> partial:
-    df_line = df.query('center == @line')
-    return partial(griddata, points=(df_line.teff, df_line.logg), values=df_line[['amp', 'sigma', 'gamma']].to_numpy(), method='linear')
-
-def local_run():
+def local_run(p_teff, p_logg, p_Z):
     path = '/home/sujay/data/10K_12.5K_clones'
-    df_native = read_state_dicts(path).query('Z == 0 & 4000 <= teff <= 7000 & 2 <= logg <= 4')
+    df_native = read_state_dicts(path).query('-0.5 <= Z <= 0.5 & 4000 <= teff <= 7000 & 2 <= logg <= 4')
+    df_gp = df_native[['teff', 'logg', 'Z']]
     df = df_native.explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
     print('DataFrame created')
     optimize_memory(df)
     print('DataFrame memory optimized')
     interpolator_list = []
-    #for line in tqdm(df.center.unique()):
-    #    df_line = df.query('center == @line')
-    #    interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg), values=df_line[['amp', 'sigma', 'gamma']].to_numpy(), method='linear'))
+    for line in tqdm(df.center.unique()[:2000]):
+        df_line = df.query('center == @line')
+        df_line = df_line.merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
+        interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy(), method='linear'))
+
+    print('Interpolator partials created')
+    output = np.vstack([r for interpolator in interpolator_list if (r := interpolator(xi=(p_teff, p_logg, p_Z)))[0] != -1000])
+    state_dict = {
+        'pre_line_centers': torch.from_numpy(df.center.unique()[:2000].to_numpy(dtype=np.float64)),
+        'amplitudes': torch.from_numpy(output[:, 0]),
+        'sigma_widths': torch.from_numpy(output[:, 1]),
+        'gamma_widths': torch.from_numpy(output[:, 2]),
+        'lam_centers': torch.from_numpy(output[:, 3]),
+    }
+    wl_lo = 8038
+    wl_hi = 12849
+    grid = doppler_grid(wl_lo, wl_hi)
+    emulator1 = np.nan_to_num(SLE(wl_native=grid, init_state_dict=state_dict, device="cpu").forward().detach().numpy(), nan=1)
+
+    df_native = read_state_dicts(path).query('-0.5 <= Z <= 0.5 & 4000 <= teff <= 7000 & 2 <= logg <= 4 & teff != @p_teff & logg != @p_logg & Z != @p_Z')
     df_gp = df_native[['teff', 'logg', 'Z']]
-    df_line = df.query('center == @df.center.unique()[-1]')
-    print(df_line.merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000))
-    #print('Interpolator partials created')
-    #for interpolator in interpolator_list:
-    #    print(interpolator(xi=(5777, 4.44))) 
+    df = df_native.explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
+    print('DataFrame created')
+    optimize_memory(df)
+    print('DataFrame memory optimized')
+    interpolator_list = []
+    for line in tqdm(df.center.unique()[:2000]):
+        df_line = df.query('center == @line')
+        df_line = df_line.merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
+        interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy(), method='linear'))
+
+    print('Interpolator partials created')
+    output = np.vstack([r for interpolator in interpolator_list if (r := interpolator(xi=(p_teff, p_logg, p_Z)))[0] != -1000])
+    state_dict = {
+        'pre_line_centers': torch.from_numpy(df.center.unique()[:2000].to_numpy(dtype=np.float64)),
+        'amplitudes': torch.from_numpy(output[:, 0]),
+        'sigma_widths': torch.from_numpy(output[:, 1]),
+        'gamma_widths': torch.from_numpy(output[:, 2]),
+        'lam_centers': torch.from_numpy(output[:, 3]),
+    }
+    emulator2 = np.nan_to_num(SLE(wl_native=grid, init_state_dict=state_dict, device="cpu").forward().detach().numpy(), nan=1)
+    pd.DataFrame({'wavelength': grid, 'flux1': emulator1, 'flux2': emulator2}).to_parquet('plot_residual_hist.parquet.gz', compression='gzip')
 
 def triton_run():
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
@@ -62,5 +94,5 @@ def triton_run():
     print('DataFrame memory optimized')
 
 if __name__ == '__main__':
-    local_run()
+    local_run(4100, 2.5, 0.0)
     #triton_run()

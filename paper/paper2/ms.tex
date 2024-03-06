@@ -19,7 +19,7 @@
 \def\kmps{\mathrm{km}\;\mathrm{s}^{-1}}
 
 \begin{document}
-\title{Precision Fundamental Stellar Properties with Interpretable Machine Learning}
+\title{Precision Fundamental Stellar Properties with Adaptive Machine Learning}
     
 \author[0000-0002-2290-6810]{Sujay Shankar}
 \author[0000-0002-4020-3457]{Michael Gully-Santiago}
@@ -46,18 +46,18 @@ Practitioners may simply download a file and overplot it against an observed spe
 human pattern recognition to obtain insights on fundamental stellar properties. But such exercises
 typically fall short. Inevitably, individual line depth and shape predictions do not match the
 observed spectrum. \citet{2022ApJ...941..200G} introduced a two-stage interpretable machine learning (ML)
-technique to alleviate some of these challenges. First, cloning the lines in a precomputed spectrum
+technique to alleviate some of these challenges: first, cloning the lines in a precomputed spectrum
 with fine-tuned Voigt profiles, and then warping their line properties in response to data using
 the power of automatic differentiation. This design satisfied a common use case, the desire to
 obtain a semi-empirical super-resolution stellar template for the observed star: the pristine
-$R=\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star,
+$R\equiv\frac{\lambda}{\delta \lambda}\sim1,000,000$ emergent spectrum coming from a patch of the star,
 having accounted for rotational broadening, instrumental resolution, and telluric artifacts.
 We called this algorithm \emph{blas\'e}, available with the Python package \texttt{blase}.
 
 This capability alone was useful for Extreme Precision Radial Velocity (EPRV), but a key limitation
-of \emph{blas\'e} was its requirement to pre-select a grid point as the initial starting point. The code
-introduced in this study bypasses this requirement by comparing spectral reconstructions to an input
-spectrum in order to automatically ascertain the fundamental stellar parameters.
+of \emph{blas\'e} was its requirement to pre-select a single grid point as the initial starting point. The approach
+introduced in this study bypasses this requirement by analyzing line properties of the input spectrum
+in order to automatically ascertain fundamental stellar parameters.
 
 \textbf{what do we want}\\
 Key goal: semi-empirical models-- a model that can continuously learn from and adapt to data.  Each new observed data spectrum informs changes to our preconceived theories of how stellar atmospheres produce spectra.  We seek model flexibility where we expect there to be deficiencies in these theories, and rigidity where we expect our theories to be most robust.
@@ -87,19 +87,17 @@ This paper implements ths
 
 \section{Emulating the PHOENIX grid}
 
-For the purposes of this study, we use a slice of the PHOENIX grid where the alpha abundance
-is set to zero. Within this slice, we allow the full range of $\Teff, \logg, \Z$, leaving us with 1,959
+For the purposes of this study, we use a slice of the PHOENIX grid (Husser et al) where the alpha abundance
+is set to zero. Within this slice, we choose the full range of $\Teff, \logg, \Z$, leaving us with 1,959
 grid points, each with its own PHOENIX spectrum. The specific domain and
-sampling of the grid points are shown in Figure $XX$. Our approach could feasibly be extended to
-include alpha abundances, but given that the \texttt{gollum} interface does not yet support the access
-of spectra with nonzero alpha abundances, as well as bearing a significant increase in computational
-impact, we leave this for future work.
+sampling of the grid points are shown in Figure $XX$.
 
 The \texttt{blase} code takes in any spectrum as input, and outputs a cloned
-version of that spectrum. However, there is a hidden product to this
+version of that spectrum. There is a hidden product to this
 procedure, the state dictionary of the model itself, which can be written to a file. In this lies metadata about
 where spectral lines were identified by \texttt{blase}, as well as those lines'
-specific properties, namely amplitude, Gaussian shape, and Lorentzian shape.
+specific properties, namely amplitude, Gaussian shape, and Lorentzian shape. This metadata is 
+all of the information needed to reconstruct the spectrum.
 In addition, \texttt{blase} also allows the line centers to shift slightly during
 cloning, meaning that in addition to the initial line centers, we
 also have access to the shifted line centers. This hidden metadata is what
@@ -110,9 +108,9 @@ The ability to store these models on disk in itself is quite novel, as it offers
 in storage space while also being interpretable. What we effectively do is store the
 generator for the data rather than the data itself, which is a new paradigm in the 
 storage of model grids such as PHOENIX.
-Using this method, we input the PHOENIX grid spectra into \texttt{blase},
+Using this method, we input 1,959 PHOENIX grid spectra into \texttt{blase},
 which wrote the models to disk, and then accessed the state dictionaries of each clone. Once this data was retrieved from the state dictionaries
-across the grid, it was then aggregated into a single \texttt{pandas} DataFrame, enabling
+across the grid, it was then aggregated into a single table of shape $XX$, enabling
 querying of the data by any property, be it a fundamental stellar parameter or the output
 line properties.
 
