@@ -8,6 +8,7 @@ from blase.utils import doppler_grid
 from collections import defaultdict
 from functools import partial
 from os import listdir
+from pickle import dump, load
 from re import split
 from scipy.interpolate import griddata
 from tqdm import tqdm
@@ -33,6 +34,23 @@ def optimize_memory(df: pd.DataFrame):
     icols = df.select_dtypes('integer').columns
     df[fcols] = df[fcols].apply(pd.to_numeric, downcast='float')
     df[icols] = df[icols].apply(pd.to_numeric, downcast='integer')
+
+def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[partial]:
+    interpolator_list = []
+    for line in tqdm(df.center.unique()):
+        df_line = df.query('center == @line').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
+        interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy()))
+    return interpolator_list
+
+def reconstruct(wl_grid: np.ndarray, interpolators: list[partial], point: tuple[int, float, float]) -> np.ndarray:
+    output = np.vstack([r for interpolator in interpolators if (r := interpolator(xi=(point[0], point[1], point[2])))[0] != -1000])
+    state_dict = {
+        'amplitudes': torch.from_numpy(output[:, 0]),
+        'sigma_widths': torch.from_numpy(output[:, 1]),
+        'gamma_widths': torch.from_numpy(output[:, 2]),
+        'lam_centers': torch.from_numpy(output[:, 3]),
+    }
+    return np.nan_to_num(SLE(wl_native=wl_grid, init_state_dict=state_dict, device="cpu").forward().detach().numpy(), nan=1)
 
 def local_run(p_teff, p_logg, p_Z):
     path = '/home/sujay/data/10K_12.5K_clones'
@@ -88,10 +106,14 @@ def local_run(p_teff, p_logg, p_Z):
 
 def triton_run():
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
-    df = read_state_dicts(path).explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
+    df = read_state_dicts(path)
+    df_gp = df[['teff', 'logg', 'Z']]
+    df = df.explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
     print('DataFrame created')
     optimize_memory(df)
     print('DataFrame memory optimized')
+    interpolators = create_interpolators(df, df_gp)
+    dump(interpolators, open('interpolators.pkl', 'wb'))
 
 if __name__ == '__main__':
     local_run(4100, 2.5, 0.0)
