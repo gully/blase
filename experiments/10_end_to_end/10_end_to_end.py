@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import sys
 import torch
 
 from blase.emulator import SparseLinearEmulator as SLE
@@ -38,7 +39,7 @@ def optimize_memory(df: pd.DataFrame):
 def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[partial]:
     interpolator_list = []
     for line in tqdm(df.center.unique()):
-        df_line = df.query('center == @line').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
+        df_line = df.query('center == @line', engine='python').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
         interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy()))
     return interpolator_list
 
@@ -105,6 +106,7 @@ def local_run(p_teff, p_logg, p_Z):
     pd.DataFrame({'wavelength': grid, 'flux1': emulator1, 'flux2': emulator2}).to_parquet('plot_residual_hist.parquet.gz', compression='gzip')
 
 def triton_run():
+    sys.stderr = open('log', 'w')
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
     df = read_state_dicts(path)
     df_gp = df[['teff', 'logg', 'Z']]
@@ -114,7 +116,9 @@ def triton_run():
     print('DataFrame memory optimized')
     interpolators = create_interpolators(df, df_gp)
     dump(interpolators, open('interpolators.pkl', 'wb'))
+    with open('log.txt') as f:
+        f.write('Interpolator partials dumped to pickle.')
 
 if __name__ == '__main__':
-    local_run(4100, 2.5, 0.0)
-    #triton_run()
+    #local_run(4100, 2.5, 0.0)
+    triton_run()
