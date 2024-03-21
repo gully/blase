@@ -8,11 +8,14 @@ from blase.emulator import SparseLinearEmulator as SLE
 from blase.utils import doppler_grid
 from collections import defaultdict
 from functools import partial
+from gollum.phoenix import PHOENIXSpectrum
 from os import listdir
 from pickle import dump, load
 from re import split
+from skopt import gp_minimize
 from scipy.interpolate import griddata
 from tqdm import tqdm
+from typing import Callable
 
 
 def read_state_dicts(path: str) -> pd.DataFrame:
@@ -43,7 +46,8 @@ def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[partial]
         interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy()))
     return interpolator_list
 
-def reconstruct(wl_grid: np.ndarray, interpolators: list[partial], point: tuple[int, float, float]) -> np.ndarray:
+def reconstruct(wl_grid: np.ndarray, point: tuple[int, float, float]) -> np.ndarray:
+    interpolators = load(open('interpolators.pkl', 'rb'))
     output = np.vstack([r for interpolator in interpolators if (r := interpolator(xi=(point[0], point[1], point[2])))[0] != -1000])
     state_dict = {
         'amplitudes': torch.from_numpy(output[:, 0]),
@@ -52,6 +56,9 @@ def reconstruct(wl_grid: np.ndarray, interpolators: list[partial], point: tuple[
         'lam_centers': torch.from_numpy(output[:, 3]),
     }
     return np.nan_to_num(SLE(wl_native=wl_grid, init_state_dict=state_dict, device="cpu").forward().detach().numpy(), nan=1)
+
+def chisq_loss(wl_grid: np.ndarray, data: np.ndarray) -> Callable:
+    return lambda point: np.sum((reconstruct(wl_grid, point) - data)**2)
 
 def local_run(p_teff, p_logg, p_Z):
     path = '/home/sujay/data/10K_12.5K_clones'
@@ -119,6 +126,13 @@ def triton_run():
     with open('log.txt') as f:
         f.write('Interpolator partials dumped to pickle.')
 
+def inference_run():
+    spec = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True)
+    res = gp_minimize(chisq_loss(doppler_grid(8038, 12849), spec.flux.value), dimensions=[(2300, 12000), (0, 5), (-0.5, 0.5)], n_calls=100, n_random_starts=10, random_state=0, n_jobs=16)
+    print(res.x)
+    print(res.x_iters)
+    print(res.fun)
+    print(res.func_vals)
+
 if __name__ == '__main__':
-    #local_run(4100, 2.5, 0.0)
     triton_run()
