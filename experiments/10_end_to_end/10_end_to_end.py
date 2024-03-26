@@ -135,4 +135,4 @@ def inference_run():
     print(res.func_vals)
 
 if __name__ == '__main__':
-    triton_run()
+    inference_run()
