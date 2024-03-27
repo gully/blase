@@ -11,8 +11,8 @@ The `blasé` project (pronounced "blah-say") aims to improve the astronomical ec
 <https://github.com/megbedell/wobble>`_.  The key design features of `blasé` include:
 
 
-1. Built on a foundation of pre-computed synthetic stellar spectra, chosen at discrete grid points
-2. Extensibile for a wide range of scientific applications
+1. Built on a foundation of precomputed synthetic stellar spectra, chosen at discrete grid points
+2. Extensible for a wide range of scientific applications
 3. Handles stellar, telluric, and instrumental features simultaneously
 
 We invite you to engage with us at our `GitHub page

@@ -167,7 +167,7 @@ class FadeevaEmulator(nn.Module):
 
         wl_normed = (wl - 10_500.0) / 2500.0
         modulation = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed ** 2
+            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed**2
         )
         return net_spectrum * modulation
 
@@ -187,16 +187,16 @@ class FadeevaEmulator(nn.Module):
 
     def rewofz(self, x, y):
         """Real part of wofz (Faddeeva) function based on Algorithm 916
-        
-        We apply a=0.5 for Algorithm 916.  
-        Ported from exojax to PyTorch by gully    
-        
+
+        We apply a=0.5 for Algorithm 916.
+        Ported from exojax to PyTorch by gully
+
         Args:
             x: Torch tensor
         Must be shape (N_lines x N_wl x  1)
             y: Torch tensor
         Must be shape (N_lines x 1 x 1)
-            
+
         Returns:
              Torch tensor:
              (N_wl x N_lines)
@@ -207,7 +207,7 @@ class FadeevaEmulator(nn.Module):
             erfcx(y) * torch.cos(2.0 * xy)
             + x * torch.sin(xy) / 3.141592654 * torch.sinc(xy / 3.141592654)
         )
-        y2 = y ** 2
+        y2 = y**2
         Sigma23 = torch.sum(
             (torch.exp(-((self.an + x) ** 2)) + torch.exp(-((self.an - x) ** 2)))
             / (self.a2n2 + y2),

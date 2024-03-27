@@ -75,7 +75,12 @@ class MultiOrder(nn.Module):
             )
         )
         self.cheb_array = torch.stack(
-            [torch.ones_like(xv), xv, 2 * xv ** 2 - 1, 4 * xv ** 3 - 3 * xv,]
+            [
+                torch.ones_like(xv),
+                xv,
+                2 * xv**2 - 1,
+                4 * xv**3 - 3 * xv,
+            ]
         ).to(device)
 
     def forward(self, index):
@@ -103,7 +108,7 @@ class MultiOrder(nn.Module):
         normalization = torch.div(1.0, (blur_size_pixels * self.root2pi))
 
         weights = normalization * torch.exp(
-            (-self.conv_x ** 2 / (2 * blur_size_pixels ** 2))
+            (-self.conv_x**2 / (2 * blur_size_pixels**2))
         )
 
         with torch.no_grad():
@@ -130,7 +135,7 @@ class MultiOrder(nn.Module):
         self, teff, logg, PHOENIX_path="~/libraries/raw/PHOENIX/"
     ):
         """Return the native model wavelength and flux as a torch tensor
-        
+
         Args:
             Teff (int): The Teff label of the PHOENIX model to read in.  Must exist!
             logg (float): The logg label of the PHOENIX model to read in.  Must exist!
@@ -159,4 +164,3 @@ class MultiOrder(nn.Module):
         # Units: Relative flux density
         flux_out = flux_native / native_median
         return (wl_out, flux_out)
-

@@ -19,6 +19,7 @@ with suppress_stdout():
 
     hapi.db_begin("../../hapi/data/")
 
+
 # custom dataset loader
 class TelluricModel(nn.Module):
     r"""Make a model of Earth's atmospheric absorption and/or sky emission
@@ -54,7 +55,7 @@ class TelluricModel(nn.Module):
             species (str): Which atomic/molecular species to examine
 
         Returns:
-            dict: A dictionary containing tensors of size :math:`N_{\mathrm{lines}}` 
+            dict: A dictionary containing tensors of size :math:`N_{\mathrm{lines}}`
                 for each of the 8 HITRAN columns of interest
         """
 
@@ -73,8 +74,8 @@ class TelluricModel(nn.Module):
 
     def gamma_of_p_and_T(self, p, T, p_self, n_air, gamma_air_ref, gamma_self_ref):
         r"""Compute the Lorentz half width at half maximum (HWHM) in units of :math:`\mathrm{cm^{-1}}`
-        with pressure and temperature: 
-        
+        with pressure and temperature:
+
         .. math::
 
             \gamma(p, T) = \left( \frac{T_\mathrm{ref}}{T} \right)^{n_\mathrm{air}}\left( \gamma_\mathrm{air}(p_\mathrm{ref}, T_\mathrm{ref})(p-p_\mathrm{self}) + \gamma_\mathrm{self}(p_\mathrm{ref}, T_\mathrm{ref})p_\mathrm{self}\right)
@@ -84,15 +85,15 @@ class TelluricModel(nn.Module):
             p (float): Pressure :math:`p` in standard atmospheres `atm`
             T (float): Temperature :math:`T` in `K`
             p_self (float): Partial pressure of the species in `atm`
-            n_air (float): The coefficient of the temperature dependence of the air-broadened 
+            n_air (float): The coefficient of the temperature dependence of the air-broadened
                 half width (dimensionless)
-            gamma_air_ref (float): The air-broadened HWHM at :math:`T_{ref}=296\;` K  and 
+            gamma_air_ref (float): The air-broadened HWHM at :math:`T_{ref}=296\;` K  and
                 reference pressure :math:`p_{ref}=1\;` atm
-            gamma_self_ref (float): The self-broadened HWHM at :math:`T_{ref}=296\;` K  
+            gamma_self_ref (float): The self-broadened HWHM at :math:`T_{ref}=296\;` K
                 and reference pressure :math:`p_{ref}=1\;` atm
 
         Returns:
-            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}` 
+            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}`
 
         """
 
@@ -104,8 +105,8 @@ class TelluricModel(nn.Module):
         r"""Return the Lorentz line profile given vectors and parameters
 
         .. math::
-        
-            f_\mathrm{L}(\nu; \nu_{ij}, T, p) = \frac{1}{\pi}\frac{\gamma(p,T)}{\gamma(p,T)^2 + [\nu-(\nu_{ij} + \delta(p_\mathrm{ref})p)]^2}    
+
+            f_\mathrm{L}(\nu; \nu_{ij}, T, p) = \frac{1}{\pi}\frac{\gamma(p,T)}{\gamma(p,T)^2 + [\nu-(\nu_{ij} + \delta(p_\mathrm{ref})p)]^2}
 
         Args:
             nu (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
@@ -114,21 +115,21 @@ class TelluricModel(nn.Module):
             nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
             gamma (float): Lorentz half width at half maximum (HWHM), :math:`\gamma` in units of :math:`\mathrm{cm^{-1}}`
             dp_ref (float): The pressure shift :math:`\mathrm{cm^{-1}/atm}` at :math:`T_{ref}=296` K
-                and :math:`p_{ref} = 1` atm of the line position with respect to the vacuum transition 
+                and :math:`p_{ref} = 1` atm of the line position with respect to the vacuum transition
                 wavenumber :math:`\nu_{ij}`
             S_ij (float): The spectral line intensity :math:`\mathrm{cm^{-1}/(molecule·cm^{-2}})`
-            
+
         Returns:
             torch.Tensor: Either a vector of length :math:`N_\lambda` if :math:`\gamma` is a scalar, or a matrix of size :math:`N_\lambda \times N_{lines}` if :math:`\gamma` is a vector
-        
+
         """
-        return S_ij / math.pi * gamma / (gamma ** 2 + (nu - (nu_ij + dp_ref * p)) ** 2)
+        return S_ij / math.pi * gamma / (gamma**2 + (nu - (nu_ij + dp_ref * p)) ** 2)
 
     def tips_Q_of_T(self, T, g_k, E_k):
         r"""Total Internal Partition Sum
-        
-        .. math :: 
-        
+
+        .. math ::
+
             Q(T) = \sum_k g_k \exp\left(-\frac{c_2E_k}{T}\right)
 
 
@@ -136,16 +137,16 @@ class TelluricModel(nn.Module):
             T (float): Temperature :math:`T` in `K`
             g_k (float): The lower state statistical weights :math:`g_k`
             E_k (float): The lower-state energy of the transition :math:`\mathrm{cm^{-1}}`
-        
+
         Returns:
-            torch.Tensor: A scalar or a vector the same length as T    
-        
+            torch.Tensor: A scalar or a vector the same length as T
+
         """
         return torch.sum(g_k * torch.exp(-self.hitran_c2 * E_k / T))
 
     def S_ij_of_T(self, T, S_ij_296, nu_ij, g_lower, E_lower):
         r"""The Spectral Line Intensity as a function of temperature
-        
+
         .. math::
 
             S_{ij}(T) = S_{ij}(T_\mathrm{ref}) \frac{Q(T_\mathrm{ref})}{Q(T)} \frac{\exp\left( -c_2 E''/T \right)}{\exp\left( -c_2 E''/T_\mathrm{ref} \right)} \frac{[1-\exp\left( -c_2 \nu_{ij}/T \right)]}{[1-\exp\left(-c_2 \nu_{ij}/T_\mathrm{ref} \right)]}
@@ -156,9 +157,9 @@ class TelluricModel(nn.Module):
             nu_ij (float): Wavenumber of the spectral line transition :math:`(\mathrm{cm^{-1}})` in vacuum
             g_lower (float): The lower state statistical weights :math:`g''`
             E_lower (float): The lower-state energy of the transition :math:`\mathrm{cm^{-1}}`
-        
+
         Returns:
-            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}`  
+            torch.Tensor: A vector of length :math:`N_{\mathrm{lines}}`
 
         """
         c_2 = 1.4387770  # cm K
@@ -182,10 +183,10 @@ class TelluricModel(nn.Module):
             p (float): Pressure :math:`p` in standard atmospheres `atm`
             nus (float): Wavenumber variable input :math:`\nu` in :math:`\mathrm{cm^{-1}}`.
             vol_mix_ratio (float): The volume mixing ratio of the species assuming ideal gas
-        
+
         Returns:
-            torch.Tensor: A vector of length :math:`N_{\nu}`  
-        
+            torch.Tensor: A vector of length :math:`N_{\nu}`
+
         """
         gammas = self.gamma_of_p_and_T(
             p,
@@ -211,7 +212,7 @@ class TelluricModel(nn.Module):
     def transmission_multilayer_atmosphere(
         self, T_vector, p_vector, nus, vol_mix_ratio, hitran
     ):
-        r"""Return the transmission spectrum :math:`\mathcal{T}(\nu; T, P)=\exp(-\tau_\nu)` for 
+        r"""Return the transmission spectrum :math:`\mathcal{T}(\nu; T, P)=\exp(-\tau_\nu)` for
         a cascade of :math:`N_{layers}` pathlengths with thickness 1 km.
 
         Args:
@@ -222,8 +223,8 @@ class TelluricModel(nn.Module):
             hitran (OrderedDict): Each entry of consists of a :math:`N_{lines}` vector that will be broadcasted to
                 a :math:`1 \times N_{lines} \times 1` tensor when operating with the other vectors.
         Returns:
-            torch.Tensor: A vector of length :math:`N_{\nu}`  
-        
+            torch.Tensor: A vector of length :math:`N_{\nu}`
+
         """
 
         return (

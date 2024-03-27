@@ -2,34 +2,38 @@ r"""
 emulator
 --------------
 
-Precomputed synthetic spectral models are awesome but imperfect and rigid.  Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties of the pre-computed models with a neural network training loop, and then transfer those weights to real data, where a second transfer-learning training step can take place. The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  The number of lines is set by the `prominence=` kwarg: lower produces more lines and higher (up to about 0.3) produces fewer lines.  
+Precomputed synthetic spectral models are awesome but imperfect and rigid.  
+Here we clone the most prominent spectral lines and continuum appearance of synthetic spectral models 
+to turn them into tunable, flexible, semi-empirical models.  We can ultimately learn the properties 
+of the pre-computed models with a neural network training loop, and then transfer those weights 
+to real data, where a second transfer-learning training step can take place. 
+The spectrum has :math:`N_{\rm pix} \sim 300,000` pixels and :math:`N_{\rm lines} \sim 5000` spectral lines.  
+The number of lines is set by the `prominence=` kwarg: lower produces more lines 
+and higher (up to about 0.3) produces fewer lines.  
 """
 import math
-import torch
-from torch import nn
 import numpy as np
-from scipy.signal import find_peaks, peak_prominences, peak_widths
+import torch
 import torch.optim as optim
-from tqdm import trange
+
+from numpy.typing import ArrayLike
+from scipy.signal import find_peaks, peak_prominences, peak_widths
+from torch import nn
 from torch.special import erfc
-
-
-def erfcx_naive(x):
-    """Erfcx based on erfc"""
-    return torch.exp(x * x) * erfc(x)
-
+from tqdm import trange
 
 try:
     from torch.special import erfcx
 
-    print("Woohoo! You have a version {} of PyTorch".format(torch.__version__))
+    print(f"PyTorch {torch.__version__} active")
 except ImportError:
-    erfcx = erfcx_naive
-    print(
-        "Version {} of PyTorch does not offer erfcx, defaulting to unstable...".format(
-            torch.__version__
-        )
-    )
+    erfcx = lambda x: torch.exp(x * x) * erfc(x)
+    print(f"PyTorch {torch.__version__} doesn't offer erfcx, defaulting to unstable...")
+
+
+def twin(x: torch.Tensor, grad: bool = False):
+    """Return a twin of the input tensor, with gradient tracking disabled by default"""
+    return x.clone().detach().requires_grad_(grad)
 
 
 class LinearEmulator(nn.Module):
@@ -40,38 +44,43 @@ class LinearEmulator(nn.Module):
 
     Parameters
     ----------
-    wl_native :  torch.tensor
+    wl_native :  `torch.Tensor`
         The vector of input wavelengths at native resolution and sampling
-    flux_native : torch.tensor or None
-        The vector of continuum-flattened input fluxes.  If None, line-finding is skipped, init_state_dict is required, and the
-        optimize method does not work.
-    prominence : int or None
-        The threshold prominence for peak finding, defaults to 0.03.  Ignored if init_state_dict is provided.
-    init_state_dict : dict
+    flux_native : `torch.Tensor` | `None`
+        The vector of continuum-flattened input fluxes. If None, line-finding is skipped, init_state_dict is required,
+        and the optimize method does not work
+    prominence : `float` | `None`
+        The threshold prominence for peak finding, defaults to 0.03. Ignored if init_state_dict is provided
+    init_state_dict : `dict`
         A dictionary of model parameters to initialize the model with
     """
 
     def __init__(
-        self, wl_native, flux_native=None, prominence=None, init_state_dict=None
+        self,
+        wl_native: torch.Tensor,
+        flux_native: torch.Tensor = None,
+        prominence: float = 0.03,
+        init_state_dict: dict = None,
     ):
         super().__init__()
 
         # Read in the synthetic spectra at native resolution
         self.wl_native = torch.tensor(wl_native)
-        self.wl_min = wl_native.min()
-        self.wl_max = wl_native.max()
+        self.wl_min, self.wl_max = wl_native.min(), wl_native.max()
         self.n_pix = len(wl_native)
 
-        ## Set up "active area", where the region-of-interest is:
-        ## Restrict the lines to the active region plus 30 A buffer region
-        ## These are hardcoded, and care should be taken if changing them
+        # Set up "active area", where the region-of-interest is:
+        # Restrict the lines to the active region plus 30 A buffer region
+        # These are hardcoded, and care should be taken if changing them
         line_buffer = 30  # Angstroms
         active_buffer = 60  # Angstroms
 
-        active_lower, active_upper = (
-            self.wl_min + active_buffer,
-            self.wl_max - active_buffer,
-        )
+        active_lower = self.wl_min + active_buffer
+        active_upper = self.wl_max - active_buffer
+        # Set up line threshold, where lines are computed outside the active area
+        line_threshold_lower = self.wl_min + line_buffer
+        line_threshold_upper = self.wl_max - line_buffer
+
         active_mask = (wl_native > active_lower) & (wl_native < active_upper)
         self.active_mask = torch.tensor(active_mask)
 
@@ -81,32 +90,17 @@ class LinearEmulator(nn.Module):
             self.flux_native = torch.tensor(flux_native)
             self.flux_active = self.flux_native[active_mask]
         else:
-            self.flux_native = None
-            self.flux_active = None
-
-        # Set up line threshold, where lines are computed outside the active area
-        line_threshold_lower, line_threshold_upper = (
-            self.wl_min + line_buffer,
-            self.wl_max - line_buffer,
-        )
+            self.flux_native = self.flux_active = None
 
         if init_state_dict is not None:
-            if prominence is not None:
-                print(
-                    "You have entered both an initial state dict and a prominence kwarg.  Discarding prominence kwarg in favor of state dict."
-                )
             lam_centers = init_state_dict["lam_centers"]
             log_amps = init_state_dict["amplitudes"]
             log_sigma_widths = init_state_dict["sigma_widths"]
             log_gamma_widths = init_state_dict["gamma_widths"]
-
-        elif init_state_dict is None and self.flux_native is not None:
-            if prominence is None:
-                prominence = 0.03
-            (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
-                self.wl_native, self.flux_native, prominence=prominence
+        elif self.flux_native is not None:
+            lam_centers, amplitudes, widths_angstroms = self.detect_lines(
+                self.wl_native, self.flux_native, prominence
             )
-
             # Experimentally determined scale factor tweaks
             amp_tweak = 0.14
             sigma_width_tweak = 1.28
@@ -117,45 +111,27 @@ class LinearEmulator(nn.Module):
             )
             lam_centers = lam_centers[mask]
             log_amps = torch.log(amplitudes[mask] * amp_tweak)
-            log_sigma_widths = torch.log(
-                widths_angstroms[mask] / math.sqrt(2) * sigma_width_tweak
-            )
-            log_gamma_widths = torch.log(
-                widths_angstroms[mask] / math.sqrt(2) * gamma_width_tweak
-            )
-        elif init_state_dict is None and self.flux_native is None:
-            raise ValueError(
-                "Either flux_native or init_state_dict must be provided to specify the spectral lines"
-            )
+            norm_widths = widths_angstroms[mask] / math.sqrt(2)
+            log_sigma_widths = torch.log(norm_widths * sigma_width_tweak)
+            log_gamma_widths = torch.log(norm_widths * gamma_width_tweak)
+        else:
+            raise ValueError("flux_native or init_state_dict must be provided")
 
         # Fix the wavelength centers as gospel for now.
-        self.lam_centers = nn.Parameter(
-            lam_centers.clone().detach().requires_grad_(False)
-        )
-        self.amplitudes = nn.Parameter(log_amps.clone().detach().requires_grad_(True))
-        self.sigma_widths = nn.Parameter(
-            log_sigma_widths.clone().detach().requires_grad_(True)
-        )
-
-        self.gamma_widths = nn.Parameter(
-            log_gamma_widths.clone().detach().requires_grad_(True)
-        )
-
+        self.lam_centers = nn.Parameter(twin(lam_centers))
         self.n_lines = len(lam_centers)
 
-        self.a_coeff = nn.Parameter(
-            torch.tensor(1.0, requires_grad=False, dtype=torch.float64)
-        )
-        self.b_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
-        )
-        self.c_coeff = nn.Parameter(
-            torch.tensor(0.0, requires_grad=False, dtype=torch.float64)
-        )
+        self.amplitudes = nn.Parameter(twin(log_amps, True))
+        self.sigma_widths = nn.Parameter(twin(log_sigma_widths, True))
+        self.gamma_widths = nn.Parameter(twin(log_gamma_widths, True))
 
-        self.wl_normed = (self.wl_native - 10_500.0) / 2500.0
+        self.a_coeff = nn.Parameter(torch.tensor(1, dtype=torch.float64))
+        self.b_coeff = nn.Parameter(torch.tensor(0, dtype=torch.float64))
+        self.c_coeff = nn.Parameter(torch.tensor(0, dtype=torch.float64))
 
-    def forward(self, wl):
+        self.wl_normed = (self.wl_native - 10500) / 2500.0
+
+    def forward(self, wl: torch.Tensor):
         r"""The forward pass of the `blase` clone model
 
         Conducts the product of PseudoVoigt profiles for each line, with
@@ -168,25 +144,22 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wl : torch.tensor
+        wl : `torch.Tensor`
             The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}` destined for backpropagation parameter tuning
         """
-        wl_normed = (wl - 10_500.0) / 2500.0
+        wl_norm = (wl - 10500) / 2500.0
+        polynomial = self.a_coeff + self.b_coeff * wl_norm + self.c_coeff * wl_norm**2
 
-        polynomial_term = (
-            self.a_coeff + self.b_coeff * wl_normed + self.c_coeff * wl_normed**2
-        )
+        return self.product_of_pseudovoigt_model(wl) * polynomial
 
-        return self.product_of_pseudovoigt_model(wl) * polynomial_term
-
-    def product_of_pseudovoigt_model(self, wl):
-        r"""Return the Product of pseudo-Voigt profiles
+    def product_of_pseudovoigt_model(self, wl: torch.Tensor):
+        r"""Return the product of pseudo-Voigt profiles
 
         The product acts like a matrix contraction:
 
@@ -194,56 +167,62 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wl : torch.tensor
+        wl : `torch.Tensor`
             The input wavelength :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D generative spectral model clone :math:`\mathsf{S}_{\rm clone}`
             destined for backpropagation parameter tuning
         """
         return (1 - self.pseudo_voigt_profiles(wl)).prod(0)
 
-    def detect_lines(self, wl_native, flux_native, prominence=0.03):
+    def detect_lines(
+        self,
+        wl_native: torch.Tensor,
+        flux_native: torch.Tensor,
+        prominence: float = 0.03,
+    ):
         """Identify the spectral lines in the native model
 
         Parameters
         ----------
-        wl_native : torch.tensor
+        wl_native : `torch.Tensor`
             The 1D vector of native model wavelengths (Angstroms)
-        flux_native: torch.tensor
+        flux_native: `torch.Tensor`
             The 1D vector of continuum-flattened model fluxes
 
         Returns
         -------
-        tuple of tensors
+        `tuple[torch.Tensor, torch.Tensor, torch.Tensor]`
             The wavelength centers, prominences, and widths for all ID'ed
             spectral lines
         """
-        peaks, _ = find_peaks(-flux_native, distance=4, prominence=prominence)
+        peaks = find_peaks(-flux_native, distance=4, prominence=prominence)[0]
         prominence_data = peak_prominences(-flux_native, peaks)
-        width_data = peak_widths(-flux_native, peaks, prominence_data=prominence_data)
+        widths = peak_widths(-flux_native, peaks, prominence_data=prominence_data)[0]
         lam_centers = wl_native[peaks]
         prominences = torch.tensor(prominence_data[0])
-        widths = width_data[0]
         d_lam = np.diff(wl_native)[peaks]
         # Convert FWHM in pixels to Gaussian sigma in Angstroms
         widths_angs = torch.tensor(widths * d_lam / 2.355)
 
         return (lam_centers, prominences, widths_angs)
 
-    def _lorentzian_line(self, lam_center, width, wavelengths):
+    def _lorentzian_line(
+        self, lam_center: float, width: float, wavelengths: torch.Tensor
+    ):
         """Return a Lorentzian line, given properties"""
-        return 1 / 3.141592654 * width / (width**2 + (wavelengths - lam_center) ** 2)
+        return width / (math.pi * (width**2 + (wavelengths - lam_center) ** 2))
 
-    def _gaussian_line(self, lam_center, width, wavelengths):
+    def _gaussian_line(
+        self, lam_center: float, width: float, wavelengths: torch.Tensor
+    ):
         """Return a normalized Gaussian line, given properties"""
-        return (
-            1.0
-            / (width * 2.5066)
-            * torch.exp(-0.5 * ((wavelengths - lam_center) / width) ** 2)
+        return torch.exp(-0.5 * ((wavelengths - lam_center) / width) ** 2) / (
+            width * math.sqrt(2 * math.pi)
         )
 
     def _compute_eta(self, fwhm_L, fwhm):
@@ -253,7 +232,6 @@ class LinearEmulator(nn.Module):
 
     def _compute_fwhm(self, fwhm_L, fwhm_G):
         """Compute the fwhm for pseudo Voigt using the approximation"""
-
         return (
             fwhm_G**5
             + 2.69269 * fwhm_G**4 * fwhm_L**1
@@ -261,7 +239,7 @@ class LinearEmulator(nn.Module):
             + 4.47163 * fwhm_G**2 * fwhm_L**3
             + 0.07842 * fwhm_G**1 * fwhm_L**4
             + fwhm_L**5
-        ) ** (1 / 5)
+        ) ** 0.2
 
     def pseudo_voigt_profiles(self, wavelengths):
         r"""Compute the pseudo-Voigt Profile for a collection of lines
@@ -275,13 +253,13 @@ class LinearEmulator(nn.Module):
 
         Parameters
         ----------
-        wavelengths : torch.tensor
+        wavelengths : `torch.Tensor`
             The 1D vector of wavelengths :math:`\mathbf{\lambda}_S` at which to
             evaluate the model
 
         Returns
         -------
-        torch.tensor
+        `torch.Tensor`
             The 1D pseudo-Voigt profiles
 
         Notes
@@ -335,79 +313,55 @@ class SparseLinearEmulator(LinearEmulator):
 
     Parameters
     ----------
-    wl_native : float vector
+    wl_native : `ArrayLike`
         The input wavelength at native sampling
-    flux_native : float vector
+    flux_native : `ArrayLike`
         The continuum-flattened flux at native sampling
-    prominence : int
+    prominence : `float`
         The threshold for detecting lines
-    device : Torch Device or str
+    device : `torch.device` or `str`
         GPU or CPU?
-    wing_cut_pixels : int
+    wing_cut_pixels : `int`
         The number of pixels centered on the line center to evaluate in the
         sparse implementation, default: 1000 pixels
-    init_state_dict : dict
+    init_state_dict : `dict`
         A dictionary of model parameters to initialize the model with
     """
 
     def __init__(
         self,
-        wl_native,
-        flux_native=None,
-        prominence=None,
-        device=None,
-        wing_cut_pixels=None,
-        init_state_dict=None,
+        wl_native: ArrayLike,
+        flux_native: ArrayLike = None,
+        prominence: float = 0.03,
+        device: torch.device | str = "cuda" if torch.cuda.is_available() else "cpu",
+        wing_cut_pixels: int = 1000,
+        init_state_dict: dict = None,
     ):
-        super().__init__(
-            wl_native,
-            flux_native=flux_native,
-            prominence=prominence,
-            init_state_dict=init_state_dict,
-        )
-
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-
-        device = torch.device(device)
+        super().__init__(wl_native, flux_native, prominence, init_state_dict)
 
         if self.flux_native is not None:
-            self.target = torch.tensor(
-                self.flux_active, dtype=torch.float64, device=device
-            )
+            self.target = twin(self.flux_active).to(device, torch.float64)
         else:
             self.target = None
 
-        ## Define the wing cut
-        # Currently defined in *pixels*
-        if wing_cut_pixels is None:
-            wing_cut_pixels = 1000
-        else:
-            wing_cut_pixels = int(wing_cut_pixels)
+        wing_cut_pixels = int(wing_cut_pixels)
 
         lines = self.lam_centers.detach().cpu().numpy()
         wl_native = self.wl_native.cpu().numpy()
-        print("Initializing a sparse model with {:} spectral lines".format(len(lines)))
 
         # Find the index position of each spectral line
         center_indices = np.searchsorted(wl_native, lines)
 
         # From that, determine the beginning and ending indices
         zero_indices = center_indices - (wing_cut_pixels // 2)
-        too_low = zero_indices < 0
-        zero_indices[too_low] = 0
+        zero_indices[zero_indices < 0] = 0
         end_indices = zero_indices + wing_cut_pixels
-        too_high = end_indices > self.n_pix
+        too_high = end_indices >= self.n_pix
         zero_indices[too_high] = self.n_pix - wing_cut_pixels - 1
         end_indices[too_high] = self.n_pix - 1
 
         # Make a 2D array of the indices
-        indices_2D = np.linspace(
-            zero_indices, end_indices, num=wing_cut_pixels, endpoint=True
-        )
+        indices_2D = np.linspace(zero_indices, end_indices, wing_cut_pixels)
 
         self.indices_2D = torch.tensor(indices_2D.T, dtype=torch.long, device=device)
         self.indices_1D = self.indices_2D.reshape(-1)
@@ -417,7 +371,7 @@ class SparseLinearEmulator(LinearEmulator):
         self.active_mask = self.active_mask.to(device)
 
         self.radial_velocity = nn.Parameter(
-            torch.tensor(0.0, requires_grad=True, dtype=torch.float64)
+            torch.tensor(0, requires_grad=True, dtype=torch.float64)
         )
 
     def forward(self):
@@ -508,7 +462,7 @@ class SparseLinearEmulator(LinearEmulator):
 
         return torch.exp(result_1D)
 
-    def optimize(self, epochs=100, LR=0.01):
+    def optimize(self, epochs=100, LR=0.01, verbose=True):
         """Optimize the model parameters with backpropagation
 
         Parameters
@@ -538,7 +492,7 @@ class SparseLinearEmulator(LinearEmulator):
                 )
             )
 
-        t_iter = trange(epochs, desc="Training", leave=True)
+        t_iter = trange(epochs, desc="Training", leave=False, disable=not verbose)
         for epoch in t_iter:
             self.train()
             high_res_model = self.forward()[self.active_mask]
