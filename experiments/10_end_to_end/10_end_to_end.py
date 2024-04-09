@@ -128,13 +128,13 @@ def triton_run():
 
 def inference_run():
     spec = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True)
-    res = gp_minimize(chisq_loss(doppler_grid(8038, 12849), spec.flux.value), dimensions=[(2300, 12000), (0, 5), (-0.5, 0.5)], n_calls=100, n_random_starts=10, random_state=0, n_jobs=16)
+    res = gp_minimize(chisq_loss(spec.wavelength.value, spec.flux.value), dimensions=[(2300, 12000), (0, 5), (-0.5, 0.5)], n_calls=100, n_random_starts=10, random_state=0, n_jobs=16)
     print(res.x)
     print(res.x_iters)
     print(res.fun)
     print(res.func_vals)
 
 if __name__ == '__main__':
-    spec = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True)
-    x = chisq_loss(spec.wavelength.value, spec.flux.value)((5000, 4, 0))
-    print(x)
+    sys.stderr = open('log.txt', 'w')
+    sys.stdout = open('output.txt', 'w')
+    inference_run()
