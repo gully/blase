@@ -135,6 +135,6 @@ def inference_run():
     print(res.func_vals)
 
 if __name__ == '__main__':
-    sys.stderr = open('log.txt', 'w')
-    sys.stdout = open('output.txt', 'w')
-    inference_run()
+    spec = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True)
+    x = chisq_loss(spec.wavelength.value, spec.flux.value)((5000, 4, 0))
+    print(x)

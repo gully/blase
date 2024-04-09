@@ -17,7 +17,58 @@
 \keywords{Text}
 
 \section{Introduction}
-Text
+Stellar spectra are exceedingly rich sources of information about the stars
+which create them. They contain information about the fundamental properties
+of the star such as its temperature and surface gravity, as well as
+countless absorption lines reflecting the star's chemical composition. On 
+top of that, extrinsic factors such as the radial velocity of the star or 
+the rotation of the star itself further transform spectra. When these spectra
+are observed, even the location of the observing instrument and the 
+capabilities of the instrument itself introduce further modifications. 
+In short, stellar spectra represent extremely complex, high-dimensional 
+data that has gone through multiple transformations before reaching our 
+eyes as a deceptively simple graph of flux versus wavelength.
+
+Naturally, scientists want to extract as much information as possible from
+a star's spectra to get back the properties that lie at the root of it all. 
+However, this has proven to be no easy task. Spectroscopic surveys such as 
+APOGEE develop their own in-house pipelines to extract stellar parameters
+from spectra (ASPCAP in the case of APOGEE), and these pipelines are fairly
+effective. However, they all work on the core assumption that the data to be 
+analyzed is a list of pixels. In addition, the pipelines that surveys 
+develop are closed-source and usually limited to the scope of the survey 
+itself, causing a sort of fragmentation. This motivates the development of a 
+more universal, open-source tool that can do what spectral analysis pipelines 
+do, but in an alternative way. 
+
+Multiple efforts have been made in this direction, treating spectra in 
+different ways. Some take the wavelength and flux values and construct
+neural networks to create this mapping between stellar parameters and the
+observed spectra, such as [EXAMPLE] and [EXAMPLE]. Others take a more 
+physics-informed approach by decomposing spectra into some eigenbasis and 
+treating it as a regression problem, such as \texttt{starfish}.
+However, \texttt{blase} takes a different approach. It treats spectra not as 
+a set of pixels or a set of eigenbasis coefficients but as a set of 
+spectral lines, specifically Voigt profiles. There is no metric of this 
+approach being better or worse than the others mentioned so far, but it is 
+a different paradigm and is worth exploring as a semi-empirical tool for
+spectral inference. This study aims to take advantage of \texttt{blase}'s
+ability to change a spectrum's basis from flux versus wavelength into
+spectral line versus spectral line properties, and use that to develop a
+robust tool for stellar parameter inference.
+
+However, this is only a proof of concept. Here we develop a tool that 
+represents a very basic realization of the idea of line-by-line inference. 
+We make no claims as to the performance of this tool, but rather aim to show 
+that the idea is sound and able to be implemented, even if rudimentary, and 
+that with further research and development, this tool has the potential to 
+become useful for spectral inference.
+
+We chose the PHOENIX synthetic spectral model grid as the basis for this 
+study, because it is fairly well-known. While we plan to extend this tool to 
+leverage information across multiple model grids in the future, both for 
+accuracy and to increase the scope to include substellar objects with grids
+such as Sonora, for now we limit our scope to a subset of the PHOENIX grid.
 
 \section{Cloning the PHOENIX Model Grid}
 \subsection{The PHOENIX Subset}
@@ -36,7 +87,7 @@ the grid, whose parameter ranges are given in Table 1.
         Iron Abundance & [Fe/H] & [-0.5, 0.5] dex\\
         Effective Temperature & $T_{\mathrm{eff}}$ & [2300, 12000] K\\
         Surface Gravity & $\log(g)$ & [0, 5]\\
-        Wavelength & $\lambda$ & [8050, 12850] \AA\\
+        Wavelength & $\lambda$ & [8038, 12849] \AA\\
         \hline
     \end{tabular}
     \caption{The subset of the PHOENIX grid used in this study. These limits 
@@ -81,7 +132,8 @@ smaller values for prominence both increase the accuracy of using
 increased computational cost.
 
 Once optimization was complete, the list of identified lines, present in the
-state dictionary of \texttt{blase}'s model, was saved to a \texttt{.pt} file.
+state dictionary of \texttt{blase}'s model, was saved to a \texttt{.pt} file
+for each PHOENIX subset grid point.
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
@@ -108,7 +160,7 @@ nullified the line when evaluated.
 
 \subsection{Continuously Evaluable Manifolds}
 For each line, the inputs to the interpolator were the three input parameters $T_{\mathrm{eff}}$,
-$\log(g)$, and $[Fe/H]$, and the output was a list of four parameters, 
+$\log(g)$, and [Fe/H], and the output was a list of four parameters, 
 $\delta\mu$, $\ln(a)$, $\sigma$, and $\gamma$. For each line, one of these 
 interpolator objects was created using linear interpolation, and these 
 interpolators were aggregated into a single list, which was when pickled 
@@ -117,12 +169,21 @@ manifolds mapping fundamental stellar parameters to spectral line properties.
 These interpolators could now be evaluated at any point lying within the 
 domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset 
 into a continuous one. With the given size of the PHOENIX subset, the 
-interpolator list takes up 19 GB of disk space.
+interpolator list takes up 19 GB of disk space. Since this is now evaluable,
+we call this the PHOENIX generator.
 
-\section{Bayesian Optimization}
-Text
+\section{Bayesian Inference and Testing}
+\subsection{Inference Algorithm}
+With the PHOENIX generator complete, we used Bayesian optimization as the
+inference algorithm, specifically the \texttt{gp\_minimize} function from
+the \texttt{scikit-optimize} library. This algorithm uses a Gaussian Process
+to model the objective function, which in this case was the $\chi^2$ loss
+function between the interpolated spectrum and the true spectrum. The 
+optimizer was configured to first run 10 random evaluations to seed the
+surrogate model, then run 90 more evaluations now guided by the surrogate
+model. This totals to 100 evaluations, which was deemed sufficient for this
+study.
 
-\section{Inference Testing}
 \subsection{Test Data}
 Text
 
@@ -130,6 +191,22 @@ Text
 Text
 
 \section{Discussion}
+The computer used for this study, Triton, has the following specifications:
+\begin{table}[h]
+    \hspace*{0.7cm}\begin{tabular}{|c|c|}
+        \hline
+        \multicolumn{2}{|c|}{\textbf{Triton Specs}}\\
+        \hline\hline
+        CPU & AMD EPYC 7513\\
+        Memory & 256 GB\\
+        GPU & Nvidia A100 40GB ($\times$2)\\
+        \hline
+    \end{tabular}
+    \caption{This computer is owned by Caroline Morley and is available to
+    members of her research group. It was used for all computations, but not 
+    for generating visualizations.}
+\end{table}
+
 It should be noted that this study represents a proof of concept, and that 
 there are numerous design considerations that could be improved upon with 
 future work. These considerations include but are not limited to the 
@@ -150,6 +227,14 @@ following:
     the generator. This would require externally indexing the generator's 
     individual interpolators by line center position and selectively
     evaluating those to eliminate wasteful computation.
+    \item \textit{Low-Order Interpolation}: The current design of the 
+    algorithm uses linear interpolation to construct manifolds, however this
+    could be made more sophisticated with more complex interpolation schemes.
+    However, the drawback of this is that higher orders of interpolation
+    become increasingly expensive both in terms of disk utilization, and 
+    in terms of the computational cost to generate and evaluate them. Future
+    studies should sidestep this issue by using more generalizable methods
+    that are much more efficient.
     \item \textit{Single Model Grid}: The PHOENIX grid is not the only model
     grid of synthetic spectra available, and it does not apply to all types 
     of stars. Future work would extend the reach of this study's algorithm 
