@@ -48,7 +48,6 @@ def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[partial]
             (df_line.teff.unique(), df_line.logg.unique(), df_line.Z.unique()), 
             df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy().reshape(len(df_line.teff.unique()), len(df_line.logg.unique()), len(df_line.Z.unique()), 4),
             method='linear'))
-        #interpolator_list.append(partial(griddata, points=(df_line.teff, df_line.logg, df_line.Z), values=df_line[['amp', 'sigma', 'gamma', 'shift_center']].to_numpy()))
     return interpolator_list
 
 def reconstruct(wl_grid: np.ndarray, point: tuple[int, float, float]) -> np.ndarray:
@@ -88,7 +87,4 @@ def inference_run():
     print(f'Result: {res.x} achieved in {perf_counter() - start} s')
 
 if __name__ == '__main__':
-    #df = pd.DataFrame({'x': [0, 0, 1, 1], 'y': [2, 3, 2, 3], 'u': [4, 5, 6, 7], 'v': [8, 9, 10, 11], 'w': [12, 13, 14, 15]})
-    #interp2 = RegularGridInterpolator((df.x.unique(), df.y.unique()), df[['u', 'v', 'w']].to_numpy().reshape(2, 2, 3))
-    #print(interp2([0, 3]))
     inference_run()

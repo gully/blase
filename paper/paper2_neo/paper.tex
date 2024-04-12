@@ -44,7 +44,7 @@ do, but in an alternative way.
 Multiple efforts have been made in this direction, treating spectra in 
 different ways. Some take the wavelength and flux values and construct
 neural networks to create this mapping between stellar parameters and the
-observed spectra, such as [EXAMPLE] and [EXAMPLE]. Others take a more 
+observed spectra, such as \texttt{IN-SYNC}. Others take a more 
 physics-informed approach by decomposing spectra into some eigenbasis and 
 treating it as a regression problem, such as \texttt{starfish}.
 However, \texttt{blase} takes a different approach. It treats spectra not as 
@@ -84,16 +84,17 @@ the grid, whose parameter ranges are given in Table 1.
         Parameter & Symbol & Range\\
         \hline
         Alpha Element Abundance & $\alpha$ & [0] dex\\
-        Iron Abundance & [Fe/H] & [-0.5, 0.5] dex\\
+        Iron Abundance & [Fe/H] & [-0.5, 0] dex\\
         Effective Temperature & $T_{\mathrm{eff}}$ & [2300, 12000] K\\
-        Surface Gravity & $\log(g)$ & [0, 5]\\
+        Surface Gravity & $\log(g)$ & [2, 6]\\
         Wavelength & $\lambda$ & [8038, 12849] \AA\\
         \hline
     \end{tabular}
     \caption{The subset of the PHOENIX grid used in this study. These limits 
-    were imposed to reduce the computational cost of the algorithms. The 
-    wavelength limits in particular roughly line up with that of the 
-    Habitable Zone Planet Finder (HPF) spectrograph.}
+    were imposed to reduce the computational cost of the algorithms and to 
+    ensure a rectilinear parameter space in order to work with the chosen
+    interpolator backend. The wavelength limits in particular roughly line 
+    up with that of the Habitable Zone Planet Finder (HPF) spectrograph.}
 \end{table}
 
 \subsection{Preprocessing with \texttt{gollum}}
@@ -169,7 +170,7 @@ manifolds mapping fundamental stellar parameters to spectral line properties.
 These interpolators could now be evaluated at any point lying within the 
 domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset 
 into a continuous one. With the given size of the PHOENIX subset, the 
-interpolator list takes up 19 GB of disk space. Since this is now evaluable,
+interpolator list takes up 13.2 GB of disk space. Since this is now evaluable,
 we call this the PHOENIX generator.
 
 \section{Bayesian Inference and Testing}
@@ -177,15 +178,27 @@ we call this the PHOENIX generator.
 With the PHOENIX generator complete, we used Bayesian optimization as the
 inference algorithm, specifically the \texttt{gp\_minimize} function from
 the \texttt{scikit-optimize} library. This algorithm uses a Gaussian Process
-to model the objective function, which in this case was the $\chi^2$ loss
-function between the interpolated spectrum and the true spectrum. The 
-optimizer was configured to first run 10 random evaluations to seed the
-surrogate model, then run 90 more evaluations now guided by the surrogate
-model. This totals to 100 evaluations, which was deemed sufficient for this
-study.
+to model the objective function, which in this case was the RMS 
+(Root-Mean-Square) loss between the interpolated spectrum and the true 
+spectrum. The optimizer was configured to first run 30 random evaluations to 
+seed the surrogate model, then run 20 more evaluations now guided by the 
+surrogate model. This totals to 50 evaluations, which was deemed sufficient 
+for this study. We then decided to use ensemble methods, running 32 parallel
+optimizers to get a more statistically sound result. One inference run 
+takes an average of [TIME] to complete on Triton.
 
 \subsection{Test Data}
-Text
+To test the performance of the inference algorithm, we used the PHOENIX subset
+itself. At first glance, this may seem like a useless endeavor, as the 
+PHOENIX generator has indeed memorized the PHOENIX subset, being able to
+reconstruct a PHOENIX spectrum when evaluated at that grid point. However,
+that is precisely what allows us to use the PHOENIX subset as test data.
+The Bayesian optimizer's surrogate model is seeded by random continuously 
+sampled generator evaluations within the search space, \textit{not} grid 
+points of the PHOENIX subset, meaning the surrogate model has no `memorization' 
+to speak of. If the optimizer had been an iterative grid refinement search, 
+this would not have been possible, because grid methods rely on just that, 
+the grid.
 
 \subsection{Performance Results}
 Text
@@ -193,7 +206,7 @@ Text
 \section{Discussion}
 The computer used for this study, Triton, has the following specifications:
 \begin{table}[h]
-    \hspace*{0.7cm}\begin{tabular}{|c|c|}
+    \hspace*{0.6cm}\begin{tabular}{|c|c|}
         \hline
         \multicolumn{2}{|c|}{\textbf{Triton Specs}}\\
         \hline\hline
@@ -204,7 +217,8 @@ The computer used for this study, Triton, has the following specifications:
     \end{tabular}
     \caption{This computer is owned by Caroline Morley and is available to
     members of her research group. It was used for all computations, but not 
-    for generating visualizations.}
+    for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a 
+    boost clock of 3.65 GHz.}
 \end{table}
 
 It should be noted that this study represents a proof of concept, and that 
@@ -214,11 +228,12 @@ following:
 \begin{enumerate}[label=-]
     \item \textit{Limited PHOENIX Subset}: The PHOENIX subset used in this 
     study was just that, a subset. The full PHOENIX grid not only expands 
-    the [Fe/H] range to [-4.0, 1.0] dex, but also includes the alpha element 
-    abundance, which we elected to fix at 0 for this study. In addition to 
-    the actual fundamental stellar parameters, we also took a subset of the 
-    PHOENIX wavelength range, with the full [500, 55000] \AA \ wavelength 
-    range also being left to future work.
+    the [Fe/H] range to [-4.0, 1.0] dex and the $\log(g)$ range to [0, 6], 
+    but also includes the alpha element abundance parameter, which we 
+    elected to fix at 0 for this study. In addition to the actual fundamental 
+    stellar parameters, we also took a subset of the PHOENIX wavelength range, 
+    with the full [500, 55000] \AA \ wavelength range also being left to 
+    future work.
     \item \textit{Strict Wavelength Range}: Currently, the generator only 
     supports inference on spectra whose wavelength limits are either equal 
     to it, or encompass that of the generator and have been truncated to 
@@ -290,8 +305,8 @@ following:
 In short, it is quite clear that \texttt{blase} is a long way from being a
 powerhouse in spectral inference, however it represents a step down a road
 not yet traveled, and the potential for future growth is immense. At the 
-end of the day, we aim to develop a tool that can analyze spectrum based on 
-how nature behaves rather than how data behaves.
+end of the day, we aim to develop a tool that can analyze spectra with the 
+advent of physics-informed machine learning.
 
 \section*{Acknowledgements}
 Text
