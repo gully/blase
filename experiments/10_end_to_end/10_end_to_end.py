@@ -1,19 +1,19 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sys
 import torch
 
 from blase.emulator import SparseLinearEmulator as SLE
-from blase.utils import doppler_grid
+from blase.optimizer import default_clean
 from collections import defaultdict
-from functools import partial
-from gollum.phoenix import PHOENIXSpectrum
+from gollum.phoenix import PHOENIXSpectrum, PHOENIXGrid
+from itertools import repeat
+from multiprocessing import Pool
 from os import listdir
 from pickle import dump, load
 from re import split
 from skopt import gp_minimize
-from scipy.interpolate import griddata, RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator
 from tqdm import tqdm
 from typing import Callable
 
@@ -39,7 +39,7 @@ def optimize_memory(df: pd.DataFrame):
     df[fcols] = df[fcols].apply(pd.to_numeric, downcast='float')
     df[icols] = df[icols].apply(pd.to_numeric, downcast='integer')
 
-def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[partial]:
+def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[RegularGridInterpolator]:
     interpolator_list = []
     for line in tqdm(df.center.unique()):
         df_line = df.query('center == @line', engine='python').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
@@ -78,13 +78,28 @@ def triton_run():
     with open('log.txt', 'w') as f:
         f.write('Interpolator partials dumped to pickle.')
 
-def inference_run():
-    from blase.optimizer import default_clean
+def inference_test():
     from time import perf_counter
     start = perf_counter()
     spec = default_clean(PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True))
     res = gp_minimize(loss_fn(spec.wavelength.value, spec.flux.value), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30)
     print(f'Result: {res.x} achieved in {perf_counter() - start} s')
 
+def inference(spec: PHOENIXSpectrum):
+    return np.array(gp_minimize(loss_fn(spec.wavelength.value, spec.flux.value), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30).x)
+
+def inference_grid():
+    sys.stderr = open('log.txt', 'w')
+    grid = PHOENIXGrid(teff_range=(2300, 12000), logg_range=(2, 6), Z_range=(-0.5, 0), path='/data/libraries/raw/PHOENIX/')
+    df_list = []
+    for point in grid.grid_points:
+        spec = default_clean(grid[point])
+        with Pool(32) as p:
+            result = p.imap_unordered(inference, repeat(spec, 32))
+        result = np.vstack(list(result))
+        df_list.append(pd.DataFrame({'teff': [point[0]]*32, 'logg': [point[1]]*32, 'Z': [point[2]]*32, 'i_teff': result[:, 0], 'i_logg': result[:, 1], 'i_Z': result[:, 2]}))
+    pd.concat(df_list).to_parquet('inference_results.parquet.gz', compression='gzip')
+
+
 if __name__ == '__main__':
-    inference_run()
+    inference_grid()

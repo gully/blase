@@ -29,33 +29,32 @@ In short, stellar spectra represent extremely complex, high-dimensional
 data that has gone through multiple transformations before reaching our 
 eyes as a deceptively simple graph of flux versus wavelength.
 
-Naturally, scientists want to extract as much information as possible from
+Scientists want to extract as much information as possible from
 a star's spectra to get back the properties that lie at the root of it all. 
 However, this has proven to be no easy task. Spectroscopic surveys such as 
 APOGEE develop their own in-house pipelines to extract stellar parameters
 from spectra (ASPCAP in the case of APOGEE), and these pipelines are fairly
 effective. However, they all work on the core assumption that the data to be 
 analyzed is a list of pixels. In addition, the pipelines that surveys 
-develop are closed-source and usually limited to the scope of the survey 
-itself, causing a sort of fragmentation. This motivates the development of a 
-more universal, open-source tool that can do what spectral analysis pipelines 
-do, but in an alternative way. 
+develop are typically closed-source and usually limited to the scope of the 
+survey itself, causing a sort of fragmentation. This motivates the 
+development of a more universal, open-source tool that can do what spectral 
+analysis pipelines do, but in an alternative way. 
 
 Multiple efforts have been made in this direction, treating spectra in 
-different ways. Some take the wavelength and flux values and construct
-neural networks to create this mapping between stellar parameters and the
-observed spectra, such as \texttt{IN-SYNC}. Others take a more 
-physics-informed approach by decomposing spectra into some eigenbasis and 
-treating it as a regression problem, such as \texttt{starfish}.
-However, \texttt{blase} takes a different approach. It treats spectra not as 
-a set of pixels or a set of eigenbasis coefficients but as a set of 
-spectral lines, specifically Voigt profiles. There is no metric of this 
-approach being better or worse than the others mentioned so far, but it is 
-a different paradigm and is worth exploring as a semi-empirical tool for
-spectral inference. This study aims to take advantage of \texttt{blase}'s
-ability to change a spectrum's basis from flux versus wavelength into
-spectral line versus spectral line properties, and use that to develop a
-robust tool for stellar parameter inference.
+different ways. The standard practice is to treat the wavelength and flux as 
+simply two arrays and implement any from a myriad of different algorithms to 
+inference fundamental stellar parameters. Others take a more physics-informed 
+approach by decomposing spectra into some eigenbasis and treating it as a 
+regression problem, such as \texttt{starfish}. However, \texttt{blase} takes 
+a different approach. It treats spectra not as a set of pixels or a set of 
+eigenbasis coefficients but as a set of spectral lines, specifically Voigt 
+profiles. There is no metric of this approach being better or worse than the 
+others mentioned so far, but it is a different paradigm and is worth 
+exploring as a semi-empirical tool. This study aims to take advantage of 
+\texttt{blase}'s ability to change a spectrum's basis from flux versus 
+wavelength into spectral line versus spectral line properties, and use that 
+to develop a robust tool for stellar parameter inference.
 
 However, this is only a proof of concept. Here we develop a tool that 
 represents a very basic realization of the idea of line-by-line inference. 
@@ -77,7 +76,7 @@ PHOENIX synthetic spectral model grid. Instead, we focused on a subset of
 the grid, whose parameter ranges are given in Table 1.
 
 \begin{table}[h]
-    \hspace*{-1.1cm}\begin{tabular}{|c|c|c|}
+    \hspace*{-1.35cm}\begin{tabular}{|c|c|c|}
         \hline
         \multicolumn{3}{|c|}{\textbf{PHOENIX Grid Subset}}\\
         \hline\hline
@@ -92,19 +91,16 @@ the grid, whose parameter ranges are given in Table 1.
     \end{tabular}
     \caption{The subset of the PHOENIX grid used in this study. These limits 
     were imposed to reduce the computational cost of the algorithms and to 
-    ensure a rectilinear parameter space in order to work with the chosen
-    interpolator backend. The wavelength limits in particular roughly line 
-    up with that of the Habitable Zone Planet Finder (HPF) spectrograph.}
+    ensure a rectilinear parameter space in order to work with \texttt{scipy}'s
+    \texttt{RegularGridInterpolator}. The wavelength limits in particular 
+    roughly line up with that of the Habitable Zone Planet Finder (HPF) 
+    spectrograph.}
 \end{table}
 
 \subsection{Preprocessing with \texttt{gollum}}
 First, the PHOENIX subset was accessed directly from the PHOENIX website
-using \texttt{gollum}'s download option, which uses the website's FTP server
-to download spectra without using any disk space. This came at the cost of
-longer load times due to internet connection being significantly more of a
-bottleneck than disk I/O, but was acceptable as this was a one-time operation.
-
-The spectra were then put through a three-step preprocessing pipeline.
+using \texttt{gollum}'s download option. The spectra were then put through a 
+three-step preprocessing pipeline.
 \begin{enumerate}
     \item Blackbody Division: Since the $T_{\mathrm{eff}}$ of each spectrum 
     is known, the according blackbody spectrum was divided out.
