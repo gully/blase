@@ -7,8 +7,6 @@ from blase.emulator import SparseLinearEmulator as SLE
 from blase.optimizer import default_clean
 from collections import defaultdict
 from gollum.phoenix import PHOENIXSpectrum, PHOENIXGrid
-from itertools import repeat
-from multiprocessing import Pool
 from os import listdir
 from pickle import dump, load
 from re import split
@@ -50,21 +48,20 @@ def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[RegularG
             method='linear'))
     return interpolator_list
 
-def reconstruct(wl_grid: np.ndarray, point: tuple[int, float, float]) -> np.ndarray:
-    interpolators = load(open('interpolator_list.pkl', 'rb'))
-    output = np.vstack([r for interpolator in interpolators if (r := interpolator([point[0], point[1], point[2]]).squeeze())[0] != -1000])
+def reconstruct(wl_grid: np.ndarray, point: tuple[int, float, float], interpolator_list: list[RegularGridInterpolator]) -> np.ndarray:
+    output = np.vstack([r for interpolator in interpolator_list if (r := interpolator([point[0], point[1], point[2]]).squeeze())[0] != -1000])
     state_dict = {
         'amplitudes': torch.from_numpy(output[:, 0]),
         'sigma_widths': torch.from_numpy(output[:, 1]),
         'gamma_widths': torch.from_numpy(output[:, 2]),
         'lam_centers': torch.from_numpy(output[:, 3]),
     }
-    return np.nan_to_num(SLE(wl_native=wl_grid, init_state_dict=state_dict, device="cpu").forward().detach().numpy(), nan=1)
+    return np.nan_to_num(SLE(wl_native=wl_grid, init_state_dict=state_dict).forward().detach().numpy(), nan=1)
 
-def loss_fn(wl_grid: np.ndarray, data: np.ndarray) -> Callable:
-    return lambda point: ((reconstruct(wl_grid, point) - data)**2).mean()**0.5
+def loss_fn(wl_grid: np.ndarray, data: np.ndarray, interpolator_list: list[RegularGridInterpolator]) -> Callable:
+    return lambda point: ((reconstruct(wl_grid, point, interpolator_list) - data)**2).mean()**0.5
 
-def triton_run():
+def pickling_run():
     sys.stderr = open('log.txt', 'w')
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
     df = read_state_dicts(path)
@@ -80,24 +77,24 @@ def triton_run():
 
 def inference_test():
     from time import perf_counter
+    interpolator_list = load(open('interpolator_list.pkl', 'rb'))
     start = perf_counter()
     spec = default_clean(PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True))
-    res = gp_minimize(loss_fn(spec.wavelength.value, spec.flux.value), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30)
+    res = gp_minimize(loss_fn(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30)
     print(f'Result: {res.x} achieved in {perf_counter() - start} s')
 
-def inference(spec: tuple[np.ndarray]):
-    return np.array(gp_minimize(loss_fn(spec[0], spec[1]), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30).x)
+def inference(wavelength: np.ndarray, flux: np.ndarray) -> np.ndarray:
+    return np.array(gp_minimize(loss_fn(wavelength, flux), dimensions=[(2300, 12000), (2, 6), (-0.5, 0)], n_calls=50, n_random_starts=30).x)
 
 def inference_grid():
     sys.stderr = open('log.txt', 'w')
-    N_CORES = 10
+    interpolator_list = load(open('interpolator_list.pkl', 'rb'))
     grid = PHOENIXGrid(teff_range=(2300, 12000), logg_range=(2, 6), Z_range=(-0.5, 0), path='/data/libraries/raw/PHOENIX/')
     df_list = []
     for point in grid.grid_points:
         spec = default_clean(grid[grid.lookup_dict[point]])
-        with Pool(N_CORES) as p:
-            result = np.vstack([*p.imap_unordered(inference, repeat((spec.wavelength.value, spec.flux.value), N_CORES))])
-        df_list.append(pd.DataFrame({'teff': [point[0]]*N_CORES, 'logg': [point[1]]*N_CORES, 'Z': [point[2]]*N_CORES, 'i_teff': result[:, 0], 'i_logg': result[:, 1], 'i_Z': result[:, 2]}))
+        result = np.vstack(inference(spec.wavelength.value, spec.flux.value) for _ in range(10))
+        df_list.append(pd.DataFrame({'teff': point[0], 'logg': point[1], 'Z': point[2], 'i_teff': result[:, 0], 'i_logg': result[:, 1], 'i_Z': result[:, 2]}))
     pd.concat(df_list).to_parquet('inference_results.parquet.gz', compression='gzip')
 
 
