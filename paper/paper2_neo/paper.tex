@@ -44,7 +44,7 @@ analysis pipelines do, but in an alternative way.
 Multiple efforts have been made in this direction, treating spectra in 
 different ways. The standard practice is to treat the wavelength and flux as 
 simply two arrays and implement any from a myriad of different algorithms to 
-inference fundamental stellar parameters. Others take a more physics-informed 
+inference fundamental stellar parameters. Others take a more mathematical 
 approach by decomposing spectra into some eigenbasis and treating it as a 
 regression problem, such as \texttt{starfish}. However, \texttt{blase} takes 
 a different approach. It treats spectra not as a set of pixels or a set of 
@@ -75,7 +75,7 @@ For the purposes of this study, we did not consider the full range of the
 PHOENIX synthetic spectral model grid. Instead, we focused on a subset of 
 the grid, whose parameter ranges are given in Table 1.
 
-\begin{table}[h]
+\begin{table}[h!]
     \hspace*{-1.35cm}\begin{tabular}{|c|c|c|}
         \hline
         \multicolumn{3}{|c|}{\textbf{PHOENIX Grid Subset}}\\
@@ -94,7 +94,7 @@ the grid, whose parameter ranges are given in Table 1.
     ensure a rectilinear parameter space in order to work with \texttt{scipy}'s
     \texttt{RegularGridInterpolator}. The wavelength limits in particular 
     roughly line up with that of the Habitable Zone Planet Finder (HPF) 
-    spectrograph.}
+    spectrograph. This subset is comprised of 1314 individual spectra.}
 \end{table}
 
 \subsection{Preprocessing with \texttt{gollum}}
@@ -102,13 +102,22 @@ First, the PHOENIX subset was accessed directly from the PHOENIX website
 using \texttt{gollum}'s download option. The spectra were then put through a 
 three-step preprocessing pipeline.
 \begin{enumerate}
-    \item Blackbody Division: Since the $T_{\mathrm{eff}}$ of each spectrum 
+    \item \textit{Blackbody Division}: Since the $T_{\mathrm{eff}}$ of each spectrum 
     is known, the according blackbody spectrum was divided out.
-    \item Percentile Normalization: The spectra were normalized by dividing
+    \item \textit{Percentile Normalization}: The spectra were normalized by dividing
     them by their 99th percentile.
-    \item Continuum Normalization: The spectra were further normalized by 
+    \item \textit{Continuum Normalization}: The spectra were further normalized by 
     dividing them by a \nth{5} order polynomial continuum.
 \end{enumerate}
+Mathematically, we can express the preprocessing as follows:
+\begin{gather}
+    \mathsf{\bar{S}} = \dfrac{\mathsf{S}}{\mathsf{B}\mathsf{Q}_5P_{99}}
+\end{gather}
+where $\mathsf{\bar{S}}$ is the preprocessed spectrum, $\mathsf{S}$ is the 
+original spectrum,  $\mathsf{B}$ is the blackbody spectrum, $\mathsf{Q}_n$ 
+is the $n^\mathrm{th}$ order polynomial continuum fit, and $P_n$ is the 
+$n^\mathrm{th}$ percentile function. Arithmetic operations between arrays 
+are assumed to be elementwise in all notation from here on out.
 
 \subsection{Line Identification with \texttt{blase}}
 The next step was to convert the PHOENIX subset into an interpretable format.
@@ -130,7 +139,8 @@ increased computational cost.
 
 Once optimization was complete, the list of identified lines, present in the
 state dictionary of \texttt{blase}'s model, was saved to a \texttt{.pt} file
-for each PHOENIX subset grid point.
+for each PHOENIX subset grid point. The total disk space these files took up 
+is 465 MB.
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
@@ -139,30 +149,67 @@ detected lines. This means that from one PHOENIX spectrum to the next, the
 same line could have a slightly different line center. Since the goal of this
 study is to interpolate the properties of each line, we needed to identify the
 presence of a particular line across the PHOENIX subset. We decided to do
-this by using the line centers of the detected lines pre-optimization. This
-introduced a new variable called the jitter $\delta\mu$, which measures the shift of the
-line center between pre-optimization and post-optimization. Now with each
-spectral line indexed by $\mu$, we had four parameters to interpolate:
-$\delta\mu$, $\ln(a)$, $\sigma$, and $\gamma$.
+this by using the line centers $\mu$ of the detected lines pre-optimization, 
+while the post-optimization line centers are labeled $\mu'$. Now with 
+each spectral line indexed by $\mu$, we had four parameters to interpolate:
+$\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. Mathematically, the Voigt profile
+$\mathsf{V}_\mu$ in terms of our four parameters is given by:
 
-There was also a second issue, and that is that spectral lines were often
-only detected in some spectra from the PHOENIX subset. This means that in 
-theory, interpolation would be inaccurate in regions where a line does not 
-appear, and also breaks in practice because \texttt{scipy}'s regular grid
-interpolation relies on a rectilinear grid, which we would not have if
-regions of grid points were missing. To solve this, we artificially
+\begin{gather}
+    \mathsf{V}_\mu(\lambda) = e^{\ln(a)}\mathrm{Re}\left[w\left(\dfrac{\lambda - \mu' + i\gamma}{\sigma\sqrt{2}}\right)\right] \bigg/ \left(\sigma\sqrt{2\pi}\right)
+\end{gather}
+where $w$ is the Faddeeva function. Note that since we are dealing with 
+the parameters of these Voigt profiles, even if the interpolation method is 
+linear, the actual result of interpolation varies non-linearly.
+
+There is also a second issue, and that is that spectral lines were often
+only detected in some spectra from the PHOENIX subset. In Figure 1, we show
+that different grid points sport differing counts of detected spectral lines.
+This means that in theory, interpolation would be inaccurate in regions where 
+a line does not appear, and also breaks in practice because \texttt{scipy}'s 
+\texttt{RegularGridInterpolator} relies on a rectilinear grid, which we would not 
+have if regions of grid points were missing. 
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=\textwidth]{images/figure1.png}
+    \caption{The number of detected spectral lines at each grid point of 
+    a slice of the PHOENIX subset at solar metallicity. We can see that
+    the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
+    Also note that from $T_{\mathrm{eff}} = 7000$ K onward, the spacing 
+    between grid points increases from 100 K to 200 K.}
+\end{figure*}
+
+To solve this, we artificially
 populated missing grid points with log-amplitudes of -1000, which retained
 interpolator stability by not being an infinity, but also essentially 
-nullified the line when evaluated.
+nullified the line when evaluated. An example of the appearance of missing 
+sections in heatmaps where a line does not appear is shown in Figure 2. 
+In total, across the entire PHOENIX subset, \texttt{blase} detected 
+128,723 individual spectral lines, meaning we have that many manifolds to 
+interpolate.
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=\textwidth]{images/figure2.png}
+    \caption{Heatmap showing how $\ln(a)$ varies over the PHOENIX subset
+    slice at solar metallicity. Notice the missing chunk in the top left
+    of the figure; \texttt{blase} did not detect a spectral line here,
+    but we have to artificially populate those points with lines that 
+    have $\ln(a) = -1000$.}
+\end{figure*}
 
 \subsection{Continuously Evaluable Manifolds}
 For each line, the inputs to the interpolator were the three input parameters $T_{\mathrm{eff}}$,
 $\log(g)$, and [Fe/H], and the output was a list of four parameters, 
-$\delta\mu$, $\ln(a)$, $\sigma$, and $\gamma$. For each line, one of these 
+$\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. For each line, one of these 
 interpolator objects was created using linear interpolation, and these 
 interpolators were aggregated into a single list, which was when pickled 
-and written to a \texttt{.pkl} file. These interpolators represent multiple 
-manifolds mapping fundamental stellar parameters to spectral line properties. 
+and written to a \texttt{.pkl} file. These interpolators generate multiple 
+manifolds with the following mapping:
+\begin{gather}
+    \mqty[T_{\mathrm{eff}} \\ \log(g) \\ \mathrm{[Fe/H]}] \rightarrow \mqty[\mu' \\ \ln(a) \\ \sigma \\ \gamma]
+\end{gather}
 These interpolators could now be evaluated at any point lying within the 
 domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset 
 into a continuous one. With the given size of the PHOENIX subset, the 
@@ -181,7 +228,8 @@ seed the surrogate model, then run 20 more evaluations now guided by the
 surrogate model. This totals to 50 evaluations, which was deemed sufficient 
 for this study. We then decided to use ensemble methods, running 32 parallel
 optimizers to get a more statistically sound result. One inference run 
-takes an average of [TIME] to complete on Triton.
+takes an average of 15 minutes to complete on Triton (see Section 5 for
+specifications).
 
 \subsection{Test Data}
 To test the performance of the inference algorithm, we used the PHOENIX subset
@@ -201,7 +249,7 @@ Text
 
 \section{Discussion}
 The computer used for this study, Triton, has the following specifications:
-\begin{table}[h]
+\begin{table}[h!]
     \hspace*{0.6cm}\begin{tabular}{|c|c|}
         \hline
         \multicolumn{2}{|c|}{\textbf{Triton Specs}}\\
