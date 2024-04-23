@@ -7,6 +7,7 @@ from blase.emulator import SparseLinearEmulator as SLE
 from blase.optimizer import default_clean
 from collections import defaultdict
 from gollum.phoenix import PHOENIXSpectrum, PHOENIXGrid
+from itertools import product
 from os import listdir
 from pickle import dump, load
 from re import split
@@ -39,7 +40,7 @@ def optimize_memory(df: pd.DataFrame):
 
 def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[RegularGridInterpolator]:
     interpolator_list = []
-    for line in tqdm(df.center.unique()):
+    for line in tqdm(df.value_counts('center').index):
         df_line = df.query('center == @line', engine='python').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
         df_line.sort_values(['teff', 'logg', 'Z'], inplace=True)
         interpolator_list.append(RegularGridInterpolator(
@@ -49,7 +50,8 @@ def create_interpolators(df: pd.DataFrame, df_gp: pd.DataFrame) -> list[RegularG
     return interpolator_list
 
 def pickling_run():
-    sys.stderr = open('log.txt', 'w')
+    from time import perf_counter
+    sys.stderr = sys.stdout = open('log.txt', 'w')
     path = '/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states'
     df = read_state_dicts(path)
     df_gp = df[['teff', 'logg', 'Z']]
@@ -57,10 +59,10 @@ def pickling_run():
     print('DataFrame created')
     optimize_memory(df)
     print('DataFrame memory optimized')
+    start = perf_counter()
     interpolators = create_interpolators(df, df_gp)
     dump(interpolators, open('interpolator_list.pkl', 'wb'))
-    with open('log.txt', 'w') as f:
-        f.write('Interpolator partials dumped to pickle.')
+    print(f'Interpolator partials dumped to pickle ({perf_counter() - start} s).')
 
 def reconstruct(wl_grid: np.ndarray, point: tuple[int, float, float], interpolator_list: list[RegularGridInterpolator]) -> np.ndarray:
     output = np.vstack([r for interpolator in interpolator_list if (r := interpolator([point[0], point[1], point[2]]).squeeze())[0] != -1000])
@@ -105,8 +107,11 @@ def inference_grid():
 
 
 if __name__ == '__main__':
-    interpolator = load(open('interpolator_list.pkl', 'rb'))[10051]
+    interpolator = load(open('interpolator_list.pkl', 'rb'))[1]
     grid = PHOENIXGrid(teff_range=(2300, 12000), logg_range=(2, 6), Z_range=(0, 0), path='/data/libraries/raw/PHOENIX/')
-    output = [interpolator(point).squeeze()[0] for point in grid.grid_points]
-    df = pd.DataFrame({'teff': [p[0] for p in grid.grid_points], 'logg': [p[1] for p in grid.grid_points], 'Z': [p[2] for p in grid.grid_points], 'amp': output})
-    print(df)
+    teff_points = np.arange(2300, 12000, 50)
+    logg_points = np.arange(2, 6, 0.1)
+    domain = np.array(np.meshgrid(teff_points, logg_points)).T.reshape(-1, 2)
+    output = np.vstack([interpolator((*point, 0)).squeeze() for point in domain])
+    df = pd.DataFrame({'teff': [p[0] for p in domain], 'logg': [p[1] for p in domain], 'amp': output[:,0], 'sigma': output[:,1], 'gamma': output[:,2], 'shift_center': output[:,3]}) 
+    df.to_parquet('interpolated_line.parquet.gz', compression='gzip')
