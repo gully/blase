@@ -192,7 +192,7 @@ interpolate.
 \begin{figure*}[t!]
     \centering
     \includegraphics[width=\textwidth]{images/figure2.png}
-    \caption{Heatmap showing how $\ln(a)$ varies over the PHOENIX subset
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset
     slice at solar metallicity. Notice the missing chunk in the top left
     of the figure; \texttt{blase} did not detect a spectral line here,
     but we have to artificially populate those points with lines that 
@@ -213,7 +213,9 @@ manifolds with the following mapping:
 These interpolators could now be evaluated at any point lying within the 
 domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset 
 into a continuous one. With the given size of the PHOENIX subset, the 
-interpolator list takes up 13.2 GB of disk space. Since this is now evaluable,
+interpolator list takes up 13.2 GB of disk space. This evaluation 
+is able to reconstruct an existing PHOENIX spectrum or alternatively 
+interpolate a new spectrum within the domain of the PHOENIX subset,
 we call this the PHOENIX generator.
 
 \section{Bayesian Inference and Testing}
@@ -244,8 +246,23 @@ to speak of. If the optimizer had been an iterative grid refinement search,
 this would not have been possible, because grid methods rely on just that, 
 the grid.
 
-\subsection{Performance Results}
-Text
+\subsection{Spectral Reconstruction Time}
+Typically a practitioner would wish to use a reconstruction in an iterative 
+way, repeatedly generating spectra from input (teff, logg, FeH) 
+coordinates.  Therefore, there is a strong desire to bring the computational 
+cost of reconstruction to extremely low values close to subsecond.
+We evaluate the computational time of our generator in two ways.  First, 
+for a single input. When evaluating a vector of inputs, we parallelize the interpolator evaluation, 
+however the reconstruction done by \texttt{blase} on each evaluated state 
+dictionary is done serially.
+
+The single input performance 
+takes $\sim$30 seconds, which is much too large for typical Bayesian inference procedures.
+
+I hand in a (teff, logg, FeH) pair, how long does it take to get back a reconstructed spectrum?
+
+\subsection{Bayesian Optimizer Accuracy}
+TACC
 
 \section{Discussion}
 The computer used for this study, Triton, has the following specifications:
