@@ -77,18 +77,14 @@ def reconstruct1(wl_grid: np.ndarray, point: np.ndarray, interpolator_list: list
 def reconstructn(wl_grid: np.ndarray, points: np.ndarray, interpolator_list: list[RegularGridInterpolator]) -> np.ndarray:
     raw_outputs = [[] for _ in points]
     for interpolator in interpolator_list:
-        results = interpolator(points).squeeze()
-        for i, r in enumerate(results):
+        for i, r in enumerate(interpolator(points).squeeze()):
             if r[0] > -100:
                 raw_outputs[i].append(r)
-    outputs = [np.vstack(raw_output) for raw_output in raw_outputs]
-    state_dicts = [{
-        'amplitudes': torch.from_numpy(output[:, 0]),
-        'sigma_widths': torch.from_numpy(output[:, 1]),
-        'gamma_widths': torch.from_numpy(output[:, 2]),
-        'lam_centers': torch.from_numpy(output[:, 3]),
-    } for output in outputs]
-    return np.nan_to_num(np.vstack([SLE(wl_native=wl_grid, init_state_dict=state_dict, device='cpu').forward().detach().numpy() for state_dict in state_dicts]), nan=1)
+    return np.nan_to_num(np.vstack([SLE(wl_native=wl_grid, init_state_dict={'amplitudes': torch.from_numpy(output[:, 0]),
+            'sigma_widths': torch.from_numpy(output[:, 1]),
+            'gamma_widths': torch.from_numpy(output[:, 2]),
+            'lam_centers': torch.from_numpy(output[:, 3])}, device='cpu').forward().detach().numpy() for output in (np.vstack(raw_output) for raw_output in raw_outputs)]), nan=1)
+
 
 def rms_loss(wl_grid: np.ndarray, data: np.ndarray, interpolator_list: list[RegularGridInterpolator]) -> Callable:
     return lambda point: ((reconstruct1(wl_grid, point, interpolator_list) - data)**2).mean()**0.5

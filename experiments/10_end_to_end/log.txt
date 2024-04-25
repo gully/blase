@@ -1,1 +1,2 @@
-5 points reconstructed in 18.7358775511384 s
+5 points multi-reconstructed in 21.671438440680504 s
+5 points single-reconstructed in 79.61588183045387 s
