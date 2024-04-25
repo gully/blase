@@ -135,12 +135,24 @@ lower limit for the amplitude of detected lines, which also saves resources
 by disregarding shallow lines. In short, larger values for wing cut and 
 smaller values for prominence both increase the accuracy of using
 \texttt{blase}'s line detection and optimization at the expense of an
-increased computational cost.
-
-Once optimization was complete, the list of identified lines, present in the
-state dictionary of \texttt{blase}'s model, was saved to a \texttt{.pt} file
-for each PHOENIX subset grid point. The total disk space these files took up 
-is 465 MB.
+increased computational cost. In addition, it should be mentioned that
+\texttt{blase} uses the pseudo-Voigt approximation, which saves on 
+computational cost while remaining accurate to about 1\%. It is a 
+weighted average of a Gaussian and Lorentzian as opposed to a convolution.
+\texttt{blase}'s pseudo-Voight profile implementation uses the following:
+\begin{gather}
+    \tilde{\mathsf{V}}_\mu(\lambda) = \eta L(\lambda - \mu'; f) + (1 - \eta)G(\lambda - \mu'; f)\\
+    \nonumber \eta = \sum_{n=1}^3 a_n\left(\dfrac{2\gamma}{f}\right)^n \qquad a = \mqty[1.36603 \\ -0.47719 \\ 0.11116]\\
+    \nonumber f = 32\sum_{n=0}^5 b_n \left(\sqrt{2\ln(2)}\sigma\right)^{5-n}(\gamma)^n \qquad b = \mqty[1 \\ 2.69269 \\ 2.42843 \\ 4.47163 \\ 0.07842 \\ 1]
+\end{gather}
+Notice that we use $\mu'$ instead of $\mu$ in the formula. This is because
+\texttt{blase} allows the line center to shift slightly during optimization, 
+and it is this shifted center which is used in computation. The individual 
+Voigt profiles are still indexed by $\mu$ for cross-model line identification,
+explained in the next section. Once optimization was complete, the list of 
+identified lines, present in the state dictionary of \texttt{blase}'s model, 
+was saved to a \texttt{.pt} file for each PHOENIX subset grid point. The total 
+disk space these files took up is 465 MB.
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
@@ -149,18 +161,12 @@ detected lines. This means that from one PHOENIX spectrum to the next, the
 same line could have a slightly different line center. Since the goal of this
 study is to interpolate the properties of each line, we needed to identify the
 presence of a particular line across the PHOENIX subset. We decided to do
-this by using the line centers $\mu$ of the detected lines pre-optimization, 
-while the post-optimization line centers are labeled $\mu'$. Now with 
-each spectral line indexed by $\mu$, we had four parameters to interpolate:
-$\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. Mathematically, the Voigt profile
-$\mathsf{V}_\mu$ in terms of our four parameters is given by:
-
-\begin{gather}
-    \mathsf{V}_\mu(\lambda) = e^{\ln(a)}\mathrm{Re}\left[w\left(\dfrac{\lambda - \mu' + i\gamma}{\sigma\sqrt{2}}\right)\right] \bigg/ \left(\sigma\sqrt{2\pi}\right)
-\end{gather}
-where $w$ is the Faddeeva function. Note that since we are dealing with 
-the parameters of these Voigt profiles, even if the interpolation method is 
-linear, the actual result of interpolation varies non-linearly.
+this by using the line centers $\mu$ of the detected lines pre-optimization. 
+Now with each spectral line indexed by $\mu$, we had four parameters to interpolate:
+$\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. Note that since we are dealing with 
+the parameters of Voigt profiles, we can see in Equation 2 that even if the 
+interpolation method is linear, the actual result of interpolation varies 
+non-linearly.
 
 There is also a second issue, and that is that spectral lines were often
 only detected in some spectra from the PHOENIX subset. In Figure 1, we show
@@ -196,7 +202,9 @@ interpolate.
     slice at solar metallicity. Notice the missing chunk in the top left
     of the figure; \texttt{blase} did not detect a spectral line here,
     but we have to artificially populate those points with lines that 
-    have $\ln(a) = -1000$.}
+    have $\ln(a) = -1000$. The change in spacing on the x-axis is owing to
+    the step of $T_\mathrm{eff}$ in the PHOENIX grid changing from 100 K to 
+    200 K after $T_\mathrm{eff} = 7000$ K.}
 \end{figure*}
 
 \subsection{Continuously Evaluable Manifolds}
@@ -216,7 +224,21 @@ into a continuous one. With the given size of the PHOENIX subset, the
 interpolator list takes up 13.2 GB of disk space. This evaluation 
 is able to reconstruct an existing PHOENIX spectrum or alternatively 
 interpolate a new spectrum within the domain of the PHOENIX subset,
-we call this the PHOENIX generator.
+we call this the PHOENIX generator. In Figure 3, we show the same 
+spectral line as in Figure 2, but now supersampled using the PHOENIX
+generator evaluated over the same slice.
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=\textwidth]{images/figure3.png}
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX 
+    subset slice at solar metallicity, now supersampled with the PHOENIX 
+    generator. Notice that the missing chunk in the top left still exists 
+    and does not display any artifacts, as the artificially populated points 
+    are removed after interpolation to retain the model's integrity. Also
+    see that the x-axis spacing is now uniform, as the PHOENIX generator 
+    was evaluated at constant step.}
+\end{figure*}
 
 \section{Bayesian Inference and Testing}
 \subsection{Inference Algorithm}
@@ -247,19 +269,18 @@ this would not have been possible, because grid methods rely on just that,
 the grid.
 
 \subsection{Spectral Reconstruction Time}
-Typically a practitioner would wish to use a reconstruction in an iterative 
-way, repeatedly generating spectra from input (teff, logg, FeH) 
-coordinates.  Therefore, there is a strong desire to bring the computational 
-cost of reconstruction to extremely low values close to subsecond.
-We evaluate the computational time of our generator in two ways.  First, 
-for a single input. When evaluating a vector of inputs, we parallelize the interpolator evaluation, 
-however the reconstruction done by \texttt{blase} on each evaluated state 
-dictionary is done serially.
-
-The single input performance 
-takes $\sim$30 seconds, which is much too large for typical Bayesian inference procedures.
-
-I hand in a (teff, logg, FeH) pair, how long does it take to get back a reconstructed spectrum?
+The typical use case for the PHOENIX generator may be to batch 
+reconstruct spectra from an array of input coordinates. Therefore, there
+is some motivation to attempt to reduce the computational cost of this
+procedure to tractable levels. We evaluate the computational time needed
+to use the PHOENIX generator in two distinct ways. First, for a single
+input, which would be relevant in serial applications. Second, for an array
+of multiple inputs, which would be relevant in parallel applications.
+The \texttt{RegularGridInterpolator} API allows for the passing in of 
+an entire array of input coordinates to be evaluated at once, however 
+using \texttt{blase} to reconstruct the spectrum from our interpolated
+state dictionary is done serially, leading to what is actually more of 
+a psuedo-parallel evaluation.
 
 \subsection{Bayesian Optimizer Accuracy}
 TACC
