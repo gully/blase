@@ -65,7 +65,7 @@ def pickling_run():
     print(f'Interpolator partials dumped to pickle ({perf_counter() - start} s).')
 
 def reconstruct1(wl_grid: np.ndarray, point: np.ndarray, interpolator_list: list[RegularGridInterpolator]) -> np.ndarray:
-    output = np.vstack([r for interpolator in interpolator_list if (r := interpolator(point).squeeze())[0] != -1000])
+    output = np.vstack([r for interpolator in interpolator_list if (r := interpolator(point).squeeze())[0] > -100])
     state_dict = {
         'amplitudes': torch.from_numpy(output[:, 0]),
         'sigma_widths': torch.from_numpy(output[:, 1]),
@@ -108,5 +108,8 @@ if __name__ == '__main__':
     points = np.array([[5000, 2, 0], [6000, 3, -0.5], [7000, 4, 0], [8000, 5, -0.5], [9000, 6, 0]])
     start = perf_counter()
     x = reconstructn(wl, points, interpolator_list)
-    print(f'{len(points)} points reconstructed in {perf_counter() - start} s')
+    print(f'{len(points)} points multi-reconstructed in {perf_counter() - start} s')
+    start = perf_counter()
+    x = [reconstruct1(wl, point, interpolator_list) for point in points]
+    print(f'{len(points)} points single-reconstructed in {perf_counter() - start} s')
 
