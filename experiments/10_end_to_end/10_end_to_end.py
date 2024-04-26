@@ -98,14 +98,16 @@ def inference_test():
 
 
 if __name__ == '__main__':
+    G = np.random.default_rng()
+    point_random = G.uniform([2300, 2, -0.5], [12000, 6, 0], (100, 3))
     sys.stderr = sys.stdout = open('log.txt', 'w')
     interpolator_list = load(open('interpolator_list.pkl', 'rb'))
     wl = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True).wavelength.value
-    points = np.array([[5000, 2, 0], [6000, 3, -0.5], [7000, 4, 0], [8000, 5, -0.5], [9000, 6, 0]])
-    start = perf_counter()
-    x = reconstructn(wl, points, interpolator_list)
-    print(f'{len(points)} points multi-reconstructed in {perf_counter() - start} s')
-    start = perf_counter()
-    x = [reconstruct1(wl, point, interpolator_list) for point in points]
-    print(f'{len(points)} points single-reconstructed in {perf_counter() - start} s')
+    for n in [1, 2, 5, 10, 20, 50, 100]:
+        start = perf_counter()
+        x = reconstructn(wl, point_random[:n], interpolator_list)
+        print(f'{n} points multi-reconstructed in {perf_counter() - start} s')
+        start = perf_counter()
+        x = [reconstruct1(wl, point, interpolator_list) for point in point_random[:n]]
+        print(f'{n} points single-reconstructed in {perf_counter() - start} s')
 
