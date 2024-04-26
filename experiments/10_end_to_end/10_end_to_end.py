@@ -98,12 +98,15 @@ def inference_test():
 
 
 if __name__ == '__main__':
+    #sys.stderr = sys.stdout = open('log.txt', 'w')
     G = np.random.default_rng()
     point_random = G.uniform([2300, 2, -0.5], [12000, 6, 0], (100, 3))
-    sys.stderr = sys.stdout = open('log.txt', 'w')
+    print('100 Random Points Generated')
     interpolator_list = load(open('interpolator_list.pkl', 'rb'))
+    print('PHOENIX Generator Loaded')
     wl = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True).wavelength.value
-    for n in [1, 2, 5, 10, 20, 50, 100]:
+    print('Spectral Axis Loaded')
+    for n in [2, 5, 10, 25, 50, 75, 100]:
         start = perf_counter()
         x = reconstructn(wl, point_random[:n], interpolator_list)
         print(f'{n} points multi-reconstructed in {perf_counter() - start} s')
