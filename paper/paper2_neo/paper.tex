@@ -3,6 +3,9 @@
 \usepackage{physics}
 \usepackage[super]{nth}
 \usepackage{enumitem}
+\usepackage{natbib}
+
+\graphicspath{{./images/}}
 
 \begin{document}
 \title{Using Hybrid Machine Learning for Fundamental Stellar Parameter Inference}
@@ -11,10 +14,37 @@
 \author[0000-0002-4404-0456]{Caroline V. Morley}
 \affil{Department of Astronomy, The University of Texas at Austin, Austin, TX 78712, USA}
 
+\shortauthors{Shankar \& Gully-Santiago \& Morley}
+
 \begin{abstract}
-    Text
+    The advent of machine learning methods has revolutionized 
+    numerous scientific methods, among which is spectroscopic 
+    inference. Studies can and have shown that machine learning 
+    methods prove effective in inferring what we call
+    fundamental stellar parameters. These include $T_{\mathrm{eff}}$,
+    $\log(g)$, and [Fe/H] for the purposes of this study but can 
+    also encompass other parameters such as [$\alpha$/Fe], C/O, and
+    $f_{sed}$. While current methods tend to treat spectra purely
+    from a data perspective, we propose to use a hybrid machine 
+    learning (HML) method that uses the semi-empirical approach 
+    of treating spectra as a set of spectral lines put forth by 
+    \texttt{blase}, combined with traditional linear interpolation 
+    as well as Bayesian optimization. We interpolate the four 
+    line properties ($\mu'$, $\ln(a)$, $\sigma$, $\gamma$) of 
+    128,723 unique spectral lines across a subset of the PHOENIX
+    synthetic model grid to create the PHOENIX generator, allowing
+    us to reconstruct spectra at any continuously valued point 
+    lying within the domain of the PHOENIX subset, and even reconstruct 
+    batches of spectra in pseudo-parallel fashion, with the speedup 
+    exceeding 20 times once more than 60 spectra are reconstructed. 
+    We then combine the PHOENIX generator with Bayesian optimization to 
+    efficiently infer fundamental stellar parameters. This study is 
+    however a proof of concept, as we have not yet included various
+    features that would be necessary for a full-fledged tool for 
+    spectroscopic inference, however we show that semi-empirical 
+    HML methods are a viable, albeit fledgling alternative to 
+    more traditional approaches.
 \end{abstract}
-\keywords{Text}
 
 \section{Introduction}
 Stellar spectra are exceedingly rich sources of information about the stars
@@ -76,11 +106,10 @@ PHOENIX synthetic spectral model grid. Instead, we focused on a subset of
 the grid, whose parameter ranges are given in Table 1.
 
 \begin{table}[h!]
-    \hspace*{-1.35cm}\begin{tabular}{|c|c|c|}
+    \centering
+    \begin{tabular}{lll}
         \hline
-        \multicolumn{3}{|c|}{\textbf{PHOENIX Grid Subset}}\\
-        \hline\hline
-        Parameter & Symbol & Range\\
+        \bf{Parameter} & \bf{Symbol} & \bf{Range}\\
         \hline
         Alpha Element Abundance & $\alpha$ & [0] dex\\
         Iron Abundance & [Fe/H] & [-0.5, 0] dex\\
@@ -140,19 +169,23 @@ increased computational cost. In addition, it should be mentioned that
 computational cost while remaining accurate to about 1\%. It is a 
 weighted average of a Gaussian and Lorentzian as opposed to a convolution.
 \texttt{blase}'s pseudo-Voight profile implementation uses the following:
+\begin{subequations}
 \begin{gather}
-    \tilde{\mathsf{V}}_\mu(\lambda) = \eta L(\lambda - \mu'; f) + (1 - \eta)G(\lambda - \mu'; f)\\
-    \nonumber \eta = \sum_{n=1}^3 a_n\left(\dfrac{2\gamma}{f}\right)^n \qquad a = \mqty[1.36603 \\ -0.47719 \\ 0.11116]\\
-    \nonumber f = 32\sum_{n=0}^5 b_n \left(\sqrt{2\ln(2)}\sigma\right)^{5-n}(\gamma)^n \qquad b = \mqty[1 \\ 2.69269 \\ 2.42843 \\ 4.47163 \\ 0.07842 \\ 1]
+    \tilde{\mathsf{V}}_\mu(\lambda) = a\left[\eta \mathbf{L}(\lambda - \mu'; f) + (1 - \eta)\mathbf{G}(\lambda - \mu'; f)\right]\\
+    \eta = \sum_{n=1}^3 \mathbf{u}_n\left(\dfrac{2\gamma}{f}\right)^n\\
+    f = 32\sum_{n=0}^5 \mathbf{v}_n \left(\sqrt{2\ln(2)}\sigma\right)^{5-n}(\gamma)^n\\
+    \nonumber \mathbf{u} = \mqty[1.36603 \\ -0.47719 \\ 0.11116] \quad \mathbf{v} = \mqty[1 \\ 2.69269 \\ 2.42843 \\ 4.47163 \\ 0.07842 \\ 1]
 \end{gather}
-Notice that we use $\mu'$ instead of $\mu$ in the formula. This is because
-\texttt{blase} allows the line center to shift slightly during optimization, 
-and it is this shifted center which is used in computation. The individual 
-Voigt profiles are still indexed by $\mu$ for cross-model line identification,
-explained in the next section. Once optimization was complete, the list of 
-identified lines, present in the state dictionary of \texttt{blase}'s model, 
-was saved to a \texttt{.pt} file for each PHOENIX subset grid point. The total 
-disk space these files took up is 465 MB.
+\end{subequations}
+where $\mathbf{L}$ and $\mathbf{G}$ are abbreviations for Lorentzian and 
+Gaussian profiles, respectively. Notice that we use $\mu'$ instead of $\mu$ 
+in the formula. This is because \texttt{blase} allows the line center to shift 
+slightly during optimization, and it is this shifted center which is used in 
+computation. The individual Voigt profiles are still indexed by $\mu$ for 
+cross-model line identification, explained in the next section. Once optimization 
+was complete, the list of identified lines, present in the state dictionary of 
+\texttt{blase}'s model, was saved to a \texttt{.pt} file for each PHOENIX subset 
+grid point. The total disk space these files took up is 465 MB.
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
@@ -176,9 +209,9 @@ a line does not appear, and also breaks in practice because \texttt{scipy}'s
 \texttt{RegularGridInterpolator} relies on a rectilinear grid, which we would not 
 have if regions of grid points were missing. 
 
-\begin{figure*}[t!]
+\begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{images/figure1.png}
+    \includegraphics[width=\textwidth]{figure1}
     \caption{The number of detected spectral lines at each grid point of 
     a slice of the PHOENIX subset at solar metallicity. We can see that
     the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
@@ -195,9 +228,9 @@ In total, across the entire PHOENIX subset, \texttt{blase} detected
 128,723 individual spectral lines, meaning we have that many manifolds to 
 interpolate.
 
-\begin{figure*}[t!]
+\begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{images/figure2.png}
+    \includegraphics[width=\textwidth]{figure2}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset
     slice at solar metallicity. Notice the missing chunk in the top left
     of the figure; \texttt{blase} did not detect a spectral line here,
@@ -228,9 +261,9 @@ we call this the PHOENIX generator. In Figure 3, we show the same
 spectral line as in Figure 2, but now supersampled using the PHOENIX
 generator evaluated over the same slice.
 
-\begin{figure*}[t!]
+\begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{images/figure3.png}
+    \includegraphics[width=\textwidth]{figure3}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX 
     subset slice at solar metallicity, now supersampled with the PHOENIX 
     generator. Notice that the missing chunk in the top left still exists 
@@ -241,33 +274,6 @@ generator evaluated over the same slice.
 \end{figure*}
 
 \section{Bayesian Inference and Testing}
-\subsection{Inference Algorithm}
-With the PHOENIX generator complete, we used Bayesian optimization as the
-inference algorithm, specifically the \texttt{gp\_minimize} function from
-the \texttt{scikit-optimize} library. This algorithm uses a Gaussian Process
-to model the objective function, which in this case was the RMS 
-(Root-Mean-Square) loss between the interpolated spectrum and the true 
-spectrum. The optimizer was configured to first run 30 random evaluations to 
-seed the surrogate model, then run 20 more evaluations now guided by the 
-surrogate model. This totals to 50 evaluations, which was deemed sufficient 
-for this study. We then decided to use ensemble methods, running 32 parallel
-optimizers to get a more statistically sound result. One inference run 
-takes an average of 15 minutes to complete on Triton (see Section 5 for
-specifications).
-
-\subsection{Test Data}
-To test the performance of the inference algorithm, we used the PHOENIX subset
-itself. At first glance, this may seem like a useless endeavor, as the 
-PHOENIX generator has indeed memorized the PHOENIX subset, being able to
-reconstruct a PHOENIX spectrum when evaluated at that grid point. However,
-that is precisely what allows us to use the PHOENIX subset as test data.
-The Bayesian optimizer's surrogate model is seeded by random continuously 
-sampled generator evaluations within the search space, \textit{not} grid 
-points of the PHOENIX subset, meaning the surrogate model has no `memorization' 
-to speak of. If the optimizer had been an iterative grid refinement search, 
-this would not have been possible, because grid methods rely on just that, 
-the grid.
-
 \subsection{Spectral Reconstruction Time}
 The typical use case for the PHOENIX generator may be to batch 
 reconstruct spectra from an array of input coordinates. Therefore, there
@@ -280,29 +286,76 @@ The \texttt{RegularGridInterpolator} API allows for the passing in of
 an entire array of input coordinates to be evaluated at once, however 
 using \texttt{blase} to reconstruct the spectrum from our interpolated
 state dictionary is done serially, leading to what is actually more of 
-a psuedo-parallel evaluation.
+a psuedo-parallel evaluation. Performance results are shown in Figure 4,
+and we can see that the pseudo-parallel implementation is much faster.
 
-\subsection{Bayesian Optimizer Accuracy}
-TACC
+\subsection{Inference Algorithm}
+We elected to use Bayesian optimization as the inference algorithm, specifically 
+the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library. 
+This algorithm uses a Gaussian Process to model the objective function, which in 
+this case was the RMS (Root-Mean-Square) loss between the interpolated spectrum 
+$\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
+\begin{gather}
+    \mathcal{L} = \ev{(\mathsf{M} - \mathsf{D})^{\circ 2}}^{1/2}
+\end{gather}
+The optimizer was configured to first run 30 random 
+evaluations to seed the surrogate model, then run 20 more evaluations now guided 
+by the surrogate model. This totals to 50 evaluations, which was deemed 
+sufficient for this study. One inference run took us an average of 15 minutes to 
+complete.
 
-\section{Discussion}
+\subsection{Bayesian Optimizer Performance}
+To test the performance of the inference algorithm, we used the PHOENIX subset
+itself. At first glance, this may seem like a useless endeavor, as the 
+PHOENIX generator has indeed memorized the PHOENIX subset, being able to
+reconstruct a PHOENIX spectrum when evaluated at that grid point. However,
+that is precisely what allows us to use the PHOENIX subset as test data.
+The Bayesian optimizer's surrogate model is seeded by random continuously 
+sampled generator evaluations within the search space, \textit{not} grid 
+points of the PHOENIX subset, meaning the surrogate model has no `memorization' 
+to speak of. If the optimizer had been an iterative grid refinement search, 
+this would not have been possible, because grid methods rely on just that, 
+the grid.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{figure4}
+    \caption{Line chart showing the time taken to reconstruct varying
+    numbers of spectra using the PHOENIX generator (lower is better). 
+    We can see that the time taken per spectra for the serial 
+    implementation hovers around 15 seconds within run-to-run variance, 
+    while the pseudo-parallel implementation continually decreases in time 
+    taken per spectrum as the number of inputs increases. The speedup factor 
+    (higher is better) increases as more spectra are generated, which is 
+    also a desirable outcome.}
+\end{figure}
+
+\section{Final Considerations}
 The computer used for this study, Triton, has the following specifications:
 \begin{table}[h!]
-    \hspace*{0.6cm}\begin{tabular}{|c|c|}
+    \centering
+    \begin{tabular}{ll}
         \hline
-        \multicolumn{2}{|c|}{\textbf{Triton Specs}}\\
-        \hline\hline
         CPU & AMD EPYC 7513\\
-        Memory & 256 GB\\
+        RAM & 256 GB\\
         GPU & Nvidia A100 40GB ($\times$2)\\
         \hline
     \end{tabular}
     \caption{This computer is owned by Caroline Morley and is available to
     members of her research group. It was used for all computations, but not 
     for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a 
-    boost clock of 3.65 GHz.}
+    boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
 \end{table}
 
+This study combines backpropagation, interpolation, and Bayesian optimization
+to develop a HML tool for stellar parameter inference. A summative overview 
+of the end-to-end process is shown in Figure 5.
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure5}
+    \caption{A simple diagram showing the essence of the process used in 
+    this paper.}
+\end{figure*}
 It should be noted that this study represents a proof of concept, and that 
 there are numerous design considerations that could be improved upon with 
 future work. These considerations include but are not limited to the 
@@ -371,7 +424,12 @@ following:
     model grid. This approach would also extend the inference from just
     fundamental stellar parameters defined by a grid to any set of parameters
     accounted for in the radiative transfer model, down to specific species
-    abundances.
+    abundances. So while readers may be tempted to try to identify certain 
+    spectral lines such as the one we use for our figures, this is not 
+    the point. \texttt{blase} is \textit{agnostic} to the identity of the line
+    that it is optimizing. We study these lines as \texttt{blase} sees them
+    (i.e. their four shape parameters), because for the purposes of this study, 
+    that is the only information that is useful.
     \item \textit{The Continuum Black Box}: Continuum normalization is a
     process that is not yet completely understood, and is currently done as 
     a preprocessing step with a fairly simple algorithm. Future work would
@@ -388,9 +446,17 @@ In short, it is quite clear that \texttt{blase} is a long way from being a
 powerhouse in spectral inference, however it represents a step down a road
 not yet traveled, and the potential for future growth is immense. At the 
 end of the day, we aim to develop a tool that can analyze spectra with the 
-advent of physics-informed machine learning.
+advent of physics-informed machine learning \citep{test} \citep{test2}.
 
-\section*{Acknowledgements}
-Text
+\begin{acknowledgements}
+    Text
+\end{acknowledgements}
+
+\software{Text}
+
+\begin{thebibliography}{dummy}
+    \bibitem[Test 2024()]{test} Woop
+    \bibitem[Test2 2024()]{test2} Woop woop
+\end{thebibliography}
 
 \end{document}
