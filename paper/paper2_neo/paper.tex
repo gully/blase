@@ -3,9 +3,11 @@
 \usepackage{physics}
 \usepackage[super]{nth}
 \usepackage{enumitem}
-\usepackage{natbib}
 
 \graphicspath{{./images/}}
+\makeatletter
+\renewcommand\hyper@natlinkbreak[2]{#1}
+\makeatother
 
 \begin{document}
 \title{Using Hybrid Machine Learning for Fundamental Stellar Parameter Inference}
@@ -28,11 +30,11 @@
     from a data perspective, we propose to use a hybrid machine 
     learning (HML) method that uses the semi-empirical approach 
     of treating spectra as a set of spectral lines put forth by 
-    \texttt{blase}, combined with traditional linear interpolation 
+    \texttt{blase} \citep{blase}, combined with traditional linear interpolation 
     as well as Bayesian optimization. We interpolate the four 
     line properties ($\mu'$, $\ln(a)$, $\sigma$, $\gamma$) of 
     128,723 unique spectral lines across a subset of the PHOENIX
-    synthetic model grid to create the PHOENIX generator, allowing
+    synthetic model grid \citep{PHOENIX} to create the PHOENIX generator, allowing
     us to reconstruct spectra at any continuously valued point 
     lying within the domain of the PHOENIX subset, and even reconstruct 
     batches of spectra in pseudo-parallel fashion, with the speedup 
@@ -64,7 +66,7 @@ a star's spectra to get back the properties that lie at the root of it all.
 However, this has proven to be no easy task. Spectroscopic surveys such as 
 APOGEE develop their own in-house pipelines to extract stellar parameters
 from spectra (ASPCAP in the case of APOGEE), and these pipelines are fairly
-effective. However, they all work on the core assumption that the data to be 
+effective \citep{APOGEE, ASPCAP}. However, they all work on the core assumption that the data to be 
 analyzed is a list of pixels. In addition, the pipelines that surveys 
 develop are typically closed-source and usually limited to the scope of the 
 survey itself, causing a sort of fragmentation. This motivates the 
@@ -76,7 +78,7 @@ different ways. The standard practice is to treat the wavelength and flux as
 simply two arrays and implement any from a myriad of different algorithms to 
 inference fundamental stellar parameters. Others take a more mathematical 
 approach by decomposing spectra into some eigenbasis and treating it as a 
-regression problem, such as \texttt{starfish}. However, \texttt{blase} takes 
+regression problem, such as \texttt{starfish} \citep{starfish}. However, \texttt{blase} takes 
 a different approach. It treats spectra not as a set of pixels or a set of 
 eigenbasis coefficients but as a set of spectral lines, specifically Voigt 
 profiles. There is no metric of this approach being better or worse than the 
@@ -97,7 +99,7 @@ We chose the PHOENIX synthetic spectral model grid as the basis for this
 study, because it is fairly well-known. While we plan to extend this tool to 
 leverage information across multiple model grids in the future, both for 
 accuracy and to increase the scope to include substellar objects with grids
-such as Sonora, for now we limit our scope to a subset of the PHOENIX grid.
+such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, for now we limit our scope to a subset of the PHOENIX grid.
 
 \section{Cloning the PHOENIX Model Grid}
 \subsection{The PHOENIX Subset}
@@ -121,14 +123,14 @@ the grid, whose parameter ranges are given in Table 1.
     \caption{The subset of the PHOENIX grid used in this study. These limits 
     were imposed to reduce the computational cost of the algorithms and to 
     ensure a rectilinear parameter space in order to work with \texttt{scipy}'s
-    \texttt{RegularGridInterpolator}. The wavelength limits in particular 
+    \texttt{RegularGridInterpolator} \citep{scipy}. The wavelength limits in particular 
     roughly line up with that of the Habitable Zone Planet Finder (HPF) 
-    spectrograph. This subset is comprised of 1314 individual spectra.}
+    spectrograph \citep{HPF}. This subset is comprised of 1314 individual spectra.}
 \end{table}
 
 \subsection{Preprocessing with \texttt{gollum}}
 First, the PHOENIX subset was accessed directly from the PHOENIX website
-using \texttt{gollum}'s download option. The spectra were then put through a 
+using \texttt{gollum}'s download option \citep{gollum}. The spectra were then put through a 
 three-step preprocessing pipeline.
 \begin{enumerate}
     \item \textit{Blackbody Division}: Since the $T_{\mathrm{eff}}$ of each spectrum 
@@ -156,7 +158,7 @@ lines as Voigt profiles and tunes the profiles to mimic the original
 PHOENIX spectrum with back propagation. Four parameters were optimized: the 
 line center $\mu$, the log-amplitude $\ln(a)$, the Gaussian width $\sigma$, and the 
 Lorentzian width $\gamma$. The optimization used the Adam optimizer with a
-learning rate of 0.05 over 100 epochs. In addition, we limited two custom 
+learning rate of 0.05 over 100 epochs \citep{adam}. In addition, we limited two custom 
 parameters: wing cut to 6000 and prominence to 0.005. Wing cut is a parameter
 that determines the extent of the Voigt profile to evaluate, saving
 computational resources by not evaluating small numbers. Prominence sets a
@@ -166,7 +168,7 @@ smaller values for prominence both increase the accuracy of using
 \texttt{blase}'s line detection and optimization at the expense of an
 increased computational cost. In addition, it should be mentioned that
 \texttt{blase} uses the pseudo-Voigt approximation, which saves on 
-computational cost while remaining accurate to about 1\%. It is a 
+computational cost while remaining accurate to about 1\% \citep{pseudovoigt1, pseudovoigt2}. It is a 
 weighted average of a Gaussian and Lorentzian as opposed to a convolution.
 \texttt{blase}'s pseudo-Voight profile implementation uses the following:
 \begin{subequations}
@@ -185,7 +187,7 @@ computation. The individual Voigt profiles are still indexed by $\mu$ for
 cross-model line identification, explained in the next section. Once optimization 
 was complete, the list of identified lines, present in the state dictionary of 
 \texttt{blase}'s model, was saved to a \texttt{.pt} file for each PHOENIX subset 
-grid point. The total disk space these files took up is 465 MB.
+grid point \citep{pytorch}. The total disk space these files took up is 465 MB.
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
@@ -291,7 +293,7 @@ and we can see that the pseudo-parallel implementation is much faster.
 
 \subsection{Inference Algorithm}
 We elected to use Bayesian optimization as the inference algorithm, specifically 
-the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library. 
+the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library \citep{skopt}. 
 This algorithm uses a Gaussian Process to model the objective function, which in 
 this case was the RMS (Root-Mean-Square) loss between the interpolated spectrum 
 $\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
@@ -377,14 +379,6 @@ following:
     the generator. This would require externally indexing the generator's 
     individual interpolators by line center position and selectively
     evaluating those to eliminate wasteful computation.
-    \item \textit{Low-Order Interpolation}: The current design of the 
-    algorithm uses linear interpolation to construct manifolds, however this
-    could be made more sophisticated with more complex interpolation schemes.
-    However, the drawback of this is that higher orders of interpolation
-    become increasingly expensive both in terms of disk utilization, and 
-    in terms of the computational cost to generate and evaluate them. Future
-    studies should sidestep this issue by using more generalizable methods
-    that are much more efficient.
     \item \textit{Single Model Grid}: The PHOENIX grid is not the only model
     grid of synthetic spectra available, and it does not apply to all types 
     of stars. Future work would extend the reach of this study's algorithm 
@@ -446,17 +440,29 @@ In short, it is quite clear that \texttt{blase} is a long way from being a
 powerhouse in spectral inference, however it represents a step down a road
 not yet traveled, and the potential for future growth is immense. At the 
 end of the day, we aim to develop a tool that can analyze spectra with the 
-advent of physics-informed machine learning \citep{test} \citep{test2}.
+advent of physics-informed machine learning.
 
 \begin{acknowledgements}
     Text
 \end{acknowledgements}
 
-\software{Text}
+\software{
+    \texttt{altair} \citep{altair1, altair2},
+    \texttt{astropy} \citep{astropy1, astropy2, astropy3},
+    blas\'e/\texttt{blase} \citep{blase},
+    CUDA \citep{cuda},
+    \texttt{gollum} \citep{gollum},
+    \texttt{matplotlib} \citep{mpl},
+    \texttt{numpy} \citep{numpy},
+    \texttt{pandas} \citep{pandas1, pandas2},
+    Python \citep{python},
+    PyTorch/\texttt{torch} \citep{pytorch},
+    scikit-optimize/\texttt{skopt} \citep{skopt},
+    \texttt{scipy} \citep{scipy},
+    \texttt{tqdm} \citep{tqdm},
+    \texttt{vegafusion} \citep{vegafusion},
+}
 
-\begin{thebibliography}{dummy}
-    \bibitem[Test 2024()]{test} Woop
-    \bibitem[Test2 2024()]{test2} Woop woop
-\end{thebibliography}
+\bibliography{paper}
 
 \end{document}
