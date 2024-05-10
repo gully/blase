@@ -98,19 +98,13 @@ def inference_test():
 
 
 if __name__ == '__main__':
-    #sys.stderr = sys.stdout = open('log.txt', 'w')
-    G = np.random.default_rng()
-    point_random = G.uniform([2300, 2, -0.5], [12000, 6, 0], (100, 3))
-    print('100 Random Points Generated')
+    start = perf_counter()
+    sys.stderr = sys.stdout = open('log.txt', 'w')
     interpolator_list = load(open('interpolator_list.pkl', 'rb'))
-    print('PHOENIX Generator Loaded')
-    wl = PHOENIXSpectrum(teff=5000, logg=4, Z=0, download=True).wavelength.value
-    print('Spectral Axis Loaded')
-    for n in [2, 5, 10, 25, 50, 75, 100]:
-        start = perf_counter()
-        x = reconstructn(wl, point_random[:n], interpolator_list)
-        print(f'{n} points multi-reconstructed in {perf_counter() - start} s')
-        start = perf_counter()
-        x = [reconstruct1(wl, point, interpolator_list) for point in point_random[:n]]
-        print(f'{n} points single-reconstructed in {perf_counter() - start} s')
-
+    G = np.random.default_rng()
+    point_random = G.uniform([5500, 2, -0.5], [5900, 6, 0], (100, 3))
+    spec = default_clean(PHOENIXSpectrum(teff=5000, logg=4.5, Z=0, download=True))
+    reconstructions = reconstructn(spec.wavelength.value, point_random, interpolator_list)
+    rms_array = np.sqrt(((reconstructions - spec.flux.value)**2).mean(axis=1))
+    res = gp_minimize(rms_loss(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(5500, 5900), (2, 6), (-0.5, 0)], n_calls=120, x0=point_random, y0=rms_array, n_initial_points=0)
+    print(f'Result: {res.x} achieved in {perf_counter() - start} s')

@@ -263,6 +263,21 @@ we call this the PHOENIX generator. In Figure 3, we show the same
 spectral line as in Figure 2, but now supersampled using the PHOENIX
 generator evaluated over the same slice.
 
+The spectral reconstruction process is done by iterating over the 
+PHOENIX generator, evaluating each interpolator at the given coordinates, 
+then reshaping the data into the same format that PyTorch uses for 
+state dictionaries. During the iteration, if the interpolated
+log-amplitude of the line is less than -100, the line is excluded from the 
+state dictionary. Why -100 instead of -1000? This is because near the 
+areas that we artificially populated, the manifold experiences artifacts due 
+the sudden decline. We have to anticipate that decline and cut off the 
+behavior in advance. This saves on computational time. Then, the state
+dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator},
+which reconstructs the spectrum by constructing a forward model based on 
+the input state dictionary. Any \texttt{nan} values are set to 1 (which we 
+can do because the spectra are all normalized), and the spectrum is 
+complete.
+
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure3}
@@ -440,7 +455,7 @@ In short, it is quite clear that \texttt{blase} is a long way from being a
 powerhouse in spectral inference, however it represents a step down a road
 not yet traveled, and the potential for future growth is immense. At the 
 end of the day, we aim to develop a tool that can analyze spectra with the 
-advent of physics-informed machine learning.
+growing power of physics-informed machine learning.
 
 \begin{acknowledgements}
     Text
