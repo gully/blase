@@ -6,7 +6,8 @@ import torch
 from blase.emulator import SparseLinearEmulator as SLE
 from blase.optimizer import default_clean
 from collections import defaultdict
-from gollum.phoenix import PHOENIXSpectrum, PHOENIXGrid
+from gollum.phoenix import PHOENIXSpectrum
+from itertools import product
 from os import listdir
 from pickle import dump, load
 from re import split
@@ -98,14 +99,20 @@ def inference_test():
 
 
 if __name__ == '__main__':
+    sys.stderr = open('log.txt', 'w')
+    sys.stdout = open('out.txt', 'w')
     start = perf_counter()
-    sys.stdout = open('log.txt', 'w')
     interpolator_list = load(open('interpolator_list.pkl', 'rb'))
-    G = np.random.default_rng()
-    point_random = G.uniform([5200, 2, -0.5], [6200, 6, 0], (100, 3))
-    spec = default_clean(PHOENIXSpectrum(teff=5700, logg=4.5, Z=0, download=True))
-    reconstructions = reconstructn(spec.wavelength.value, point_random, interpolator_list)
-    print('Random reconstructions complete')
-    rms_array = np.sqrt(((reconstructions - spec.flux.value)**2).mean(axis=1))
-    res = gp_minimize(rms_loss(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(5200.0, 6200), (2.0, 6), (-0.5, 0)], n_calls=20, x0=[list(array) for array in point_random], y0=list(rms_array), n_initial_points=0)
-    print(f'Result: {res.x} achieved in {perf_counter() - start} s')
+    R = np.random.default_rng()
+    teff_samples = np.arange(3000, 11000.1, 1000)
+    logg_samples = np.arange(2, 6.1, 2)
+    Z_samples = np.arange(-0.5, 0.1, 0.5)
+    print(f'Initializations complete in {perf_counter() - start} s')
+    for T, G, Z in product(teff_samples, logg_samples, Z_samples):
+        spec = default_clean(PHOENIXSpectrum(teff=T, logg=G, Z=Z, download=True))
+        start = perf_counter()
+        point_random = R.uniform([T-500, 2, -0.5], [T+500, 6, 0], (100, 3))
+        reconstructions = reconstructn(spec.wavelength.value, point_random, interpolator_list)
+        rms_array = np.sqrt(((reconstructions - spec.flux.value)**2).mean(axis=1))
+        res = gp_minimize(rms_loss(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(T-500.0, T+500), (2.0, 6), (-0.5, 0)], n_calls=20, x0=[list(array) for array in point_random], y0=list(rms_array), n_initial_points=0, n_jobs=16)
+        print(f'{(T, G, Z)} -> {res.x} achieved in {perf_counter() - start} s')
