@@ -98,7 +98,20 @@ We chose the PHOENIX synthetic spectral model grid as the basis for this
 study, because it is fairly well-known. While we plan to extend this tool to 
 leverage information across multiple model grids in the future, both for 
 accuracy and to increase the scope to include substellar objects with grids
-such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, for now we limit our scope to a subset of the PHOENIX grid.
+such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, for now we limit 
+our scope to a subset of the PHOENIX grid.
+
+Our study is divided into three main parts. First, we preprocess the PHOENIX
+subset and detect spectral lines with \texttt{blase}. Second, we interpolate
+the spectral line parameters, enabling us to evaluate the PHOENIX grid at 
+any point within the bounds of the subset. Lastly, we use Bayesian optimization 
+to power our inference algorithm and test its performance. An overview of this
+process is presented in Figure 1.
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure1}
+    \caption{Overview of the process used in this study.}
+\end{figure*}
 
 \section{Cloning the PHOENIX Model Grid}
 \subsection{The PHOENIX Subset}
@@ -203,35 +216,34 @@ interpolation method is linear, the actual result of interpolation varies
 non-linearly.
 
 There is also a second issue, and that is that spectral lines were often
-only detected in some spectra from the PHOENIX subset. In Figure 1, we show
+only detected in some spectra from the PHOENIX subset. In Figure 2, we show
 that different grid points sport differing counts of detected spectral lines.
-This means that in theory, interpolation would be inaccurate in regions where 
-a line does not appear, and also breaks in practice because \texttt{scipy}'s 
-\texttt{RegularGridInterpolator} relies on a rectilinear grid, which we would not 
-have if regions of grid points were missing. 
-
 \begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{figure1}
-    \caption{The number of detected spectral lines at each grid point of 
+    \includegraphics[width=\textwidth]{figure2}
+    \caption{Number of detected spectral lines at each grid point of 
     a slice of the PHOENIX subset at solar metallicity. We can see that
     the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
     Also note that from $T_{\mathrm{eff}} = 7000$ K onward, the spacing 
     between grid points increases from 100 K to 200 K.}
 \end{figure*}
+This means that in theory, interpolation would be inaccurate in regions where 
+a line does not appear, and also breaks in practice because \texttt{scipy}'s 
+\texttt{RegularGridInterpolator} relies on a rectilinear grid, which we would not 
+have if regions of grid points were missing. 
 
 To solve this, we artificially
 populated missing grid points with log-amplitudes of -1000, which retained
 interpolator stability by not being an infinity, but also essentially 
 nullified the line when evaluated. An example of the appearance of missing 
-sections in heatmaps where a line does not appear is shown in Figure 2. 
+sections in heatmaps where a line does not appear is shown in Figure 3. 
 In total, across the entire PHOENIX subset, \texttt{blase} detected 
 128,723 individual spectral lines, meaning we have that many manifolds to 
 interpolate.
 
 \begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{figure2}
+    \includegraphics[width=\textwidth]{figure3}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset
     slice at solar metallicity. Notice the missing chunk in the top left
     of the figure; \texttt{blase} did not detect a spectral line here,
@@ -258,8 +270,8 @@ into a continuous one. With the given size of the PHOENIX subset, the
 interpolator list takes up 13.2 GB of disk space. This evaluation 
 is able to reconstruct an existing PHOENIX spectrum or alternatively 
 interpolate a new spectrum within the domain of the PHOENIX subset,
-we call this the PHOENIX generator. In Figure 3, we show the same 
-spectral line as in Figure 2, but now supersampled using the PHOENIX
+we call this the PHOENIX generator. In Figure 4, we show the same 
+spectral line as in Figure 3, but now supersampled using the PHOENIX
 generator evaluated over the same slice.
 
 The spectral reconstruction process is done by iterating over the 
@@ -279,7 +291,7 @@ complete.
 
 \begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{figure3}
+    \includegraphics[width=\textwidth]{figure4}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX 
     subset slice at solar metallicity, now supersampled with the PHOENIX 
     generator. Notice that the missing chunk in the top left still exists 
@@ -302,8 +314,21 @@ The \texttt{RegularGridInterpolator} API allows for the passing in of
 an entire array of input coordinates to be evaluated at once, however 
 using \texttt{blase} to reconstruct the spectrum from our interpolated
 state dictionary is done serially, leading to what is actually more of 
-a psuedo-parallel evaluation. Performance results are shown in Figure 4,
+a psuedo-parallel evaluation. Performance results are shown in Figure 5,
 and we can see that the pseudo-parallel implementation is much faster.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{figure5}
+    \caption{Line chart showing the time taken to reconstruct varying
+    numbers of spectra using the PHOENIX generator (lower is better). 
+    We can see that the time taken per spectra for the serial 
+    implementation hovers around 15 seconds within run-to-run variance, 
+    while the pseudo-parallel implementation continually decreases in time 
+    taken per spectrum as the number of inputs increases. The speedup factor 
+    (higher is better) increases as more spectra are generated, which is 
+    also a desirable outcome.}
+\end{figure}
 
 \subsection{Inference Algorithm}
 We elected to use Bayesian optimization as the inference algorithm, specifically 
@@ -314,11 +339,11 @@ $\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
 \begin{gather}
     \mathcal{L} = \ev{(\mathsf{M} - \mathsf{D})^{\circ 2}}^{1/2}
 \end{gather}
-The optimizer was configured to first run 30 random 
+The optimizer was configured to first run 100 random 
 evaluations to seed the surrogate model, then run 20 more evaluations now guided 
-by the surrogate model. This totals to 50 evaluations, which was deemed 
-sufficient for this study. One inference run took us an average of 15 minutes to 
-complete.
+by the surrogate model. This totals to 120 evaluations, which was deemed 
+sufficient for this study. One inference run takes us on average, just under 
+7.5 minutes to complete.
 
 \subsection{Bayesian Optimizer Performance}
 To test the performance of the inference algorithm, we used the PHOENIX subset
@@ -333,18 +358,19 @@ to speak of. If the optimizer had been an iterative grid refinement search,
 this would not have been possible, because grid methods rely on just that, 
 the grid.
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\columnwidth]{figure4}
-    \caption{Line chart showing the time taken to reconstruct varying
-    numbers of spectra using the PHOENIX generator (lower is better). 
-    We can see that the time taken per spectra for the serial 
-    implementation hovers around 15 seconds within run-to-run variance, 
-    while the pseudo-parallel implementation continually decreases in time 
-    taken per spectrum as the number of inputs increases. The speedup factor 
-    (higher is better) increases as more spectra are generated, which is 
-    also a desirable outcome.}
-\end{figure}
+We know that $T_{\mathrm{eff}}$ tends to be fairly well-constrained prior to 
+even looking at the spectra, so when testing the inference algorithm, we limited
+its search space to only include $T_{\mathrm{eff}}$ which lay within 500 K of the
+true value on either side. $\log(g)$ and [Fe/H] were allowed to vary freely. 
+The test sample consisted of 9 unique $T_{\mathrm{eff}}$ values, 3 unique $\log(g)$ 
+values, and 2 unique [Fe/H] values, totaling 54 unique spectra. $T_{\mathrm{eff}}$
+ranged from 3000 K to 11000 K in increments of 1000 K, $\log(g)$ ranged from 2 to 6
+in increments of 2, and [Fe/H] ranged from -0.5 to 0 in increments of 0.5.
+
+The results of the inference algorithm are as follows: $T_{\mathrm{eff}}$ was
+off from the true result by an average of 185 K or 2.6\%. $\log(g)$ was off 
+by an average of 0.19 or 6.8\%. [Fe/H] was off by an average of 0.12 dex (no 
+percentage, because you can't divide by zero).
 
 \section{Final Considerations}
 The computer used for this study, Triton, has the following specifications:
@@ -357,21 +383,12 @@ The computer used for this study, Triton, has the following specifications:
         GPU & Nvidia A100 40GB ($\times$2)\\
         \hline
     \end{tabular}
-    \caption{This computer is owned by Caroline Morley and is available to
+    \caption{Triton is owned by Caroline Morley and is available to
     members of her research group. It was used for all computations, but not 
     for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a 
     boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
 \end{table}
 
-This study combines backpropagation, interpolation, and Bayesian optimization
-to develop a HML tool for stellar parameter inference. A summative overview 
-of the end-to-end process is shown in Figure 5.
-\begin{figure*}
-    \centering
-    \includegraphics[width=\textwidth]{figure5}
-    \caption{A simple diagram showing the essence of the process used in 
-    this paper.}
-\end{figure*}
 It should be noted that this study represents a proof of concept, and that 
 there are numerous design considerations that could be improved upon with 
 future work. These considerations include but are not limited to the 
