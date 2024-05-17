@@ -109,7 +109,7 @@ if __name__ == '__main__':
     Z_samples = np.arange(-0.5, 0.1, 0.5)
     print(f'Initializations complete in {perf_counter() - start} s')
     for T, G, Z in product(teff_samples, logg_samples, Z_samples):
-        spec = default_clean(PHOENIXSpectrum(teff=T, logg=G, Z=Z, download=True))
+        spec = default_clean(PHOENIXSpectrum(teff=int(T), logg=G, Z=Z, download=True))
         start = perf_counter()
         point_random = R.uniform([T-500, 2, -0.5], [T+500, 6, 0], (100, 3))
         reconstructions = reconstructn(spec.wavelength.value, point_random, interpolator_list)
