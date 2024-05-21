@@ -1,1 +1,0 @@
-To populate this directory simply run `make` in the parent directory, or if on Windows `make.bat`.
