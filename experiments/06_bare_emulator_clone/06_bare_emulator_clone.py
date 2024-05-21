@@ -10,7 +10,6 @@ from gollum.phoenix import PHOENIXSpectrum
 from torch.utils.tensorboard import SummaryWriter
 import webbrowser
 import numpy as np
-from muler.hpf import HPFSpectrum
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -55,7 +54,7 @@ webbrowser.open("http://localhost:6006/", new=2)
 
 
 # Pre-process the model as described in the paper
-spectrum = PHOENIXSpectrum(teff=4700, logg=4.5)
+spectrum = PHOENIXSpectrum(teff=4700, logg=4.5, download=True)
 spectrum = spectrum.divide_by_blackbody()
 spectrum = spectrum.normalize()
 continuum_fit = spectrum.fit_continuum(polyorder=5)
@@ -68,7 +67,7 @@ flux_native = spectrum.flux.value
 # Create the emulator and load a pretrained model
 prominence = 0.01
 emulator = SparsePhoenixEmulator(
-    wl_native, flux_native, prominence=prominence, wing_cut_pixels=1000
+    wl_native, flux_native, prominence=prominence, wing_cut_pixels=6000
 )
 emulator.to(device)
 
