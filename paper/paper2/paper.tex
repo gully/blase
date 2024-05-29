@@ -19,20 +19,18 @@
 \shortauthors{Shankar \& Gully-Santiago \& Morley}
 
 \begin{abstract}
-    The advent of machine learning methods has revolutionized 
-    numerous scientific methods, among which is spectroscopic 
-    inference. Studies can and have shown that machine learning 
-    methods prove effective in inferring what we call
-    fundamental stellar parameters. These include $T_{\mathrm{eff}}$,
-    $\log(g)$, and [Fe/H] for the purposes of this study but can 
-    also encompass other parameters such as [$\alpha$/Fe], C/O, and
-    $f_{sed}$. While current methods tend to treat spectra purely
-    from a data perspective, we propose to use a hybrid machine 
-    learning (HML) method that uses the semi-empirical approach 
-    of treating spectra as a set of spectral lines put forth by 
-    \texttt{blase} \citep{blase}, combined with traditional linear interpolation 
-    as well as Bayesian optimization. We interpolate the four 
-    line properties ($\mu'$, $\ln(a)$, $\sigma$, $\gamma$) of 
+    The advent of machine learning methods is revolutionizing 
+    numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference. Machine learning applied to spectroscopy may be expected to infer fundamental stellar parameters at greater speed, accuracy, and/or precision than conventional techniques. Here we introduce a new scalable ML technique to infer $T_{\mathrm{eff}}$,
+    $\log(g)$, and [Fe/H] parameters, and the extensible method holds promise for other properties such as [$\alpha$/Fe], C/O, and
+    $f_{sed}$. Our method contrasts with traditional data-driven
+    approaches by introducing hybrid machine 
+    learning (HML), a semi-empirical approach 
+    to treating spectra as differentiable spectral lines described in 
+    \texttt{blase} \citep{blase}.  
+    \authorcomment1{Say how many spectra you analyze in the ``PHOENIX subset''.  State that an outcome of this work is the precomputed training.}
+    We combine traditional linear interpolation 
+    and Bayesian optimization to create a manifold mapping between 
+    line properties ($\mu'$, $\ln(a)$, $\sigma$, $\gamma$) to fundamental paramerts.  of 
     128,723 unique spectral lines across a subset of the PHOENIX
     synthetic model grid \citep{PHOENIX} to create the PHOENIX generator, allowing
     us to reconstruct spectra at any continuously valued point 
@@ -52,61 +50,43 @@
 
 \section{Introduction}
 Stellar spectra are exceedingly rich sources of information about the stars
-that produce them. Spectra encode fundamental properties such as temperature, surface gravity, and chemical composition via their
-seemingly countless absorption lines. Extrinsic properties such as the stellar radial velocity or 
-the projected equatorial rotation further transform spectra. Our observations of the spectra
-degrade the otherwise pure astronomical signals, and so the resolution the observing instrument 
-and other instrumental properties limit our ability to extract fundamental properties perfectly. 
-Stellar spectra represent extremely complex, high-dimensional data that has gone through multiple transformations before reaching our detectors.
+that produce them. Spectra encode fundamental properties such as temperature, 
+surface gravity, and chemical composition via their seemingly countless 
+absorption lines. Extrinsic properties such as the stellar radial velocity or 
+the projected equatorial rotation further transform spectra. Our observations 
+of the spectra degrade the otherwise pure astronomical signals, and so the 
+resolution the observing instrument and other instrumental properties limit 
+our ability to extract fundamental properties perfectly. Stellar spectra 
+represent extremely complex, high-dimensional data that has gone through 
+multiple transformations before reaching our detectors.
 \authorcomment1{I like that you mention high-dimensional.  It recommend expanding on the meaning of high dimensional.  ``High'' in which sense?}
 
-The challenge of extracting as much information as possible from
-a stellar spectrum to get back the properties that lie at the root of it all. 
-However, this has proven to be no easy task. Spectroscopic surveys such as 
-APOGEE develop their own in-house pipelines to extract stellar parameters
-from spectra (ASPCAP in the case of APOGEE), and these pipelines are fairly
+The challenge lies in extracting as much information as possible from
+a stellar spectrum to get back the stellar fundamental properties. 
+Spectroscopic surveys such as APOGEE develop their own in-house pipelines to extract stellar parameters
+from spectra (ASPCAP in the case of APOGEE), and these pipelines appear
 effective \citep{APOGEE, ASPCAP}. However, they all work on the core assumption that the data to be 
-analyzed is a list of pixels. In addition, the pipelines that surveys 
-develop are typically closed-source and usually limited to the scope of the 
-survey itself, causing a sort of fragmentation. This motivates the 
-development of a more universal, open-source tool that can do what spectral 
-analysis pipelines do, but in an alternative way. 
+analyzed is a list of pixels. Analysis pipelines may be closed-source or limited to the scope of the survey itself, causing a sort of siloing effect among surveys. This motivates the 
+development of a more universal, instrument-agnostic open-source framework that can apply broadly to a range of spectral observations with relatively little tuning.
 
 Multiple efforts have been made in this direction, treating spectra in 
 different ways. The standard practice is to treat the wavelength and flux as 
-simply two arrays and implement any from a myriad of different algorithms to 
-inference fundamental stellar parameters. Others take a more mathematical 
-approach by decomposing spectra into some eigenbasis and treating it as a 
-regression problem, such as \texttt{starfish} \citep{starfish}. However, \texttt{blase} takes 
-a different approach. It treats spectra not as a set of pixels or a set of 
-eigenbasis coefficients but as a set of spectral lines, specifically Voigt 
-profiles. There is no metric of this approach being better or worse than the 
-others mentioned so far, but it is a different paradigm and is worth 
-exploring as a semi-empirical tool. This study aims to take advantage of 
-\texttt{blase}'s ability to change a spectrum's basis from flux versus 
-wavelength into spectral line versus spectral line properties, and use that 
-to develop a robust tool for stellar parameter inference.
+simply two data arrays and bespoke algorithms tailored to a small number of well-calibrated spectral lines to obtain fundamental stellar parameters and chemical compositions. Other whole-spectrum fitting abstractions decompose model spectra into an eigenbasis, simplifying the data-model comparision stage nto a tractable regression, such as \texttt{starfish} \citep{starfish}. However, \texttt{blase} takes 
+an intermediate approach \authorcomment1{cite}. 
+It treats spectra not as a set of pixels or a set of  eigenbasis coefficients but as a set of spectral lines, specifically Voigt profiles. Each of these approaches has tradeoffs, but one key advantage places blase in a new category: the ability to fit the non-linear spectral line parameters with automatic differentiation.  This autodiff paradigm positions blase a promising semi-empirical tool.\authorcomment1{consider citing exojax and wobble, which also use autodiff for spectra}
+\authorcomment1{Say a bit more on what blase paper 1 limitations-- only demonstrated on a few spectra with hand-chosen fiducial models, not scaled out to the entire grid.}
 
-However, this is only a proof of concept. Here we develop a tool that 
-represents a very basic realization of the idea of line-by-line inference. 
-We make no claims as to the performance of this tool, but rather aim to show 
-that the idea is sound and able to be implemented, even if rudimentary, and 
-that with further research and development, this tool has the potential to 
-become useful for spectral inference.
 
-We chose the PHOENIX synthetic spectral model grid as the basis for this 
-study, because it is fairly well-known. While we plan to extend this tool to 
-leverage information across multiple model grids in the future, both for 
-accuracy and to increase the scope to include substellar objects with grids
-such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, for now we limit 
-our scope to a subset of the PHOENIX grid.
+Ideally this process could be end-to-end differentiable, with all spectral inference code living inside a single autodiffable machine learning framework, like \texttt{PyTorch} or \texttt{JAX}. Here we separate the problem into two pieces.  First, the scaling out of the blase method to over 1000 precomputed synthetic spectral model clones, yielding a downloadable cache of pretrained machine learning models with over xx0,000 spectral lines.  This product alone serves as a useful asset to the community, since it can serve as a lookup for individual lines. Second, we explore the properties of the manifold mapping between fundamental stellar properties and the underlying spectral lines.  Finally, we show how reconstructions of the spectra through the manifold can be adapted for end-to-end spectral inference.
+Extensions to this underlying framework have the potential to be the best in class with further research and development.
 
+We chose the widely-adopted PHOENIX synthetic spectral model grid \authorcomment{cite?} as the basis for this study. The framework can be straightforwardly extended to any other model grid in the future, including substellar atmosphere grids such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, for now we limit our scope to a subset of the PHOENIX grid.
+
+\authorcomment1{whoops, I repeated this above.  Key idea is to put some numbers here.}
 Our study is divided into three main parts. First, we preprocess the PHOENIX
 subset and detect spectral lines with \texttt{blase}. Second, we interpolate
 the spectral line parameters, enabling us to evaluate the PHOENIX grid at 
-any point within the bounds of the subset. Lastly, we use Bayesian optimization 
-to power our inference algorithm and test its performance. An overview of this
-process is presented in Figure 1.
+any point within the bounds of the subset. Lastly, we use Bayesian optimization to power our inference algorithm and test its performance. An overview of this process is presented in Figure 1.
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure1}
@@ -117,7 +97,8 @@ process is presented in Figure 1.
 \subsection{The PHOENIX Subset}
 For the purposes of this study, we did not consider the full range of the
 PHOENIX synthetic spectral model grid. Instead, we focused on a subset of 
-the grid, whose parameter ranges are given in Table 1.
+the grid, with the parameter ranges given in Table 1.
+\authorcomment1{state the number of spectra in the subset if you have not already done so.  optionally state how many teff, logg, fe/h spacings.}
 
 \begin{table}[h!]
     \centering
@@ -141,9 +122,8 @@ the grid, whose parameter ranges are given in Table 1.
 \end{table}
 
 \subsection{Preprocessing with \texttt{gollum}}
-First, the PHOENIX subset was accessed directly from the PHOENIX website
-using \texttt{gollum}'s download option \citep{gollum}. The spectra were then put through a 
-three-step preprocessing pipeline.
+First, the PHOENIX subset was programmatically retrieved with \texttt{gollum} \citep{gollum}. The spectra were then put through a 
+three-step preprocessing pipeline, identical to \authorcomment1{blase paper 1}.
 \begin{enumerate}
     \item \textit{Blackbody Division}: Since the $T_{\mathrm{eff}}$ of each spectrum 
     is known, the according blackbody spectrum was divided out.
@@ -162,22 +142,20 @@ is the $n^\mathrm{th}$ order polynomial continuum fit, and $P_n$ is the
 $n^\mathrm{th}$ percentile function. Arithmetic operations between arrays 
 are assumed to be elementwise in all notation from here on out.
 
+
 \subsection{Line Identification with \texttt{blase}}
-The next step was to convert the PHOENIX subset into an interpretable format.
-We wanted to represent the spectra as a list of spectral lines rather than a
-list of fluxes. This was done using \texttt{blase}, which detects spectral 
-lines as Voigt profiles and tunes the profiles to mimic the original 
-PHOENIX spectrum with back propagation. Four parameters were optimized: the 
+The next step was to convert the PHOENIX subset into a physically interpretable intermediate representation: a table of spectral lines properties rather than a list of fluxes. This was done using \texttt{blase}, which detects spectral lines as Voigt profiles and tunes the profiles to mimic the original PHOENIX spectrum with back propagation. 
+Four parameters were optimized: the 
 line center $\mu$, the log-amplitude $\ln(a)$, the Gaussian width $\sigma$, and the 
 Lorentzian width $\gamma$. The optimization used the Adam optimizer with a
 learning rate of 0.05 over 100 epochs \citep{adam}. In addition, we limited two custom 
 parameters: wing cut to 6000 and prominence to 0.005. Wing cut is a parameter
 that determines the extent of the Voigt profile to evaluate, saving
-computational resources by not evaluating small numbers. Prominence sets a
+computational resources by not evaluating negligible line wings. Prominence sets a
 lower limit for the amplitude of detected lines, which also saves resources 
 by disregarding shallow lines. In short, larger values for wing cut and 
 smaller values for prominence both increase the accuracy of using
-\texttt{blase}'s line detection and optimization at the expense of an
+\texttt{blase}'s spectral reconstruction at the expense of an
 increased computational cost. In addition, it should be mentioned that
 \texttt{blase} uses the pseudo-Voigt approximation, which saves on 
 computational cost while remaining accurate to about 1\% \citep{pseudovoigt1, pseudovoigt2}. It is a 
@@ -193,29 +171,29 @@ weighted average of a Gaussian and Lorentzian as opposed to a convolution.
 \end{subequations}
 where $\mathbf{L}$ and $\mathbf{G}$ are abbreviations for Lorentzian and 
 Gaussian profiles, respectively. Notice that we use $\mu'$ instead of $\mu$ 
-in the formula. This is because \texttt{blase} allows the line center to shift 
+in the formula. This is because \texttt{blase} optionally allows the line center to shift 
 slightly during optimization, and it is this shifted center which is used in 
 computation. The individual Voigt profiles are still indexed by $\mu$ for 
 cross-model line identification, explained in the next section. Once optimization 
-was complete, the list of identified lines, present in the state dictionary of 
-\texttt{blase}'s model, was saved to a \texttt{.pt} file for each PHOENIX subset 
-grid point \citep{pytorch}. The total disk space these files took up is 465 MB.
+was complete, the list of identified lines, was saved to a so-called ``state dictionary'' a common representation for pre-trained machine learning models that can be stored and reopened from this static cache.  These are stored as the \texttt{.pt} file format for each of the $N=xx,000$ PHOENIX subset 
+grid point \citep{pytorch}. The total disk space these files took up is 465 MB.\authorcomment1{Restate the number of grid points for good measure, }.
+
 
 \section{Interpolating Manifolds}
 \subsection{Cross-Model Line Identification}
-Earlier we mentioned that \texttt{blase} tuned the line centers of
+As previously mentioned, \texttt{blase} tunes the line centers of
 detected lines. This means that from one PHOENIX spectrum to the next, the
 same line could have a slightly different line center. Since the goal of this
 study is to interpolate the properties of each line, we needed to identify the
-presence of a particular line across the PHOENIX subset. We decided to do
+presence of a particular line across the PHOENIX subset, associating the same line with every occurrence. We decided to do
 this by using the line centers $\mu$ of the detected lines pre-optimization. 
 Now with each spectral line indexed by $\mu$, we had four parameters to interpolate:
 $\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. Note that since we are dealing with 
 the parameters of Voigt profiles, we can see in Equation 2 that even if the 
-interpolation method is linear, the actual result of interpolation varies 
-non-linearly.
+interpolation method is linear, a final spectral reconstruction will vary 
+non-linearly in the flux dimension.
 
-There is also a second issue, and that is that spectral lines were often
+There is also a second issue.  Spectral lines were often
 only detected in some spectra from the PHOENIX subset. In Figure 2, we show
 that different grid points sport differing counts of detected spectral lines.
 \begin{figure*}
@@ -227,19 +205,19 @@ that different grid points sport differing counts of detected spectral lines.
     Also note that from $T_{\mathrm{eff}} = 7000$ K onward, the spacing 
     between grid points increases from 100 K to 200 K.}
 \end{figure*}
-This means that in theory, interpolation would be inaccurate in regions where 
-a line does not appear, and also breaks in practice because \texttt{scipy}'s 
-\texttt{RegularGridInterpolator} relies on a rectilinear grid, which we would not 
-have if regions of grid points were missing. 
+
+This missing-lines phenomenon can arise for three different reasons: Stellar atmospherse genuinely do not produce that line at detectable strength at the given temperature and surface gravity. Second, PHOENIX missed it, possibly accidentally.  Or third, our line-finding and line-association algorithms missed it.  Whatever the cause, these missing lines have immediate practical consequences.  In theory, interpolation schemes may be inaccurate in regions where 
+a line does not appear, or could break algorithms that demand a rectilinear grid, such as \texttt{scipy}'s \texttt{RegularGridInterpolator}.
 
 To solve this, we artificially
 populated missing grid points with log-amplitudes of -1000, which retained
-interpolator stability by not being an infinity, but also essentially 
+interpolator stability by not being infinity, but also essentially 
 nullified the line when evaluated. An example of the appearance of missing 
 sections in heatmaps where a line does not appear is shown in Figure 3. 
 In total, across the entire PHOENIX subset, \texttt{blase} detected 
-128,723 individual spectral lines, meaning we have that many manifolds to 
-interpolate.
+128,723 individual spectral lines.  
+
+Every one of these lines can be visualized as a manifold: a mapping between one 4-dimensional heatmap of line properties to a 3-dimensional heatmap of fundamental properties. All of these 128,723 manifolds have to be interpolated.
 
 \begin{figure*}
     \centering
@@ -258,15 +236,15 @@ For each line, the inputs to the interpolator were the three input parameters $T
 $\log(g)$, and [Fe/H], and the output was a list of four parameters, 
 $\mu'$, $\ln(a)$, $\sigma$, and $\gamma$. For each line, one of these 
 interpolator objects was created using linear interpolation, and these 
-interpolators were aggregated into a single list, which was when pickled 
-and written to a \texttt{.pkl} file. These interpolators generate multiple 
+interpolators were aggregated into a single list, which was then
+written to disk in the \texttt{.pkl} file storage format.  These interpolators generate multiple 
 manifolds with the following mapping:
 \begin{gather}
     \mqty[T_{\mathrm{eff}} \\ \log(g) \\ \mathrm{[Fe/H]}] \rightarrow \mqty[\mu' \\ \ln(a) \\ \sigma \\ \gamma]
 \end{gather}
 These interpolators could now be evaluated at any point lying within the 
 domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset 
-into a continuous one. With the given size of the PHOENIX subset, the 
+into a continuously evaluable function, sometimes called a spectral emulator or surrogate model. With the given size of the PHOENIX subset, the 
 interpolator list takes up 13.2 GB of disk space. This evaluation 
 is able to reconstruct an existing PHOENIX spectrum or alternatively 
 interpolate a new spectrum within the domain of the PHOENIX subset,
@@ -279,11 +257,12 @@ PHOENIX generator, evaluating each interpolator at the given coordinates,
 then reshaping the data into the same format that PyTorch uses for 
 state dictionaries. During the iteration, if the interpolated
 log-amplitude of the line is less than -100, the line is excluded from the 
-state dictionary. Why -100 instead of -1000? This is because near the 
-areas that we artificially populated, the manifold experiences artifacts due 
-the sudden decline. We have to anticipate that decline and cut off the 
-behavior in advance. This saves on computational time. Then, the state
-dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator},
+state dictionary. The rationale for -100 instead of -1000 originates from the fact that at wavelength regions near artificially populated lines, the manifold experiences artifacts due 
+a sudden decline. We have to anticipate that decline and cut off the 
+behavior in advance. This saves on computational time. 
+\authorcomment1{I do not understand this.  Maybe consider removing?}
+
+Finally, the state dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator},
 which reconstructs the spectrum by constructing a forward model based on 
 the input state dictionary. Any \texttt{nan} values are set to 1 (which we 
 can do because the spectra are all normalized), and the spectrum is 
@@ -304,8 +283,8 @@ complete.
 \section{Bayesian Inference and Testing}
 \subsection{Spectral Reconstruction Time}
 The typical use case for the PHOENIX generator may be to batch 
-reconstruct spectra from an array of input coordinates. Therefore, there
-is some motivation to attempt to reduce the computational cost of this
+reconstruct spectra from an array of input coordinates \authorcomment1{which input coordinates-- fundamental properties or line properties?}. Therefore, there
+is some motivation to reduce the computational cost of this
 procedure to tractable levels. We evaluate the computational time needed
 to use the PHOENIX generator in two distinct ways. First, for a single
 input, which would be relevant in serial applications. Second, for an array
@@ -342,15 +321,15 @@ $\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
 The optimizer was configured to first run 100 random 
 evaluations to seed the surrogate model, then run 20 more evaluations now guided 
 by the surrogate model. This totals to 120 evaluations, which was deemed 
-sufficient for this study. One inference run takes us on average, just under 
+sufficient for this study. One inference run takes on average just under 
 7.5 minutes to complete.
 
 \subsection{Bayesian Optimizer Performance}
 To test the performance of the inference algorithm, we used the PHOENIX subset
-itself. At first glance, this may seem like a useless endeavor, as the 
-PHOENIX generator has indeed memorized the PHOENIX subset, being able to
+itself. At first glance, this may seem circular, as the 
+PHOENIX generator has memorized the PHOENIX subset, being able to
 reconstruct a PHOENIX spectrum when evaluated at that grid point. However,
-that is precisely what allows us to use the PHOENIX subset as test data.
+that stategy allows us to use the PHOENIX subset as test data.
 The Bayesian optimizer's surrogate model is seeded by random continuously 
 sampled generator evaluations within the search space, \textit{not} grid 
 points of the PHOENIX subset, meaning the surrogate model has no `memorization' 
@@ -358,7 +337,7 @@ to speak of. If the optimizer had been an iterative grid refinement search,
 this would not have been possible, because grid methods rely on just that, 
 the grid.
 
-We know that $T_{\mathrm{eff}}$ tends to be fairly well-constrained prior to 
+We know that in typical observational settings, a coarse estimate for $T_{\mathrm{eff}}$ tends to be fairly well-constrained from ancillary data prior to 
 even looking at the spectra, so when testing the inference algorithm, we limited
 its search space to only include $T_{\mathrm{eff}}$ which lay within 500 K of the
 true value on either side. $\log(g)$ and [Fe/H] were allowed to vary freely. 
@@ -383,21 +362,19 @@ The computer used for this study, Triton, has the following specifications:
         GPU & Nvidia A100 40GB ($\times$2)\\
         \hline
     \end{tabular}
-    \caption{Triton is owned by Caroline Morley and is available to
-    members of her research group. It was used for all computations, but not 
+    \caption{This machine was used for all computations, but not 
     for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a 
     boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
 \end{table}
 
-It should be noted that this study represents a proof of concept, and that 
-there are numerous design considerations that could be improved upon with 
+The interpolation scheme presented here represents a proof of concept, showing that leveraging the mapping between synthetic spectral lines and their inputs can yield a semi-empirical basis for data-model comparisons.  There are numerous design considerations that could be improved upon with 
 future work. These considerations include but are not limited to the 
 following:
 \begin{enumerate}[label=-]
     \item \textit{Limited PHOENIX Subset}: The PHOENIX subset used in this 
-    study was just that, a subset. The full PHOENIX grid not only expands 
+    study did not include the full PHOENIX grid, which expands 
     the [Fe/H] range to [-4.0, 1.0] dex and the $\log(g)$ range to [0, 6], 
-    but also includes the alpha element abundance parameter, which we 
+    and also includes the alpha element abundance parameter, which we 
     elected to fix at 0 for this study. In addition to the actual fundamental 
     stellar parameters, we also took a subset of the PHOENIX wavelength range, 
     with the full [500, 55000] \AA \ wavelength range also being left to 
