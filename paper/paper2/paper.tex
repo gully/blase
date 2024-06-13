@@ -161,11 +161,9 @@ In \autoref{fig:figure2}, we show that different grid points sport differing cou
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure2}
-    \caption{Number of detected spectral lines at each grid point of 
-    a slice of the PHOENIX subset at solar metallicity. We can see that
-    the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
-    Also note that from $T_{\mathrm{eff}} = 7000$ K onward, the spacing 
-    between grid points increases from 100 K to 200 K.}
+    \caption{Number of detected spectral lines at each grid point of a slice of the PHOENIX subset at solar metallicity. 
+    We can see that the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
+    Also note that from $T_{\mathrm{eff}} = 7000$ K onward, PHOENIX's sampling increment changes from 100 K to 200 K.}
     \label{fig:figure2}
 \end{figure*}
 
@@ -176,16 +174,22 @@ Whatever the cause, these missing lines have immediate practical consequences.
 Rectilinear interpolation schemes break in regions where a line does not appear; you can't interpolate a quantity that simply doesn't exist.
 
 To solve this, we artificially populated missing grid points with log-amplitudes of -1000, which retained interpolator stability while nullifying the evaluated line. 
-An example of the appearance of missing sections in heatmaps where a line does not appear is shown in \autoref{fig:figure3}. 
+Examples of the appearance of missing sections in heatmaps where a line does not appear are shown in \autoref{fig:figure3} and \autoref{fig:figure4}. 
 In total, across the entire PHOENIX subset, \texttt{blase} detected 128,723 individual spectral lines.  
 Every one of these lines can be visualized as a manifold mapping a 3D stellar parameter vector to a 4D spectral line parameter vector, and every one must be interpolated.
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure3}
-    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity. 
-    Notice the missing chunk in the top left of the figure; \texttt{blase} did not detect a spectral line here, but we have to artificially populate those points with lines that have $\ln(a) = -1000$. 
-    The change in spacing on the x-axis is owing to the step of $T_\mathrm{eff}$ in the PHOENIX grid changing from 100 K to 200 K after $T_\mathrm{eff} = 7000$ K.}
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity of an unknown spectral line. 
+    Notice the missing chunk in the top left of the figure; \texttt{blase} did not detect a spectral line here, but we have to artificially populate those points with lines that have $\ln(a) = -1000$.}
     \label{fig:figure3}
+\end{figure*}
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure4}
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity of a Helium II spectral line.
+    We can see that \texttt{blase} detects this line at only a select chunk of grid points in PHOENIX, leading to the large amount of missing data for the line.}
+    \label{fig:figure4}
 \end{figure*}
 
 \subsection{Continuously Evaluable Manifolds}
@@ -198,7 +202,21 @@ These interpolators generate multiple manifolds representing the following mappi
 These interpolators could now be evaluated at any point lying within the domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset into a continuously evaluable function, sometimes called a spectral emulator. 
 With the given size of the PHOENIX subset, the interpolator list takes up 13.2 GB of disk space. 
 This evaluation is able to reconstruct an existing PHOENIX spectrum or alternatively interpolate a new spectrum within the domain of the PHOENIX subset, so we call this the PHOENIX generator. 
-In \autoref{fig:figure4}, we show the same spectral line as in \autoref{fig:figure3}, but now supersampled using the PHOENIX generator evaluated over the same slice.
+In \autoref{fig:figure5} and \autoref{fig:figure6}, we show the same spectral lines as in \autoref{fig:figure3} and \autoref{fig:figure4}, but now supersampled using the PHOENIX generator evaluated over the same slice.
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure5}
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ of our unknown spectral line vary over the PHOENIX subset slice at solar metallicity, now supersampled with the PHOENIX generator. 
+    Notice that the missing chunk in the top left still exists and does not display any artifacts, as the artificially populated points are removed after interpolation to retain the model's integrity. 
+    Also see that the x-axis spacing is now uniform, as the PHOENIX generator was evaluated at constant step.}
+    \label{fig:figure5}
+\end{figure*}
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure6}
+    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ of our Helium II spectral line vary over the PHOENIX subset slice at solar metallicity, now supersampled with the PHOENIX generator.}
+    \label{fig:figure6}
+\end{figure*}
 
 The spectral reconstruction process is done by iterating over the PHOENIX generator, evaluating each interpolator at the given coordinates, then reshaping the data into the same format that PyTorch uses for state dictionaries. 
 During the iteration, if the interpolated log-amplitude of the line is less than -100, the line is excluded from the state dictionary. 
@@ -206,15 +224,15 @@ We do this to avoid artifacts in the manifolds due to the artifical population o
 
 Finally, the state dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator}, which reconstructs the spectrum by constructing a forward model based on the input state dictionary. 
 Any \texttt{nan} values are set to 1 (which we can do because the spectra are all normalized), and the spectral reconstruction is complete.
-
 \begin{figure*}
     \centering
-    \includegraphics[width=\textwidth]{figure4}
-    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity, now supersampled with the PHOENIX generator. 
-    Notice that the missing chunk in the top left still exists and does not display any artifacts, as the artificially populated points are removed after interpolation to retain the model's integrity. 
-    Also see that the x-axis spacing is now uniform, as the PHOENIX generator was evaluated at constant step.}
-    \label{fig:figure4}
+    \includegraphics[width=\textwidth]{figure7}
+    \caption{Plot of an Fe I spectral line shown at the closest PHOENIX grid points to the Sun's stellar parameters, as well as a solar spectrum reconstructed with the PHOENIX generator.
+    We can see the spectral line shape be reconstructed mostly between the two native PHOENIX spectra, being closer to the 5800 K spectrum as the Sun's $T_{\mathrm{eff}}$ used here is 5772 K.}
+    \label{fig:figure7}
 \end{figure*}
+We can observe in \autoref{fig:figure7} that the reconstructed solar spectrum is not simply a pixel interpolation between the nearest grid points.
+It is interpolating the spectral line properties using hundreds of thousands of manifolds, each representing a nonlinear parameter in the shape of the spectral line.
 
 \section{Bayesian Inference and Testing}
 \subsection{Spectral Reconstruction Time}
@@ -225,15 +243,15 @@ First, for a single input, which would be relevant in serial applications.
 Second, for an array of multiple inputs, which would be relevant in parallel applications.
 The \texttt{RegularGridInterpolator} API allows for the passing in of an entire array of input coordinates to be evaluated at once. 
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless. 
-Performance results are shown in \autoref{fig:figure5}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
+Performance results are shown in \autoref{fig:figure8}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
 
-\begin{figure}
+\begin{figure}[t!]
     \centering
-    \includegraphics[width=\columnwidth]{figure5}
+    \includegraphics[width=\columnwidth]{figure8}
     \caption{Line chart showing the time taken to reconstruct varying numbers of spectra using the PHOENIX generator (lower is better). 
     We can see that the time taken per spectra for the serial implementation hovers around 15 seconds within run-to-run variance, while the pseudo-parallel implementation continually decreases in time taken per spectrum as the number of inputs increases. 
     The speedup factor (higher is better) increases as more spectra are generated, which is also a desirable outcome.}
-    \label{fig:figure5}
+    \label{fig:figure8}
 \end{figure}
 
 \subsection{Inference Algorithm}
@@ -305,7 +323,7 @@ These include but are not limited to the following:
     However, this is only a step in the direction of interpretability. 
     True interpretability would decompose a spectrum not into a set of spectral lines, but into a set of species component spectra, which requires a much more advanced understanding of different species and their behavior, as well as direct access to a radiative transfer code as opposed to an off-the-shelf model grid. 
     This approach would also extend the inference from just stellar parameters defined by a grid to any set of parameters accounted for in the radiative transfer model, down to specific species abundances. 
-    So while readers may be tempted to try to identify certain spectral lines seen in our figures, this is not the point. 
+    So while we were able to identify the spectral lines used in our figures, it is not necessarily valuable to try to identify all 128,723 lines that we identify as unique with our algorithm. 
     \texttt{blase} is \textit{agnostic} to the identity of the line that it is optimizing. 
     We study these lines as \texttt{blase} sees them (i.e. their four shape parameters), because for the purposes of this study, that is the only information that is useful.
     Having more interpretability would let scientists actually study certain species and their spectral lines.
@@ -320,8 +338,7 @@ These include but are not limited to the following:
 In this study, we have presented a proof-of-concept algorithm that interpolates a subset of the PHOENIX spectral model grid and then uses GP minimization for an inference algorithm.
 We create state dictionaries for all spectra in the PHOENIX subset, lossily distilling the spectra with a ~20 data compression factor.
 We create the PHOENIX generator, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
-We introduce and test our inference algorithm, with average absolute deviations from true values of 185 K in 
-$T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
+We introduce and test our inference algorithm, with average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
 The methods discussed here represent a step down a road not traveled in spectral inference, and have the potential to become more advanced in the future by fully utilizing the strengths of physics-informed machine learning.
 
 \begin{acknowledgements}
