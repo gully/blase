@@ -1,37 +1,37 @@
-\documentclass[twocolumn]{aastex631}
+\documentclass[twocolumn, linenumbers]{aastex631}
 \usepackage{graphicx}
 \usepackage{physics}
 \usepackage[super]{nth}
 \usepackage{enumitem}
 \usepackage[all]{hypcap}
 
-\graphicspath{{./images/}}
 \makeatletter
 \renewcommand\hyper@natlinkbreak[2]{#1}
 \makeatother
 
 \begin{document}
-\title{Using Hybrid Machine Learning for Fundamental Stellar Parameter Inference}
+\title{A New Hybrid Machine Learning Method for Stellar Parameter Inference}
 \author[0000-0002-2290-6810]{Sujay Shankar}
-\author[0000-0002-4020-3457]{Michael Gully-Santiago}
+\correspondingauthor{Sujay Shankar}
+\email{sujays2001@gmail.com}
+\author[0000-0002-4020-3457]{Michael A. Gully-Santiago}
 \author[0000-0002-4404-0456]{Caroline V. Morley}
 \affil{Department of Astronomy, The University of Texas at Austin, Austin, TX 78712, USA}
 
-\shortauthors{Shankar \& Gully-Santiago \& Morley}
+\shorttitle{HML for Stellar Parameter Inference}
 
 \begin{abstract}
-    The advent of machine learning (ML) methods has and continues to revolutionize numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference.
-    ML methods in spectroscopy are expected to perform with greater efficacy than conventional computational techniques.
-    In this study we introduce a hybrid ML (HML) method that combines automatic differentiation (autodiff), interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
+    The advent of machine learning (ML) methods has and continues to revolutionize numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference, as ML is expected to be more powerful than traditional techniques.
+    Here we introduce a hybrid ML (HML) method that combines automatic differentiation (autodiff), interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
     The stellar parameters we study are $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method has potential for extension to other properties such as [$\alpha$/Fe], C/O, and $f_{sed}$.
-    We first use the semi-empirical approach to treating spectra as sets of tunable spectral lines introduced in \texttt{blase} \citep{blase}, contrasting with traditional data-driven approaches. 
-    \texttt{blase} is used on 1,314 spectra from the PHOENIX synthetic spectral model grid \citep{PHOENIX}, identifying 128,723 unique spectral lines.
-    For each of these lines, a manifold mapping stellar parameters to spectral line parameters is created using regular grid linear interpolation.
-    These manifolds are aggregated to create the PHOENIX generator, sporting parallelized reconstruction of spectra at continuously valued points within the PHOENIX subset.
+    We first use \texttt{blase}'s \citep{blase} nontraditional semi-empirical approach to treating spectra as sets of tunable spectral lines. 
+    \texttt{blase} is used on 1,314 spectra from the PHOENIX synthetic spectral model grid \citep{PHOENIX}, identifying 128,723 spectral lines.
+    For each of these lines, we continuously map stellar parameters to spectral line parameters using regular grid linear interpolation.
+    These manifolds are aggregated to create the PHOENIX generator, sporting parallelized reconstruction of spectra given continuously valued stellar parameters.
     Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square (RMS) loss between the input spectrum and PHOENIX generator spectra.
     From testing, the inference error in $T_{\mathrm{eff}}$ was 185 K, $\log(g)$ was 0.19, and [Fe/H] was 0.12 dex.
-    Our products are threefold: first an archive of the state dictionaries of the \texttt{blase} clones of the PHOENIX subset, second the PHOENIX generator itself, and third, the reconstruction and inference algorithm.
-    This study represents a rudimentary proof of concept showing that semi-empirical HML is a viable, albeit fledgling alternative to traditional approaches.
+    Our products are an archive of the state dictionaries of the \texttt{blase} clones of the PHOENIX subset, as well as the spectral reconstruction and inference algorithms themselves.
+    This study is a proof of concept showing that semi-empirical HML is a viable alternative to traditional approaches.
 \end{abstract}
 
 \section{Introduction}
@@ -41,7 +41,15 @@ Extrinsic properties such as the stellar radial velocity or the projected equato
 Observing the spectrum alters it again; the resolution, bandwidth, and other properties of the instrument change the fidelity at which we observe the spectrum, and can limit our ability to extract fundamental properties precisely.  
 Observed stellar spectra thus represent extremely complex, data, influenced by multiple parameters, that have gone through multiple transformations before reaching our detectors.
 
-The challenge lies in extracting as much information as possible from a stellar spectrum to get back its stellar parameters. 
+Much of modern astronomical spectroscopy would benefit from an easy-to-use, fast, accurate, interpretable, and precise spectral model. 
+The determination of fundamental properties, the creation of Extreme Precision Radial Velocity (EPRV) templates, and the application of composite spectral fitting could all leverage such an innovation. 
+This ambitious aim may be broadly referred to as a ``foundational spectroscopy model for astrophysics'', in reference to the same category of models used for large language models (LLMs) in artificial intelligence (AI).
+There are many challenges with creating such a foundational spectral model for astrophysics. 
+First, we know our physical inputs into the spectral modeling process are imperfect. 
+Second, simplifying assumptions in stellar (and substellar) atmospheres are necessarily inexact. 
+Ultimately computational costs have prevented the training of such models.  
+Most prevailing solutions have therefore had to choose either a model driven approach, in which the precomputed models are taken as gospel, or a data driven/empirical approach, in which our knowledge of stellar physics is ignored or treated phenomenologically, depending on the application.
+ 
 Spectroscopic surveys such as APOGEE use their own in-house pipelines to extract stellar parameters from spectra (ASPCAP in the case of APOGEE), and these pipelines appear effective \citep{APOGEE, ASPCAP}. 
 The core assumption for the vast majority of pipelines is that the data to be analyzed is a list of pixels. 
 Analysis pipelines may be closed-source or limited to the scope of the survey itself, causing a sort of siloing effect among surveys. 
@@ -51,20 +59,27 @@ Multiple efforts have been made in this direction, treating spectra in different
 The standard practice is to treat the wavelength and flux as simply two arrays and use bespoke algorithms tailored to a small number of well-calibrated spectral lines to obtain fundamental stellar parameters and chemical compositions \citep{pipeline1, pipeline2}. 
 Other whole-spectrum fitting abstractions decompose model spectra into an eigenbasis, implementing the data-model comparison stage as a tractable regression, such as \texttt{starfish} \citep{starfish}. 
 
-
-\texttt{blase}, first presented in \citealt{blase}, takes an intermediate approach, treating spectra not as a set of pixels or a set of eigenbasis coefficients but as a set of spectral lines, specifically Voigt profiles.
-Each of these approaches has tradeoffs, but one key computational advantage of  \texttt{blase} is that it can fit the nonlinear spectral line parameters with automatic differentiation (autodiff).
-In a nutshell, autodiff is technology that tracks transformations made to data using the chain rule, even being able to differentiate control flow transformations involving if-else blocks and the like.
+Ideally, we want a system that can self-consistently learn, a genuine AI foundational spectral model. 
+Such a system would enable the assignment of accurate stellar parameters, and could yield re-usable interpretable spectral models.
+\texttt{blase}, first presented in \citealt{blase}, took an important, albeit limited, step in this direction, treating spectra not as a set of pixels or a set of eigenbasis coefficients but as a set of interpretable and traceable spectral lines, specifically Voigt profiles.
+Each of these approaches has tradeoffs, but one key scientific advantage of blase comes from its ability to adapt to new information, while preserving some adherence to physics-based models. 
+This intelligent capability stems from its ability to fit a theoretically unlimited number of nonlinear spectral line parameters with automatic differentiation (autodiff).
+Autodiff is a technology that tracks transformations made to data using the chain rule, even being able to differentiate control flow transformations involving if-else blocks, for example.
 With the gradient obtained from autodiff's chain rule, we can optimize model parameters by just going against the direction of the gradient (because we usually want to minimize something such as a loss function, we go in the direction of greatest decrease, which is always the negative of the gradient).
-We see autodiff used in other astrophysical software such as \texttt{exojax} and \texttt{wobble} \citep{exojax, wobble}, but the recasting of spectra into sets of inherently nonlinear spectral lines positions \texttt{blase} as a unique and promising semi-empirical tool.
-The original \texttt{blase} paper demonstrated the ability to tune spectral lines with autodiff, but only on a few hand-picked fiducial models, not scaled out to an entire model grid.
+Autodiff has been used successfully in other astrophysical contexts such as \texttt{exojax} and \texttt{wobble} \citep{exojax, wobble}, but the recasting of spectra into sets of inherently nonlinear spectral lines positions \texttt{blase} as a unique and promising semi-empirical tool.
+The original \texttt{blase} paper demonstrated the ability to tune spectral lines with autodiff, but restricted to a pre-selected static synthetic model. 
 
-Ideally this process could be monolithic, with the end-to-end spectral inference code powered by a single autodiffable machine learning framework, like PyTorch or JAX \citep{pytorch, jax}. 
-However, here we separate the problem into three pieces. 
-First, the scaling out of the blase method to 1,314 precomputed synthetic spectral model clones, yielding a downloadable archive of pretrained machine learning models with 128,723 unique spectral lines. 
-Second, the creation of manifolds mapping stellar parameters to spectral line parameters using regular grid linear interpolation. 
-Finally, we show how reconstructions of the spectra using said manifolds can be used for spectral inference.
+Here we introduce the next logical step in the sequence of expanding interpretable spectroscopic machine learning from operating on a single grid point and towards an entire 3D grid of precomputed spectra. 
+We rebrand this augmentation as ``blase3D''.
+
+Ideally this process would be monolithic, with the end-to-end spectral inference code powered by a single autodiffable machine learning framework, like PyTorch or JAX \citep{pytorch, jax}. 
+However, here we separate the problem into three pieces, only the first of which is currently differentiable.
+First, we scale out of the blase method to 1,314 precomputed synthetic spectral model clones, yielding a downloadable archive of pretrained machine learning models with 128,723 unique spectral lines. 
+Second, we fit manifolds mapping stellar parameters to uniformly-derived spectral line parameters using regular grid linear interpolation. 
+Finally, we show how reconstructions of the spectra using said manifolds can be used for inferring stellar fundamental properties from spectra. 
+This final step resembles the aims of ``atmospheric retrievals'', but in principle should be computationally much faster, more accurate, adaptive, and reusable.
 An overview of this process is shown in \autoref{fig:figure1}.
+
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure1}
@@ -74,6 +89,7 @@ An overview of this process is shown in \autoref{fig:figure1}.
 
 We chose the widely-adopted PHOENIX synthetic spectral model grid \citep{PHOENIX} as the basis for this study.
 Our approach can be straightforwardly applied to any other model grid in the future, including substellar atmosphere grids such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, but for now we limit our scope to a subset of the PHOENIX grid.
+
 
 \section{Cloning the PHOENIX Model Grid}
 \subsection{The PHOENIX Subset}
@@ -124,7 +140,7 @@ The optimization used the Adam optimizer with a learning rate of 0.05 over 100 e
 In addition, we limited two custom parameters: wing cut to 6000 and prominence to 0.005. 
 Wing cut is a parameter that determines the extent of the Voigt profile to evaluate, saving computational resources by not evaluating negligible line wings. 
 Prominence sets a lower limit for the amplitude of detected lines, which also saves resources by disregarding shallow lines, so in our case we disregard lines that affect the spectrum by $<$ 0.5\%.
-In short, smaller values for wing cut and smaller values for prominence both decrease the computational cost of \texttt{blase}'s cloning process at the expense of decreasing its accuracy slightly. 
+In short, our choices for wing cut and prominence decrease the computational cost of \texttt{blase}'s cloning process at the expense of decreasing its accuracy slightly. 
 We note that \texttt{blase} uses the pseudo-Voigt approximation, which saves on computational cost while remaining accurate to about 1\% \citep{pseudovoigt1, pseudovoigt2}. 
 The pseudo-Voigt approximation uses a weighted average of a Gaussian and Lorentzian as opposed to a convolution.
 \texttt{blase}'s pseudo-Voigt profile implementation uses the following:
@@ -181,7 +197,8 @@ Every one of these lines can be visualized as a manifold mapping a 3D stellar pa
     \centering
     \includegraphics[width=\textwidth]{figure3}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity of an unknown spectral line. 
-    Notice the missing chunk in the top left of the figure; \texttt{blase} did not detect a spectral line here, but we have to artificially populate those points with lines that have $\ln(a) = -1000$.}
+    Notice the missing chunk in the top left of the figure; \texttt{blase} did not detect a spectral line here, but we have to artificially populate those points with lines that have $\ln(a) = -1000$.
+    This and all spectral lines shown in this paper were identified using the NIST spectral line database \citep{NIST}.}
     \label{fig:figure3}
 \end{figure*}
 \begin{figure*}
@@ -282,19 +299,22 @@ The results of the inference algorithm are as follows: $T_{\mathrm{eff}}$ differ
 $\log(g)$ differed by an average of 0.19 or 6.8\%. [Fe/H] differed by an average of 0.12 dex, which is 24\% of our search range.
 From this, we can see that $T_{\mathrm{eff}}$ was the most accurately inferred parameter, followed by $\log(g)$, and then [Fe/H].
 
-\section{Conclusions}
-The computer used for this study, Triton, has the following specifications:
-\begin{table}[h!]
-    \centering
-    \begin{tabular}{ll}
-        \hline
-        CPU & AMD EPYC 7513\\
-        RAM & 256 GB\\
-        GPU & Nvidia A100 40GB ($\times$2)\\
-        \hline
-    \end{tabular}
-    \caption{This machine was used for all computations, but not for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
-\end{table}
+\section{Discussion}
+\subsection{Scientific Applications}
+This study's paradigm of spectral inference can enable scientists to adopt self-consistent model grids and analyze their spectral line behavior in an interpretable fashion, which has been fairly uncommon practice thus far.
+Notably, this system tracks the shifting of spectral lines as a function of stellar parameters, which traditionally has been uncommon for algorithms to assess systematically. 
+We balance rigidity and flexibility where we want them while maintaining interpretability.
+
+To summarize, we bring to scientists the ability to understand exactly what spectral properties we consider mathematically and how we expect those properties to behave on an incredibly detailed level (the 4 line parameters of all spectral lines and their corresponding interpolating manifolds), and introduce the concept of postulating one precomputed model grid as the ground truth to base all further analysis on, converting the grid into a generator that can then interface with our inference algorithm.
+
+\subsection{Technical Considerations}
+To reiterate, the manifold fitting steps are not end-to-end autodifferentiable.  
+As seen in \autoref{fig:figure1}, these steps rely on \texttt{scipy}, which is not equipped with autodiff.  
+Without autodifferentiability, the ability to ``machine learn'' is significantly reduced compared to a hypothetical monolithic JAX or PyTorch system.  
+We see three reasons for for developing a non-autodifferentiable system.
+First, the familiar \texttt{scipy}-based system will serve as an easy entry point for most practitioners who are unfamiliar with autodiff, and may still benefit from and modify the code without expert ML knowledge.  
+Second, this non-autodiff version serves as a pathfinder and benchmark against which an inevitable autodifferentiable version may be compared. 
+Finally, the inventory of familiar interpolation algorithms have not yet been ported to PyTorch or JAX, since machine learning or Gaussian Process fitting schemes are generally preferred within the ML community. 
 
 The interpolation scheme presented here represents a proof of concept, showing that leveraging the mapping between synthetic spectral lines and their inputs can yield a semi-empirical basis for data-model comparisons. 
 There are numerous design considerations that could be improved upon with future work. 
@@ -335,15 +355,30 @@ These include but are not limited to the following:
     Future studies need to account for more advanced spectral line profiles and procedures to deal with phenomena such as ro-vibrational bands.
     This would increase accuracy for end users.
 \end{enumerate}
+The computer used for this study, Triton, has the following specifications:
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ll}
+        \hline
+        CPU & AMD EPYC 7513\\
+        RAM & 256 GB\\
+        GPU & Nvidia A100 40GB ($\times$2)\\
+        \hline
+    \end{tabular}
+    \caption{This machine was used for all computations, but not for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
+\end{table}
+
+\section{Conclusion}
 In this study, we have presented a proof-of-concept algorithm that interpolates a subset of the PHOENIX spectral model grid and then uses GP minimization for an inference algorithm.
-We create state dictionaries for all spectra in the PHOENIX subset, lossily distilling the spectra with a ~20 data compression factor.
-We create the PHOENIX generator, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
+We create state dictionaries for all spectra in the PHOENIX subset, lossily distilling the spectra with a data compression factor of around 20.
+We create the PHOENIX generator and implement a performant spectral reconstruction algorithm, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
 We introduce and test our inference algorithm, with average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
+In its current state, our algorithm operates on spectra within the PHOENIX subset parameter ranges in \autoref{tab:table1}, requiring that the spectra not contain noticeable Doppler shifting, rotational broadening, or other confounding factors.
 The methods discussed here represent a step down a road not traveled in spectral inference, and have the potential to become more advanced in the future by fully utilizing the strengths of physics-informed machine learning.
 
-\begin{acknowledgements}
-    Text
-\end{acknowledgements}
+\vspace{0.5cm}
+This material is based on work supported by the National Aeronautics and Space Administration under grant No. 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program. C.V.M. acknowledges support from the Alfred P. Sloan Foundation under grant number FG-2021-16592 and support from the National Science Foundation under grant number 1910969.
+\vspace{0.5cm}
 
 \software{
     \texttt{altair} \citep{altair1, altair2},
