@@ -370,7 +370,7 @@ The computer used for this study, Triton, has the following specifications:
 
 \section{Conclusion}
 In this study, we have presented a proof-of-concept algorithm that interpolates a subset of the PHOENIX spectral model grid and then uses GP minimization for an inference algorithm.
-We create state dictionaries for all spectra in the PHOENIX subset, lossily distilling the spectra with a data compression factor of around 20.
+We create state dictionaries for all spectra in the PHOENIX subset, lossily distilling the spectra with a data compression factor of around 20. These state dictionaries have been uploaded to Zenodo at \url{https://zenodo.org/records/11246174} \citep{zenodo}.
 We create the PHOENIX generator and implement a performant spectral reconstruction algorithm, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
 We introduce and test our inference algorithm, with average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
 In its current state, our algorithm operates on spectra within the PHOENIX subset parameter ranges in \autoref{tab:table1}, requiring that the spectra not contain noticeable Doppler shifting, rotational broadening, or other confounding factors.
