@@ -1,18 +1,24 @@
 Line 10: Define f_{sed} in abstract.
+- Fixed, and also defined alpha element abundance and carbon-oxygen ratio as well.
 
 Lines 11 and 13: Should references be included in the abstract? Maybe just say "blase" and "PHOENIX" in the abstract and then put the proper citations later in the text.
+- Fixed, citations removed.
 
 Line 12: The grid of stellar parameters considered for this work should be included in the abstract.
 
 Line 15: "sporting"? Should this be "supporting" or "boasting" instead?
+- Changed "sporting" to "enabling".
 
 Line 18: The scope of the testing should be included in the abstract. That is, mention that the tests were performed using ~50 noise-free synthetic models and the range of parameter-space they cover (e.g. "In testing noise-free synthetic models spanning 3000<Teff/K<11000, 2<logg<6, -0.5<[Fe/H]<0, we find inference errors of ...").
 
 Line 19: Great to see open sourcing of outputs! Thanks for your work to make astro more accessible!
+- Of course! The best science is open science.
 
 Line 19: "state dictionaries of the blase clone" is ML-jargon heavy, so consider changing it to something more accessible to an astronomy audience. I would suggest saving the terms "state dictionaries" and "clone" until later in the text when you can define them for the reader.
+- Changed "state dictionaries of the blase clones" to "blase models".
 
 Lines 39-41: The wording makes it seem like there aren't currently other pipelines that are fast, accurate, and precise, but this is not the case (e.g. KORG, for example, https://ui.adsabs.harvard.edu/abs/2023AJ....165...68W/abstract ).
+- Changed the wording to emphasize our addition of interpretability, as well as cited KORG as an existing, effective pipeline.
 
 Lines 51-54: Give some examples of ways in which physical inputs are imperfect and simplifying assumptions are inexact (eg unknown physics, non-LTE effects, spherical symmetry).
 
@@ -23,6 +29,7 @@ Lines 56-61: Can the work also give some examples and references that fall into 
 Line 79: Change this list of references to start with "e.g." and it would be helpful for the references to specifically say which surveys/analysis tools they belong to.
 
 Line 95: "blase" is not in \texttt{} form like it is in other parts of the paper. There are a few other times throughout the manuscript where programs are also not correctly inside of \texttt (e.g. lines 125 and 126 with PyTorch and JAX).
+- Fixed the mistake.
 
 Line 111: The references to exojax and wobble are put together instead of directly after the associated work (i.e. should be changed to "such as exojac (Kawahara+2022) and wobble (Bedell+2019)" ), which makes it more difficult for the reader to figure out which reference belongs to which tool. This occurs a few more times throughout the paper (e.g. line 65, lines 125-126, top left of page 4 describing the Adam optimizer, the Ida+2000 & Thompson+1987 references above the Voigt profile), so please update.
 
