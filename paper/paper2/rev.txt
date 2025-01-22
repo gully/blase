@@ -32,34 +32,47 @@ Line 95: "blase" is not in \texttt{} form like it is in other parts of the paper
 - Fixed the mistake.
 
 Line 111: The references to exojax and wobble are put together instead of directly after the associated work (i.e. should be changed to "such as exojac (Kawahara+2022) and wobble (Bedell+2019)" ), which makes it more difficult for the reader to figure out which reference belongs to which tool. This occurs a few more times throughout the paper (e.g. line 65, lines 125-126, top left of page 4 describing the Adam optimizer, the Ida+2000 & Thompson+1987 references above the Voigt profile), so please update.
+- Fixed, removed an extraneous citation for the pseudo-Voigt.
 
 Line 130: "clone" should be defined for the reader (maybe back when describing what blase does and its outputs).
+- "clone" is now defined on line 118.
 
 Paragraph starting on Line 123: The end part of this paragraph serves as the standard "In section #, we will do ..." paragraph defining the structure of the paper, but it should be more explicit by linking the different sections so the reader knows where to find the different steps in the manuscript. For example, line 128/129 could be changed to "In section 2, we scale the blase method to ...".
+- Added section links and tweaked sentence structure accordingly.
 
 Line 139/140: The "more accurate" statement gives me pause. Why should this interpolation-based method built from clones of (imperfect) synthetic spectra be more accurate than other approaches?
+- In hindsight, that was a bold claim. Removed.
 
 Paragraph starting on line 142: This paragraph would likely fit better in Section 2.
+- Agreed. Moved and merged into the beginning paragraph of Section 2.
 
 Paragraph starting on line 152: It would be helpful for the manuscript to clarify/justify why a subset of the PHOENIX grid was used instead of the full grid. Arguably, using only models with [Fe/H] near solar implies that the models are not fully exploring the tool's ability to recover/describe this parameter.
+- Added "rectilinear", as well as a few sentences explaining why this is an important caveat. And yes, we explore less [Fe/H] than I'd like, this is more of a 2.5D situation rather than 3D in that sense.
 
 Table 1: This table should list the steps in each of the parameters so the reader understands the spacing of the grid (i.e. is it log spacing or linear, or linear with different sized spacing depending on location in the grid?).
+- Excellent point. I think I initially had this at some point and removed it because the table wasn't fitting in a single column. Although somehow I neglected the fact that I could have just made a full-width table. Which is now the case.
 
 Line 160: What is gollum? Should there be a reference here?
+- I mistakenly put the citation at the end of the sentence.
 
 Line 161: There is a reference to Shankar et al 2024, which I believe is the paper that I am currently reading. From searching ADS and arxiv, I cannot find another piece of work that this could be referring to. Looking at the Reference list, it appears the manuscript is citing itself (i.e. line 650), which is likely in error. Maybe this reference is talking about the zenodo DOI given on line 648, so the reference in the text should be updated.
+- This was a citation to gollum, unpublished at the time, which is now published in JOSS, on ADS, and has a proper citation.
 
 Figure 1: In the scipy panel, the word "line" is used instead of "Voigt profiles" which is used everywhere else in the figure. For clarification, the figure should specify that lines and Voigt profiles are the same thing or change to use only one name.
+- Good catch! Changed and updated.
 
 Line 166: "the according blackbody spectrum" should remove the word "according" or change it to "corresponding".
+- Changed to "corresponding".
 
 Lines 168-172: Why is the percentile normalization necessary? Both the blackbody division and continuum normalization work to flatten the synthetic spectra, and I don't see why dividing by the 99th percentile flux would do anything that the continuum normalization step isn't going to capture. In the original blase paper, there was no Percentile Normalization, so if this is a necessary new step in the methods, I think it should be explained.
 
 Paragraph after subsection 2.3: "rather than a array of fluxes" should be changed to "an array of fluxes".
+- Changed "a" to "an".
 
 Top left of page 4: "a learning rate of 0.05 over 100 epochs" It would be helpful to justify the choices of learning rate and number of epochs. From the original blase paper, 100 epochs is on the lowest end of what they recommend for the process, and that was when fitting 3 parameters (i.e. sigma, gamma, amplitude) instead of 4 (i.e. adding in line center) like in this work. The manuscript should justify this choice and potentially show that increasing the number of epochs does not yield any improvement.
 
 Top left of page 4: "In addition, we limited two custom parameters" What are the units of wing cut and prominence?
+- Wing cut is in pixels and prominence is in normalized flux counts. Added in parentheses.
 
 Top left of page 4: "so in our case we disregard lines that affect the spectrum by < 0.5%" What is meant by "affect the spectrum"? Is it that the lines have a smaller amplitude or equivalent width than the prominence? Clarification would be helpful.
 
