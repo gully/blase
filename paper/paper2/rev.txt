@@ -70,27 +70,34 @@ Paragraph after subsection 2.3: "rather than a array of fluxes" should be change
 - Changed "a" to "an".
 
 Top left of page 4: "a learning rate of 0.05 over 100 epochs" It would be helpful to justify the choices of learning rate and number of epochs. From the original blase paper, 100 epochs is on the lowest end of what they recommend for the process, and that was when fitting 3 parameters (i.e. sigma, gamma, amplitude) instead of 4 (i.e. adding in line center) like in this work. The manuscript should justify this choice and potentially show that increasing the number of epochs does not yield any improvement.
+- Added a sentence explaining this. In a nutshell, for a proof-of-concept paper, it's best not to overdo the computation and stick to the recommended minimum.
 
 Top left of page 4: "In addition, we limited two custom parameters" What are the units of wing cut and prominence?
 - Wing cut is in pixels and prominence is in normalized flux counts. Added in parentheses.
 
 Top left of page 4: "so in our case we disregard lines that affect the spectrum by < 0.5%" What is meant by "affect the spectrum"? Is it that the lines have a smaller amplitude or equivalent width than the prominence? Clarification would be helpful.
+- Specified that this is referring to amplitude.
 
 Line 191: "the list of identified lines, was saved" The comma after "lines" should be removed.
+- Comma removed.
 
 Line 195: The zenodo link should be included here again so that users can easily find the compressed library.
+- Agreed. Added a sentence for that.
 
 Line 210: The manuscript needs to spend more time describing how the identified features (of varying wavelength) are grouped together as unique lines because this seems non-trivial. For example, how much are the pre-optimized line locations allowed to be different for them to still be classified as the same unique line? Can this process be confused by features that have similar wavelengths but come from different chemical species (ie are some of the unique lines actually produced by multiple sources)? Is there a possibility of lines being incorrectly grouped together?
 
 Line 220: "sport" is used again and should maybe be changed to "find".
+- Changed to "show".
 
 Line 222: There should be a larger description of Figure 2 in the text. Why are there some obvious outlier regions in this figure (e.g. T=7000, logg = 6)? What is leading to this dramatic change in counts in this cell but not its neighbors?
 
 Figure 2: Good choice on the colormaps for these figures! These images are quite colorblind friendly!
+- Thank you!
 
 Figure 2: The figure caption could make it explicit that this only shows the results for [Fe/H] = 0 dex. Maybe this figure could be remade with a top panel showing [Fe/H] = 0.0 and a bottom panel showing [Fe/H] = -0.5 to show the reader how things look in all 3 dimensions of consideration.
 
 Line 223: "missing-lines phenomenon" This wording makes it seem like there are lines that should be detected that are being missed, though the later text clarifies that is not the only reason. Maybe change to "The number of detected lines change as a function of stellar parameter for different reasons".
+- Agree. Changed.
 
 Line 227: These "line-finding and line-associating algorithms" should be explained in detail because this is the first and only mention of them. If they are causing lines to be dropped, then it would be helpful to know the current methods. These descriptions should probably be included in the previous section.
 
@@ -101,10 +108,12 @@ Lines 236-238: The description of Figures 3 and 4 in the text should be expanded
 Figures 3 and 4: Why are the lorentzian width and line centers (e.g. line center offsets, mu'-mu) also not shown as heatmaps?
 
 Figure 3: "An unknown spectral line" in the figure caption is at odds with the title saying that this is a "C I Line at 11617.66 A". If it is that C I feature, the figure caption should include those line properties.
+- This is vestigial from a time before we identified the line with NIST. Fixed.
 
 Line 239: Is "128,723 individual spectral lines" the unique number of features after grouping them together, or the total number of detected features from all the spectra? What is the average number of detected feature per spectra (as well as the min and max)?
 
 Line 242: "every one must be interpolated" I would suggest that this wording be changed to something like "every one can be interpolated to link the relationship between line and stellar properties"
+- Wording changed to elaborate.
 
 Line 252: One of the goals of this work is to provide light-weight implementations of a spectral generator, but the 13.2GB of their interpolator is quite a bit larger than the original 8.1GB size of the PHOENIX grid of spectra used. For larger grids of input synthetic spectra, would the interpolator also continue to increase? The manuscript should clarify why this increase in disk space/RAM usage is beneficial versus using the synthetic spectra directly
 
@@ -124,22 +133,27 @@ line.set_linewidth(5.0)
 Figure 7: It would be helpful to show the result of directly interpolating the PHOENIX grid spectra to the Sun's parameters to have a better visual comparison between the generator (i.e. directly show that the generated spectrum is not simply a linear interpolation of fluxes). It would also be helpful to show an actual solar spectrum in this wavelength region to prove that the generated spectrum is closer to the truth.
 
 Subsection 4.1: This portion of text would fit better in the previous section describing the generator.
+- Subsection 4.1 is now section 3.3.
 
 Subsection 4.1: This text should reference what computer/architecture these timing tests are being run on. I see that Table 2 lists this information, but Table 2 is not referenced anywhere in the body of the text, and should likely be in this subsection. Similarly, is the GPU used in the parallelization, or is all the computation done on a CPU?
+- Added the specs of the computer that these tests were run on, as well as specified it does not currently use the GPU.
 
 Line 303: The discussion of Figure 8 should include some of its key results in the body of the text (e.g. the time to synthesize spectra, the speedup from parallelizing).
 
 Figure 8: As with Figure 7, it would be helpful for the legend lines to be thinker for ease of reading.
 
 Figure 8 caption: Suggest changing "Line chart" to "Plots". Also, "time taken per spectra" should be changed to "time taken per spectrum".
+- Changed.
 
 Line 304: These timing results should be compared to other spectral synthesis techniques. For example, Figure 11 and Section 4 of the KORG paper (https://ui.adsabs.harvard.edu/abs/2023AJ....165...68W/abstract) shows benchmarks with classical synthesis codes.
 
 Line 296: "RegularGridInterpolator API" should say that this is a component of scipy.
+- Added.
 
 Either at beginning of Section 4 or Subsection 4.2, the manuscript should state what the goals of the inference algorithm is.
 
 Equation 4: There is an extra ^\circ symbol in the exponent.
+- Removed.
 
 Lines 306-307: "100 random evaluations to seed the surrogate model" This needs to be explained more in the text. What do random evaluations mean in this context? What is the surrogate model? This is the first time these terms are used.
 
@@ -154,6 +168,7 @@ Lines 319-322: "this may seem circular, as the PHOENIX generator has memorized t
 Lines 322-330: These few sentences need clarification. Is it saying that because the surrogate model is not started at the exact grid points of the synthetic spectra, everything should be okay? If this is true, then would a user choosing to start their search using a grid cause the analysis tool to fail? How are the "random continuously sampled generator evaluations" defined?
 
 Line 334: "ancillary data prior to even looking at the spectra" consider adding ", such as photometric color"
+- Added.
 
 Line 340: 54 inferences seem like an extremely limited amount of testing. It would greatly improve the manuscript to significantly increase the number of these tests, considering there are a possible ~1300 synthetic spectra available for comparisons.
 
@@ -169,18 +184,23 @@ Line 361: "We balance rigidity and flexibility where we want them while maintain
 Line 368-372: "introduce the concept of postulating" This sentence makes it seem like this work is the first to use precomputed model spectra to build a generator for use in inference, but this is not the case. It should be reworded to avoid this claim.
 
 Line 385: What is meant by "pathfinder"?
+- Not actually sure. Removed.
 
 Line 386: As discussed in the KORG paper, autodifferentiable spectral synthesis codes are now available.
 
 Line 428: Sonora has no associated references while ATLAS and coolTLUSTY do.
+- Fixed.
 
 Lines 432-437: The wording of this sentence makes it seem like this manuscript is asking the blase developers to implement these new features (I do understand that this includes the coauthors on this work). Changing it to "Future versions of the blase pipeline will implement these features" make it clear that these are plans that the team is working on for the future instead of desires that someone would someday implement this.
+- Changed.
 
 Line 447: Please give some examples of what the "more advanced methods" might be.
 
 Line 501 & 503: "continua" is the plural of "continuum".
+- Fixed.
 
 Line 521: Suggest changing to "uses GP minimization to infer stellar parameters."
+- Changed.
 
 Line 523: The PHOENIX subset should be restated here (i.e. the range of stellar parameters). This sentence should also reference blase and that fact that synthetic spectra are turned into lists of lines and associated properties.
 
