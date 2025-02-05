@@ -5,6 +5,7 @@ Lines 11 and 13: Should references be included in the abstract? Maybe just say "
 - Fixed, citations removed.
 
 Line 12: The grid of stellar parameters considered for this work should be included in the abstract.
+- Included.
 
 Line 15: "sporting"? Should this be "supporting" or "boasting" instead?
 - Changed "sporting" to "enabling".
@@ -21,10 +22,13 @@ Lines 39-41: The wording makes it seem like there aren't currently other pipelin
 - Changed the wording to emphasize our addition of interpretability, as well as cited KORG as an existing, effective pipeline.
 
 Lines 51-54: Give some examples of ways in which physical inputs are imperfect and simplifying assumptions are inexact (eg unknown physics, non-LTE effects, spherical symmetry).
+- Added.
 
 Line 55: Foundation models in astronomy are still new, but they are being explored (e.g. Leung+2024: https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.1494L/abstract), so these examples should be included and discussed.
+- Added two examples of studies regarding foundational models for spectroscopy.
 
 Lines 56-61: Can the work also give some examples and references that fall into either of the two approaches listed? Also, there are pipelines that use a combination of physics models and data-driven approaches (e.g. https://ui.adsabs.harvard.edu/abs/2019MNRAS.483.3255L/abstract ) that should be included in the references.
+- Added examples of model driven, data driven, and hybrid approaches.
 
 Line 79: Change this list of references to start with "e.g." and it would be helpful for the references to specifically say which surveys/analysis tools they belong to.
 
@@ -195,6 +199,7 @@ Lines 432-437: The wording of this sentence makes it seem like this manuscript i
 - Changed.
 
 Line 447: Please give some examples of what the "more advanced methods" might be.
+- Changed to say "more generalizable" and added lasso and ridge regression as quick examples.
 
 Line 501 & 503: "continua" is the plural of "continuum".
 - Fixed.

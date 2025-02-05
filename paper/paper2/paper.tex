@@ -22,13 +22,13 @@
 
 \begin{abstract}
     The advent of machine learning (ML) is revolutionary to numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference, as ML is expected to be more powerful than traditional techniques.
-    Here we introduce a hybrid ML (HML) method that combines automatic differentiation (autodiff), interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
-    The stellar parameters we study are $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method has potential for extension to other properties such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
-    We first use \texttt{blase}'s nontraditional semi-empirical approach to treating spectra as sets of tunable spectral lines.
-    \texttt{blase} is used on 1,314 spectra from the PHOENIX synthetic spectral model grid, identifying 128,723 spectral lines.
-    For each of these lines, we continuously map stellar parameters to spectral line parameters using regular grid linear interpolation.
-    These manifolds are aggregated to create the PHOENIX generator, \textbf{enabling} parallelized reconstruction of spectra given continuously valued stellar parameters.
-    Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square (RMS) loss between the input spectrum and PHOENIX generator spectra.
+    Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
+    We study $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method \textbf{could be extended} to other \textbf{parameters} such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
+    We first use \texttt{blase}'s nontraditional semi-empirical approach, \textbf{recasting} spectra \textbf{into} sets of tunable spectral lines.
+    \texttt{blase} is \textbf{run} on 1,314 spectra from \textbf{a rectilinear subset of} the PHOENIX synthetic spectral model grid \textbf{([Fe/H]: [-0.5, 0] dex, $T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6])}.
+    For each of the \textbf{128,723} lines, we continuously map stellar parameters to spectral line parameters using regular grid linear interpolation.
+    These manifolds are aggregated to create the PHOENIX generator, \textbf{enabling} parallelized reconstruction of spectra given stellar parameters.
+    Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square (RMS) loss between input and PHOENIX generator spectra.
     From testing, the inference error in $T_{\mathrm{eff}}$ was 185 K, $\log(g)$ was 0.19, and [Fe/H] was 0.12 dex.
     Our products are an archive of the \texttt{blase} \textbf{models} of the PHOENIX subset, as well as the spectral reconstruction and inference algorithms themselves.
     This study is a proof of concept showing that semi-empirical HML is a viable alternative to traditional approaches.
@@ -45,10 +45,11 @@ Modern astronomical spectroscopy \textbf{takes advantage of intuitive, performan
 The determination of fundamental properties, the creation of Extreme Precision Radial Velocity (EPRV) templates, and the application of composite spectral fitting could all leverage such an innovation.
 This ambitious aim may be broadly referred to as a ``foundational spectroscopy model for astrophysics'', in reference to the same category of models used for large language models (LLMs) in artificial intelligence (AI).
 There are many challenges with creating such a foundational spectral model for astrophysics.
-First, we know our physical inputs into the spectral modeling process are imperfect.
-Second, simplifying assumptions in stellar (and substellar) atmospheres are necessarily inexact.
-Ultimately computational costs have prevented the training of such models.
-Most prevailing solutions have therefore had to choose either a model driven approach, in which the precomputed models are taken as gospel, or a data driven/empirical approach, in which our knowledge of stellar physics is ignored or treated phenomenologically, depending on the application.
+Physical inputs into the spectral modeling process are imperfect\textbf{, and} simplifying assumptions in stellar (and substellar) atmospheres are necessarily inexact \textbf{due to factors such as asymmetries and unknown physics}.
+Computational costs \textbf{make} the training of such models \textbf{challenging; however, advances have been made with attention-based \citep{foundation_attention} and transformer-based \citep{foundation_transformer} models, among others}.
+Most prevailing solutions have had to choose either a model driven approach \textbf{(such as this work)}, in which precomputed models are taken as gospel, or a data driven/empirical approach \textbf{(such as Lux \citep{lux})}, in which our knowledge of stellar physics is ignored or treated phenomenologically, depending on the application.
+\textbf{Hybrid solutions exist and have been implemented, such as those presented in \citealt{leung2019} and \citealt{rains2024}.
+Although a lingering challenge is always how to ideally balance the fusion of model driven and data driven paradigms.}
 
 Spectroscopic surveys such as APOGEE \textbf{\citep{APOGEE}} use their own in-house pipelines to extract stellar parameters from spectra (ASPCAP \textbf{\citep{ASPCAP}} in the case of APOGEE), and these pipelines appear effective.
 The core assumption for the vast majority of pipelines is that the data to be analyzed is a list of pixels.
@@ -266,7 +267,18 @@ Second, for an array of multiple inputs, which would be relevant in parallel app
 \textbf{\texttt{scipy}'s} \texttt{RegularGridInterpolator} API allows for the passing in of an entire array of input coordinates to be evaluated at once.
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless.
 Performance results are shown in \autoref{fig:figure8}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
-\textbf{The computer used for this test was a desktop with an AMD Ryzen 9 7950X3D and 32 GB of RAM (spectral reconstruction does not currently leverage the GPU).}
+\textbf{The computer used for this test has the following specifications (note that spectral reconstruction does not currently leverage the GPU):}
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ll}
+        \hline
+        CPU & AMD EPYC 7513 (32c/64t, 3.65 GHz boost)\\
+        RAM & 256 GB\\
+        GPU & Nvidia A100 40GB ($\times$2)\\
+        \hline
+    \end{tabular}
+    \caption{This machine was used for all computations, but not for generating visualizations.}
+\end{table}
 
 \begin{figure}[t!]
     \centering
@@ -342,7 +354,7 @@ These include but are not limited to the following:
     \item \textit{Memorization vs.\ Generalization}: The current design of the algorithm constructs manifolds using interpolation.
     This means that performance is good at points close to PHOENIX subset grid points, but is highly dependent on the type of interpolation used.
     As interpolators require memorization of the data, advanced interpolation becomes extremely expensive in terms of disk utilization.
-    Future work would involve constructing manifolds using more advanced methods, which would allow for much better generalization, high speed, and lower disk utilization at the expense of some accuracy.
+    Future work would involve constructing manifolds using \textbf{more generalizable ML} methods \textbf{such as lasso or ridge regression}, which would allow for much better generalization, high speed, and lower disk utilization at the expense of some accuracy.
     \item \textit{Extrinsic Absence}: The current design of our algorithm does not account for extrinsic parameters that modify the appearance of spectra such as rotational broadening and Doppler shifting.
     Future work would need to develop ways to tune these extrinsic parameters alongside stellar parameters, enabling users to optimize these frequently-observed extrinsic parameters on top of the base stellar parameters.
     \item \textit{Framework Overhead}: As this algorithm is currently more proof of concept than practical, it uses convenience functions from various libraries, which naturally introduces some level of overhead and leaves performance on the table.
@@ -364,18 +376,6 @@ These include but are not limited to the following:
     Future studies need to account for more advanced spectral line profiles and procedures to deal with phenomena such as ro-vibrational bands.
     This would increase accuracy for end users.
 \end{enumerate}
-The computer used for this study, Triton, has the following specifications:
-\begin{table}[h!]
-    \centering
-    \begin{tabular}{ll}
-        \hline
-        CPU & AMD EPYC 7513\\
-        RAM & 256 GB\\
-        GPU & Nvidia A100 40GB ($\times$2)\\
-        \hline
-    \end{tabular}
-    \caption{This machine was used for all computations, but not for generating visualizations. The EPYC 7513 is a 32c/64t CPU with a boost clock of 3.65 GHz. The A100 has 6912 CUDA cores.}
-\end{table}
 
 \section{Conclusion}
 In this study, we have presented a proof-of-concept algorithm that interpolates a subset of the PHOENIX spectral model grid and then uses GP minimization \textbf{to infer stellar paremeters}.
