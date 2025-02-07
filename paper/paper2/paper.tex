@@ -57,7 +57,7 @@ Analysis pipelines may be closed-source or limited to the scope of the survey it
 This motivates the development of more universal, instrument-agnostic open-source frameworks that can apply broadly to a range of spectral observations with relatively little tuning.
 
 Multiple efforts have been made in this direction, treating spectra in different ways.
-The standard practice is to treat the wavelength and flux as simply two arrays and use bespoke algorithms tailored to a small number of well-calibrated spectral lines to obtain fundamental stellar parameters and chemical compositions \citep{pipeline1, pipeline2}.
+The standard practice is to treat the wavelength and flux as simply two arrays and use bespoke algorithms tailored to a small number of well-calibrated spectral lines to obtain fundamental stellar parameters and chemical compositions \textbf{(e.g. the IGRINS YSO Survey \citep{pipeline1} and the IRTF Spectral Library \citep{pipeline2})}.
 Other whole-spectrum fitting abstractions decompose model spectra into an eigenbasis, implementing the data-model comparison stage as a tractable regression, such as \texttt{starfish} \citep{starfish}.
 
 Ideally, we want a system that can self-consistently learn, a genuine AI foundational spectral model.
@@ -176,6 +176,12 @@ As previously mentioned, \texttt{blase} tunes the line centers of detected lines
 This means that from one PHOENIX spectrum to the next, the same line could have a slightly different line center.
 Since the goal of this study is to interpolate the properties of each line, we needed to identify the presence of a particular line across the PHOENIX subset, associating the same line with every occurrence.
 We decided to do this by using the line centers $\mu$ of the detected lines pre-optimization.
+
+\textbf{Pre-optimized line centers were required to be equal in order to group lines together.
+The values of $\mu$ pre-optimization are recorded by \texttt{blase} to 0.01 \AA (picometer) precision; if they instead used the full available floating point precision, this method would likely detect singular (ungroupable) instances of spectral lines across the grid, completely negating the premise of this study.
+Of course, this method can be confused by species that produce spectral lines at very close wavelengths and other confounding factors, likely resulting in some false positives and negatives.
+However, we deem it sufficient to approximate this way, as a proper treatment would be time-consuming and computationally expensive.}
+
 Now with each spectral line indexed by $\mu$, we had four parameters to interpolate: $\mu'$, $\ln(a)$, $\sigma$, and $\gamma$.
 Note that since we are dealing with the parameters of Voigt profiles, we can see in \autoref{eq:equation2} that even if the interpolation method is linear, a final spectral reconstruction will vary nonlinearly in flux.
 
@@ -184,15 +190,17 @@ In \autoref{fig:figure2}, we show that different grid points \textbf{show} diffe
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure2}
-    \caption{Number of detected spectral lines at each grid point of a slice of the PHOENIX subset at solar metallicity.
+    \caption{Number of detected spectral lines at each grid point of the PHOENIX subset.
     We can see that the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
-    Also note that from $T_{\mathrm{eff}} = 7000$ K onward, PHOENIX's sampling increment changes from 100 K to 200 K.}
+    \textbf{Remember} that from $T_{\mathrm{eff}} = 7000$ K onward, PHOENIX's sampling increment changes from 100 K to 200 K.
+    \textbf{Due to some combination of computational artifacts from our line identification assumptions or innate behavior of PHOENIX grid spectra themselves, outliers such as the obvious one here at $T_{\mathrm{eff}} = 7000$ K and $\log(g) = 6$ appear.
+    Further exploration into why this happens is not in the scope of this study; for inference we are concerned with the lines themselves, not overall grid point behavior.}}
     \label{fig:figure2}
 \end{figure*}
 
 Th\textbf{e number of detected spectral lines changes as a function of stellar parameter} for different reasons.
 Perhaps for astrophysical reasons: stellar atmospheres genuinely do not produce that line at detectable strength at the given temperature and surface gravity.
-Or alternatively, our line-finding and line-association algorithms missed it.
+Alternatively, \textbf{\texttt{blase}'s fitting or our line identification assumptions led to artifacts}.
 Whatever the cause, these missing lines have immediate practical consequences.
 Rectilinear interpolation schemes break in regions where a line does not appear; you can't interpolate a quantity that simply doesn't exist.
 
@@ -220,9 +228,11 @@ Every one of these lines can be visualized as a manifold mapping a 3D stellar pa
 For each line, the inputs to the interpolator were the three input parameters $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], and the output was a list of four parameters, $\mu'$, $\ln(a)$, $\sigma$, and $\gamma$.
 For each line, one of these interpolator objects was created using linear interpolation, and these interpolators were aggregated into a single list, which was then written to disk in the \texttt{.pkl} file storage format.
 These interpolators generate multiple manifolds representing the following mapping:
+\begin{linenomath*}
 \begin{gather}
     \mqty[T_{\mathrm{eff}} \\ \log(g) \\ \mathrm{[Fe/H]}] \rightarrow \mqty[\mu' \\ \ln(a) \\ \sigma \\ \gamma]
 \end{gather}
+\end{linenomath*}
 These interpolators could now be evaluated at any point lying within the domain of the PHOENIX subset, turning a discretely sampled PHOENIX subset into a continuously evaluable function, sometimes called a spectral emulator.
 With the given size of the PHOENIX subset, the interpolator list takes up 13.2 GB of disk space.
 This evaluation is able to reconstruct an existing PHOENIX spectrum or alternatively interpolate a new spectrum within the domain of the PHOENIX subset, so we call this the PHOENIX generator.

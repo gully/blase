@@ -31,6 +31,7 @@ Lines 56-61: Can the work also give some examples and references that fall into 
 - Added examples of model driven, data driven, and hybrid approaches.
 
 Line 79: Change this list of references to start with "e.g." and it would be helpful for the references to specifically say which surveys/analysis tools they belong to.
+- Added more specificity to these and used "e.g.".
 
 Line 95: "blase" is not in \texttt{} form like it is in other parts of the paper. There are a few other times throughout the manuscript where programs are also not correctly inside of \texttt (e.g. lines 125 and 126 with PyTorch and JAX).
 - Fixed the mistake.
@@ -89,21 +90,25 @@ Line 195: The zenodo link should be included here again so that users can easily
 - Agreed. Added a sentence for that.
 
 Line 210: The manuscript needs to spend more time describing how the identified features (of varying wavelength) are grouped together as unique lines because this seems non-trivial. For example, how much are the pre-optimized line locations allowed to be different for them to still be classified as the same unique line? Can this process be confused by features that have similar wavelengths but come from different chemical species (ie are some of the unique lines actually produced by multiple sources)? Is there a possibility of lines being incorrectly grouped together?
+- The pre-optimized line centers must be identical to be grouped. This process can be confused by species that happen to produce lines that fall at the same pre-optimized line center. There is, as with any classification problem, most certainly a possibility for false positives and false negatives. A new paragraph making this process clearer has been added.
 
 Line 220: "sport" is used again and should maybe be changed to "find".
 - Changed to "show".
 
 Line 222: There should be a larger description of Figure 2 in the text. Why are there some obvious outlier regions in this figure (e.g. T=7000, logg = 6)? What is leading to this dramatic change in counts in this cell but not its neighbors?
+- This is probably a combination of line indentification and PHOENIX itself changing something there, but the models are treated as gospel in this study, so we take it as it is. Added additional discussion of this in the figure caption.
 
 Figure 2: Good choice on the colormaps for these figures! These images are quite colorblind friendly!
 - Thank you!
 
 Figure 2: The figure caption could make it explicit that this only shows the results for [Fe/H] = 0 dex. Maybe this figure could be remade with a top panel showing [Fe/H] = 0.0 and a bottom panel showing [Fe/H] = -0.5 to show the reader how things look in all 3 dimensions of consideration.
+- The old figure caption did say the slice was taken at solar metallicity, however I do agree that seeing the whole PHOENIX subset would be ideal anyhow. Added a second chart.
 
 Line 223: "missing-lines phenomenon" This wording makes it seem like there are lines that should be detected that are being missed, though the later text clarifies that is not the only reason. Maybe change to "The number of detected lines change as a function of stellar parameter for different reasons".
 - Agree. Changed.
 
 Line 227: These "line-finding and line-associating algorithms" should be explained in detail because this is the first and only mention of them. If they are causing lines to be dropped, then it would be helpful to know the current methods. These descriptions should probably be included in the previous section.
+- This had misleading wording, it was referring to blase's line profile tuning and this work's line identification by pre-optimization line center, which have already been discussed. Fixed to be more clear to the reader.
 
 Lines 233-235: I agree that using log-amplitude of -1000 for the non-detected lines is probably a good choice, but that seems like a bad decision for lines that were missed because they are missed by the algorithm (i.e. the line is real, but the code messed up) because giving log-amplitude=-1000 to real-but-ignored lines has large consequences for a linear interpolator. The manuscript should quantify the differences between the "too weak to measure" and "algorithm missed a feature" cases. Potentially, this belongs in an appendix where some synthetic spectra are generated using your line lists but with varying amplitudes to assess how often the features are not detected because they are weak versus how often they are ignored by accident. Similarly, this paragraph only describes what log-amplitude is given to non-detected lines, but does not describe what the other parameters (i.e. line center, gaussian and lorentzian widths) are set to for these missing lines, which will also be needed for filling in these holes in the interpolation.
 
