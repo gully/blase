@@ -277,7 +277,7 @@ Second, for an array of multiple inputs, which would be relevant in parallel app
 \textbf{\texttt{scipy}'s} \texttt{RegularGridInterpolator} API allows for the passing in of an entire array of input coordinates to be evaluated at once.
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless.
 Performance results are shown in \autoref{fig:figure8}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
-\textbf{The computer used for this test has the following specifications (note that spectral reconstruction does not currently leverage the GPU):}
+\textbf{The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
 \begin{table}[h!]
     \centering
     \begin{tabular}{ll}
@@ -287,7 +287,8 @@ Performance results are shown in \autoref{fig:figure8}, and we can see that the 
         GPU & Nvidia A100 40GB ($\times$2)\\
         \hline
     \end{tabular}
-    \caption{This machine was used for all computations, but not for generating visualizations.}
+    \caption{\textbf{Specifications of the} machine used for computations, but not for generating visualizations.}
+    \label{tab:table2}
 \end{table}
 
 \begin{figure}[t!]
