@@ -115,22 +115,28 @@ Lines 233-235: I agree that using log-amplitude of -1000 for the non-detected li
 Lines 236-238: The description of Figures 3 and 4 in the text should be expanded upon. For example, the text should mention that we are looking at the features detected for two different lines produced by different chemical species. It should also describe what the figures are showing (i.e. "Figures 3 and 4 show heatmaps of the blase-measured line parameters as a function of Teff and logg"). It would also be helpful to include a description of the reason for the hole at the top of Figure 3. Are these lines truly so weak they can't be detected, or were they missed by the algorithm? In the latter case, filling these points in with ln-a=-1000 would be a poor choice. By eye, I would guess that there should be real detected lines here with log amplitudes near -5.5, so it would be helpful to explain why this is not necessarily the case.
 
 Figures 3 and 4: Why are the lorentzian width and line centers (e.g. line center offsets, mu'-mu) also not shown as heatmaps?
+- I was worried about either a 4x1 ridiculously tall figure or a 2x2 unreadable figure. I decided to tweak global aspect resolution for square heatmap cells and go with 4x1. Looks better now!
 
 Figure 3: "An unknown spectral line" in the figure caption is at odds with the title saying that this is a "C I Line at 11617.66 A". If it is that C I feature, the figure caption should include those line properties.
 - This is vestigial from a time before we identified the line with NIST. Fixed.
 
 Line 239: Is "128,723 individual spectral lines" the unique number of features after grouping them together, or the total number of detected features from all the spectra? What is the average number of detected feature per spectra (as well as the min and max)?
+- It is the unique number of features after grouping them together by line center mu. Clarified this and added average, min, and max values for detected line count.
 
 Line 242: "every one must be interpolated" I would suggest that this wording be changed to something like "every one can be interpolated to link the relationship between line and stellar properties"
 - Wording changed to elaborate.
 
 Line 252: One of the goals of this work is to provide light-weight implementations of a spectral generator, but the 13.2GB of their interpolator is quite a bit larger than the original 8.1GB size of the PHOENIX grid of spectra used. For larger grids of input synthetic spectra, would the interpolator also continue to increase? The manuscript should clarify why this increase in disk space/RAM usage is beneficial versus using the synthetic spectra directly
+- The archive that users download from Zenodo is ~20x smaller than the PHOENIX subset (and with those native PHOENIX download times, that's the real benefit); users would locally build the PHOENIX generator with our code. This still does admittedly take up a lot of space, although given that we're working with interpolator function objects and using pickle to store them, this isn't all that surprising. Future work will definitely reduce this, but with overhead from the current implementation, this is the best we can do. This is why we don't put the generator itself on Zenodo, because we believe it works for now as proof-of-concept, but unlike the state dictionaries, doesn't represent enough of an efficiency bump to be put up on Zenodo as an official research product.
 
 Lines 256-260: Are Figures 5 and 6 necessary to show? They simply show the results of linearly interpolating Figures 3 and 4, which the average reader is likely able to imagine in their head.
+- Less quanta is good, I suppose.
 
 Figure 5: Caption should include reference to the fact that this should be compared to Figure 3. Same with Figures 6 and 4.
+- No longer an issue.
 
 Line 279: Figure 7 should have a larger description in the text (i.e. solar spectrum around an Fe feature comparing the nearest PHOENIX spectra to the generated one).
+- Added a bit more.
 
 Figure 7: Why is this spectral line chosen to be different from the lines highlighted in Figures 3 and 4? Could there be more panels showing other wavelength region comparisons with the features in Figures 3 and 4?
 
@@ -138,6 +144,7 @@ Figure 7: The figure caption and lines themselves could be clearer about which l
 leg = plt.legend()
 for line in leg.get_lines():
 line.set_linewidth(5.0)
+- Changed the solar reconstruction to be a dotted line, tweaked the color scheme to be colorblind friendly, and added bits in the caption.
 
 Figure 7: It would be helpful to show the result of directly interpolating the PHOENIX grid spectra to the Sun's parameters to have a better visual comparison between the generator (i.e. directly show that the generated spectrum is not simply a linear interpolation of fluxes). It would also be helpful to show an actual solar spectrum in this wavelength region to prove that the generated spectrum is closer to the truth.
 
