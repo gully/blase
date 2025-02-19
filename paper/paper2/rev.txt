@@ -155,8 +155,10 @@ Subsection 4.1: This text should reference what computer/architecture these timi
 - Added the specs of the computer that these tests were run on, as well as specified it does not currently use the GPU.
 
 Line 303: The discussion of Figure 8 should include some of its key results in the body of the text (e.g. the time to synthesize spectra, the speedup from parallelizing).
+- Added some important takeaways about the benefits of pseudo-parallel reconstruction in the main text.
 
 Figure 8: As with Figure 7, it would be helpful for the legend lines to be thinker for ease of reading.
+- Made lines thicker to be easier to see.
 
 Figure 8 caption: Suggest changing "Line chart" to "Plots". Also, "time taken per spectra" should be changed to "time taken per spectrum".
 - Changed.
@@ -167,6 +169,7 @@ Line 296: "RegularGridInterpolator API" should say that this is a component of s
 - Added.
 
 Either at beginning of Section 4 or Subsection 4.2, the manuscript should state what the goals of the inference algorithm is.
+- Added a sentence stating this at the beginning of Section 4.
 
 Equation 4: There is an extra ^\circ symbol in the exponent.
 - Removed.

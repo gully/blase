@@ -266,7 +266,9 @@ Second, for an array of multiple inputs, which would be relevant in parallel app
 \textbf{\texttt{scipy}'s} \texttt{RegularGridInterpolator} API allows for the passing in of an entire array of input coordinates to be evaluated at once.
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless.
 Performance results are shown in \autoref{fig:figure6}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
-\textbf{The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
+\textbf{While the generator takes around 15 seconds per spectrum serially, this drops to 1 second per spectrum as soon as 30 reconstructions.
+The speedup factor between the two methods increases as more spectra are generated, reaching a factor of 20 at 60 reconstructions.
+The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
 \begin{table}[h!]
     \centering
     \begin{tabular}{ll}
@@ -293,7 +295,8 @@ Performance results are shown in \autoref{fig:figure6}, and we can see that the 
 \label{sec:section4}
 
 \subsection{Inference Algorithm}
-We elected to use Bayesian optimization as the inference algorithm, specifically the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library \citep{skopt}.
+\textbf{The goals of this study's inference algorithm are to infer the stellar parameters $T_\text{eff}$, $\log(g)$, and [Fe/H] by comparing a spectrum with our reconstructions and solving the optimization problem.}
+We elected to use Bayesian optimization \textbf{for this component}, specifically the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library \citep{skopt}.
 This algorithm uses a Gaussian Process to model the objective function, which in this case was the RMS (Root-Mean-Square) loss between the interpolated spectrum $\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
 \begin{linenomath*}
 \begin{gather}
@@ -301,6 +304,10 @@ This algorithm uses a Gaussian Process to model the objective function, which in
 \end{gather}
 \end{linenomath*}
 The optimizer was configured to first run 100 random evaluations to seed the surrogate model, then run 20 more evaluations now guided by the surrogate model.
+\textbf{A random evaluation is simply a randomly generated tuple of stellar parameters within the parameter space of the PHOENIX generator, which is then evaluated with the generator to get a reconstruction and then compared with the inference target to retrieve its RMS error.
+The surrogate model is the approximation to the true objective function that the optimizer constructs based on the set of random evaluations (in this case defined by a set of 100 points rather than a fully continuous, infinitely resolved function)
+Guided evaluations are different, they are not randomly generated tuples of stellar parameters.
+They use the surrogate model in order to select new test points for the minimum of the objective function.}
 This totals to 120 evaluations, a large sample to create a fairly detailed surrogate model, then a moderately precise guided evaluation phase, which was deemed sufficient for this study.
 Fine-tuning these numbers is possible, but simply not warranted for a proof-of concept method.
 One inference run takes on average just under 7.5 minutes to complete.
