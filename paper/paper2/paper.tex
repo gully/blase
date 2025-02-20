@@ -308,8 +308,9 @@ The optimizer was configured to first run 100 random evaluations to seed the sur
 The surrogate model is the approximation to the true objective function that the optimizer constructs based on the set of random evaluations (in this case defined by a set of 100 points rather than a fully continuous, infinitely resolved function)
 Guided evaluations are different, they are not randomly generated tuples of stellar parameters.
 They use the surrogate model in order to select new test points for the minimum of the objective function.}
-This totals to 120 evaluations, a large sample to create a fairly detailed surrogate model, then a moderately precise guided evaluation phase, which was deemed sufficient for this study.
+This totals to 120 evaluations, \textbf{100} to create \textbf{the} surrogate model, then \textbf{20} guided evaluation\textbf{s}, which was deemed sufficient for this study.
 Fine-tuning these numbers is possible, but simply not warranted for a proof-of concept method.
+\textbf{Tweaking these numbers could lead to a more accurate inference, however it would incur additional computational cost as well.}
 One inference run takes on average just under 7.5 minutes to complete.
 
 \subsection{Bayesian Optimizer Performance}

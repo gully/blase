@@ -175,10 +175,13 @@ Equation 4: There is an extra ^\circ symbol in the exponent.
 - Removed.
 
 Lines 306-307: "100 random evaluations to seed the surrogate model" This needs to be explained more in the text. What do random evaluations mean in this context? What is the surrogate model? This is the first time these terms are used.
+- Explained what random evaluations and a surrogate model are.
 
 Line 311: Similarly, what is meant by a "moderately guided evaluation phase"? What has changed between the 100 initial evaluations and the 20 additional evaluations?
+- Explained this as well.
 
 Line 312: While I agree that fine tuning these numbers might not be needed for proof of concept, it would be helpful to describe to the reader what effects changing these numbers might have on the results.
+- Added a sentence explaining how this affects accuracy and runtime.
 
 Line 314: The 7.5 minutes per inference should be compared with the literature.
 
