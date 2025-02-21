@@ -186,8 +186,10 @@ Line 312: While I agree that fine tuning these numbers might not be needed for p
 Line 314: The 7.5 minutes per inference should be compared with the literature.
 
 Lines 319-322: "this may seem circular, as the PHOENIX generator has memorized the PHOENIX subset" This wording makes it seem like the PHOENIX generator has in fact memorized the spectra it was trained on. This sentence could be reworded to tell the reader that it may APPEAR that the generator has memorized the synthetic spectra, but this is not the case for a variety of reasons (e.g. approximating all lines as Voigt profiles, ignoring really weak features, etc.), so we do not expect perfect agreement between the generated spectra and the models.
+- Made this more clear, explaining why it's okay to use the PHOENIX subset itself to test the inference method.
 
 Lines 322-330: These few sentences need clarification. Is it saying that because the surrogate model is not started at the exact grid points of the synthetic spectra, everything should be okay? If this is true, then would a user choosing to start their search using a grid cause the analysis tool to fail? How are the "random continuously sampled generator evaluations" defined?
+- These sentences were just me trying to explain the GP minimizer way later than I should have, and they confuse the reader more than they explain anything. I just removed them. Nothing would fail in the event of a grid-based method; the past unclear wording may have made that seem to be the case.
 
 Line 334: "ancillary data prior to even looking at the spectra" consider adding ", such as photometric color"
 - Added.
@@ -202,13 +204,16 @@ Similarly, this paragraph/subsection needs to have corresponding figures for the
 Line 351: The output parameter uncertainties should be placed in the context of the other pipelines in the literature (e.g. the ASPCAP paper referenced in the introduction, MINESweeper https://ui.adsabs.harvard.edu/abs/2020ApJ...900...28C/abstract, the astroNN paper linked above). Many contemporary pipelines are able to recover uncertainties on the parameters listed here to about twice this work's precision, and that is when considering real data and covering a much larger region of parameter space, which should be addressed in the text.
 
 Line 361: "We balance rigidity and flexibility where we want them while maintaining interpretability" What is meant by the balance of rigidity and flexibility in the context of this work?
+- Clarified this. Rigidity in the feature form (Voigt profile) and flexibility in those profiles via their tuning (notably the line center, mentioned the sentence prior).
 
 Line 368-372: "introduce the concept of postulating" This sentence makes it seem like this work is the first to use precomputed model spectra to build a generator for use in inference, but this is not the case. It should be reworded to avoid this claim.
+- Agreed. Reworded.
 
 Line 385: What is meant by "pathfinder"?
 - Not actually sure. Removed.
 
 Line 386: As discussed in the KORG paper, autodifferentiable spectral synthesis codes are now available.
+- This was meant to refer to a future version of blase. Made this clearer.
 
 Line 428: Sonora has no associated references while ATLAS and coolTLUSTY do.
 - Fixed.
@@ -226,5 +231,6 @@ Line 521: Suggest changing to "uses GP minimization to infer stellar parameters.
 - Changed.
 
 Line 523: The PHOENIX subset should be restated here (i.e. the range of stellar parameters). This sentence should also reference blase and that fact that synthetic spectra are turned into lists of lines and associated properties.
+- Added the extent of the PHOENIX subset, and gave more detail into blase's role.
 
 Line 527: As in the abstract, the conclusion should explain the scope of the tests performed. That is, state that 54 tests were done and the range of stellar parameters tested to yield these results.
