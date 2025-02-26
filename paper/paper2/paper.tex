@@ -117,20 +117,18 @@ Future versions with more advanced models will be able to bypass the limitation 
 \end{table*}
 
 \subsection{Preprocessing with \texttt{gollum}}
-First, the PHOENIX subset was programmatically retrieved with \texttt{gollum} \textbf{\citep{gollum}}, which downloaded \textbf{spectra} from the PHOENIX FTP server. The spectra were then put through a
-three-step preprocessing pipeline similar to that from \citealt{blase}.
+First, the PHOENIX subset was programmatically retrieved with \texttt{gollum} \textbf{\citep{gollum}}, which downloaded \textbf{spectra} from the PHOENIX FTP server. The spectra were then put through a \textbf{short} preprocessing pipeline similar to that from \citealt{blase}.
 \begin{enumerate}
     \item \textit{Blackbody Division}: Since the $T_{\mathrm{eff}}$ of each spectrum is known, the \textbf{corresponding} blackbody spectrum was divided out.
-    \item \textit{Percentile Normalization}: The spectra were normalized by dividing them by their 99th percentile in order to collapse the dynamic range of flux and only look at relative features.
     \item \textit{Continuum Normalization}: The spectra were further normalized by dividing them by a \nth{5} order polynomial continuum fit using a peak-finding filter in order to eliminate curvature that would inhibit line modeling.
 \end{enumerate}
 Mathematically, we can express the preprocessing as follows:
 \begin{linenomath*}
 \begin{gather}
-    \mathsf{\bar{S}} = \dfrac{\mathsf{S}}{\mathsf{B}\mathsf{Q}_5P_{99}}
+    \mathsf{\bar{S}} = \dfrac{\mathsf{S}}{\mathsf{B}\mathsf{Q}_5}
 \end{gather}
 \end{linenomath*}
-where $\mathsf{\bar{S}}$ is the preprocessed spectrum, $\mathsf{S}$ is the original spectrum,  $\mathsf{B}$ is the blackbody spectrum, $\mathsf{Q}_n$ is the $n^\mathrm{th}$ order polynomial continuum fit, and $P_n$ is the $n^\mathrm{th}$ percentile function.
+where $\mathsf{\bar{S}}$ is the preprocessed spectrum, $\mathsf{S}$ is the original spectrum,  $\mathsf{B}$ is the blackbody spectrum, \textbf{and} $\mathsf{Q}_n$ is the $n^\mathrm{th}$ order polynomial continuum fit.
 Arithmetic operations between arrays are assumed to be elementwise in all following notation.
 
 \subsection{Line Identification with \texttt{blase}}
@@ -205,7 +203,11 @@ Whatever the cause, these missing lines have immediate practical consequences.
 Rectilinear interpolation schemes break in regions where a line does not appear; you can't interpolate a quantity that simply doesn't exist.
 
 To solve this, we artificially populated missing grid points with log-amplitudes of -1000, which retained interpolator stability while nullifying the evaluated line.
-Examples of the appearance of missing sections in heatmaps where a line does not appear are shown in \autoref{fig:figure3} and \autoref{fig:figure4}.
+\textbf{To prove the feasibility of this computational trick, we can do a simple thought experiment.
+Moving 1 K in $T_\text{eff}$ away from a grid point on the boundary of detectability would reduce a line's amplitude by a factor of over 20,000 (or more precisely, $e^{10}$).
+This is an extremely large reduction for an extremely small deviation from a grid point, meaning that to any realistic precision, the line immediately vanishes as soon as \texttt{blase} no longer detects it.}
+
+Examples of the appearance of missing sections in heatmaps where a line does not appear \textbf{can be seen} in \autoref{fig:figure3} and \autoref{fig:figure4}\textbf{, which show heatmaps of the 11617.66\AA \ C I and the 10123.66\AA \ He II lines \citep{NIST} varying over a solar metallicity slice of the PHOENIX subset stellar parameter space}.
 Across the entire PHOENIX subset, \texttt{blase} detected 128,723 spectral lines \textbf{with unique $\mu$}.
 \textbf{On average, a PHOENIX spectrum has 9,167 detected spectral lines, with the minimum being 252 ($T_\text{eff}$ = 12,000, $\log(g)$ = 6, [Fe/H] = -0.5) and the maximum being 34,551 ($T_\text{eff}$ = 2,300, $\log(g)$ = 3, [Fe/H] = 0).}
 Every one of these lines can be visualized as a manifold mapping a 3D stellar parameter vector to a 4D spectral line parameter vector, and every one \textbf{was} interpolated \textbf{to map stellar parameters to spectral line properties}.
@@ -213,17 +215,18 @@ Every one of these lines can be visualized as a manifold mapping a 3D stellar pa
     \centering
     \includegraphics[width=\textwidth]{figure3}
     \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a \textbf{C I} spectral line.
-    Notice the missing chunk in the top left; \texttt{blase} did not detect a spectral line here, \textbf{so} we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.
+    Notice the missing chunk in the top left; \textbf{this could perhaps be due to the line center shifting to the point that \texttt{blase} identified the chunk as a different line entirely (notice the line center offset increasing in magnitude approaching the chunk border).}
+    \textbf{Since} \texttt{blase} did not detect a spectral line here, \textbf{so} we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.
     This and all spectral lines shown in this paper were identified using the NIST spectral line database \citep{NIST}.}
     \label{fig:figure3}
 \end{figure*}
-\begin{figure*}
+\begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{figure4}
+    \includegraphics[width=\columnwidth]{figure4}
     \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity of a He II spectral line.
-    We can see that \texttt{blase} detects this line at only a select chunk of grid points in PHOENIX, leading to the large amount of missing data for the line.}
+    \textbf{This plot is much smaller than \autoref{fig:figure3} because} \texttt{blase} detects this line at a select chunk of grid points, leading to \textbf{data only existing between $T_\text{eff}$ 3600 K and 6600 K}.}
     \label{fig:figure4}
-\end{figure*}
+\end{figure}
 
 \subsection{Continuously Evaluable Manifolds}
 For each line, the inputs to the interpolator were the three input parameters $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], and the output was a list of four parameters, $\mu'$, $\ln(a)$, $\sigma$, and $\gamma$.
