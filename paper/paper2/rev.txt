@@ -191,6 +191,7 @@ Line 312: While I agree that fine tuning these numbers might not be needed for p
 - Added a sentence explaining how this affects accuracy and runtime.
 
 Line 314: The 7.5 minutes per inference should be compared with the literature.
+- Time is now 200 seconds, much faster than statistical methods like starfish and MINESweeper, but slower than astroNN.
 
 Lines 319-322: "this may seem circular, as the PHOENIX generator has memorized the PHOENIX subset" This wording makes it seem like the PHOENIX generator has in fact memorized the spectra it was trained on. This sentence could be reworded to tell the reader that it may APPEAR that the generator has memorized the synthetic spectra, but this is not the case for a variety of reasons (e.g. approximating all lines as Voigt profiles, ignoring really weak features, etc.), so we do not expect perfect agreement between the generated spectra and the models.
 - Made this more clear, explaining why it's okay to use the PHOENIX subset itself to test the inference method.
@@ -202,12 +203,13 @@ Line 334: "ancillary data prior to even looking at the spectra" consider adding 
 - Added.
 
 Line 340: 54 inferences seem like an extremely limited amount of testing. It would greatly improve the manuscript to significantly increase the number of these tests, considering there are a possible ~1300 synthetic spectra available for comparisons.
-- Increased the number of test grid points to 210. With 2 passes, that makes 420.
+- Increased the number of test grid points to 210. With 2 test passes, that makes 420. Nearly an 8x increase in the number of inferences used for testing.
 
 Lines 345-351:
 These results do not explain what the mean/median of the residuals are for each parameter. Are they all close to 0 or is there some systematic bias present in some of the parameters?
 The size of the uncertainty on [Fe/H] is not that different from other pipelines that measure abundances (~0.1 dex), but the tests and the spectra grid in this work cover a very limited range of [Fe/H] values compared to those other tools. A 24% uncertainty in [Fe/H] from such idealized tests (ie perfect, noise-free synthetic spectra that were used to create the generator) is concerning for the proof that this technique could be useful in measuring abundances from real data. To address these concerns, the manuscript should consider expanding the PHOENIX grid used to include more grid points in the [Fe/H] dimension, as well as to compare the synthetic spectra after they have been degraded to differing signal-to-noise ratios to simulate comparisons with real data.
 Similarly, this paragraph/subsection needs to have corresponding figures for these tests, such as residual parameters as a function of Teff (and S/N if those tests are implemented) and residual histograms so the reader can see where these numbers came from.
+- Added a new figure exploring the residual variation over Teff. It interestingly splits our inference algorithm into high and low temperature regimes, where our method is more effective at low temperatures (presumably due to more spectral lines being detected). We did in the conclusion state that this method assumes very clean data without any confounding factors (noise obviously would throw off a naive RMSE loss function), but I made it more clear that we include noise in that condition along with RV, rotational broadening, and the rest.
 
 Line 351: The output parameter uncertainties should be placed in the context of the other pipelines in the literature (e.g. the ASPCAP paper referenced in the introduction, MINESweeper https://ui.adsabs.harvard.edu/abs/2020ApJ...900...28C/abstract, the astroNN paper linked above). Many contemporary pipelines are able to recover uncertainties on the parameters listed here to about twice this work's precision, and that is when considering real data and covering a much larger region of parameter space, which should be addressed in the text.
 

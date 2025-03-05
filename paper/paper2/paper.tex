@@ -21,17 +21,17 @@
 \shorttitle{HML for Stellar Parameter Inference}
 
 \begin{abstract}
-    The advent of machine learning (ML) is revolutionary to numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference, as ML is expected to be more powerful than traditional techniques.
-    Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
+    The advent of machine learning (ML) is revolutionary to numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference, as ML is more powerful than traditional techniques.
+    Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters \textbf{of} stellar spectra.
     We study $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method \textbf{could be extended} to other \textbf{parameters} such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
-    We first use \texttt{blase}'s nontraditional semi-empirical approach, \textbf{recasting} spectra \textbf{into} sets of tunable spectral lines.
-    \texttt{blase} is \textbf{run} on 1,314 spectra from \textbf{a rectilinear subset of} the PHOENIX synthetic spectral model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex, $\lambda$: [8038, 12849] \AA)}.
+    We first use \texttt{blase} \textbf{to} semi-empirical\textbf{ly recast} spectra \textbf{into} sets of \textbf{Voigt profiles}.
+    \texttt{blase} is \textbf{run} on 1,314 \textbf{synthetic} spectra from \textbf{a rectilinear subset of} the PHOENIX model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex, $\lambda$: [8038, 12849] \AA)}.
     For \textbf{128,723 detected features}, we map stellar parameters to spectral line parameters using linear interpolation.
-    These manifolds are aggregated to create the PHOENIX generator, \textbf{enabling} parallelized reconstruction of spectra given stellar parameters.
-    Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square loss between input and PHOENIX generator spectra.
-    \textbf{In} testing \textbf{210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex), we find inference errors of:} $T_{\mathrm{eff}}$\textbf{:} 185 K, $\log(g)$\textbf{:} 0.19, and [Fe/H]\textbf{:} 0.12 dex.
-    \textbf{We also publish online} an archive of the \texttt{blase} \textbf{models} of the PHOENIX subset.
-    This study is a proof of concept showing that semi-empirical HML is a viable alternative to traditional approaches.
+    \textbf{This} create\textbf{s} the PHOENIX generator, \textbf{enabling parallelized spectral synthesis}.
+    Gaussian Process minimization is used to infer stellar parameters by minimizing \textbf{a} root-mean-square loss \textbf{function}.
+    Testing \textbf{210 noise-free models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex), we find inference errors:} $T_{\mathrm{eff}}$\textbf{: 93 K, $\log(g)$: 0.24 dex, and [Fe/H]: 0.056 dex for $T_\text{eff}$ < 7000 K, and $T_{\mathrm{eff}}$: 347 K, $\log(g)$: 0.26 dex, and [Fe/H]: 0.16 dex for $T_\text{eff} \ge$ 7000 K}.
+    \textbf{We also upload online} an archive of \texttt{blase} \textbf{models} of the PHOENIX subset.
+    This proof-of-concept \textbf{study} shows that semi-empirical HML is a viable alternative to traditional approaches \textbf{in spectroscopic inference}.
 \end{abstract}
 
 \section{Introduction}
@@ -105,7 +105,7 @@ Future versions with more advanced models will be able to bypass the limitation 
         Alpha Element Abundance & $\alpha$ & [0] dex & \bf{N/A}\\
         Iron Abundance & [Fe/H] & [-0.5, 0] dex & \bf{0.5 dex}\\
         Effective Temperature & $T_{\mathrm{eff}}$ & [2300, 12000] K & \bf{100 K until 7000 K, then 200 K}\\
-        Surface Gravity & $\log(g)$ & [2, 6] & \bf{0.5} \\
+        Surface Gravity & $\log(g)$ & [2, 6] dex & \bf{0.5 dex} \\
         Wavelength & $\lambda$ & [8038, 12849] \AA & $\mathbf{R = 500,000}$\\
         \hline
     \end{tabular}
@@ -185,13 +185,14 @@ Note that since we are dealing with the parameters of Voigt profiles, we can see
 
 Spectral lines were often only detected in some spectra from the PHOENIX subset.
 In \autoref{fig:figure2}, we show that different grid points \textbf{show} differing counts of detected spectral lines.
+
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure2}
     \caption{Number of detected spectral lines at each grid point of the PHOENIX subset.
     We can see that the number of detected lines decreases with increasing $T_{\mathrm{eff}}$.
     \textbf{Remember} that from $T_{\mathrm{eff}} = 7000$ K onward, PHOENIX's sampling increment changes from 100 K to 200 K.
-    \textbf{Due to some combination of computational artifacts from our line identification assumptions or innate behavior of PHOENIX grid spectra themselves, outliers such as the obvious one here at $T_{\mathrm{eff}} = 7000$ K and $\log(g) = 6$ appear.
+    \textbf{Due to some combination of computational artifacts from our line identification assumptions or innate behavior of PHOENIX grid spectra themselves, outliers such as the obvious one here at $T_{\mathrm{eff}} = 7000$ K and $\log(g) = 6$ dex appear.
     Further exploration into why this happens is not in the scope of this study; for inference we are concerned with the lines themselves, not overall grid point behavior.}}
     \label{fig:figure2}
 \end{figure*}
@@ -207,24 +208,23 @@ To solve this, we artificially populated missing grid points with log-amplitudes
 Moving 1 K in $T_\text{eff}$ away from a grid point on the boundary of detectability would reduce a line's amplitude by a factor of over 20,000 (or more precisely, $e^{10}$).
 This is an extremely large reduction for an extremely small deviation from a grid point, meaning that to any realistic precision, the line immediately vanishes as soon as \texttt{blase} no longer detects it.}
 
-Examples of the appearance of missing sections in heatmaps where a line does not appear \textbf{can be seen} in \autoref{fig:figure3} and \autoref{fig:figure4}\textbf{, which show heatmaps of the 11617.66\AA \ C I and the 10123.66\AA \ He II lines \citep{NIST} varying over a solar metallicity slice of the PHOENIX subset stellar parameter space}.
+Examples of the appearance of missing sections in heatmaps where a line does not appear \textbf{can be seen} in \autoref{fig:figure3} and \autoref{fig:figure4}\textbf{, which show heatmaps of the 11617.66 \AA \ C I and the 10123.66 \AA \ He II lines (identified with NIST \citep{NIST}) varying over a solar metallicity slice of the PHOENIX subset stellar parameter space}.
 Across the entire PHOENIX subset, \texttt{blase} detected 128,723 spectral lines \textbf{with unique $\mu$}.
-\textbf{On average, a PHOENIX spectrum has 9,167 detected spectral lines, with the minimum being 252 ($T_\text{eff}$ = 12,000, $\log(g)$ = 6, [Fe/H] = -0.5) and the maximum being 34,551 ($T_\text{eff}$ = 2,300, $\log(g)$ = 3, [Fe/H] = 0).}
+\textbf{On average, a PHOENIX spectrum has 9,167 detected spectral lines, with the minimum being 252 ($T_\text{eff}$ = 12000 K, $\log(g)$ = 6 dex, [Fe/H] = -0.5 dex) and the maximum being 34,551 ($T_\text{eff}$ = 2300 K, $\log(g)$ = 3 dex, [Fe/H] = 0 dex).}
 Every one of these lines can be visualized as a manifold mapping a 3D stellar parameter vector to a 4D spectral line parameter vector, and every one \textbf{was} interpolated \textbf{to map stellar parameters to spectral line properties}.
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure3}
     \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a \textbf{C I} spectral line\textbf{, notable for being detected at nearly all subset grid points}.
     Notice the missing chunk in the top left; \textbf{this could perhaps be due to the line center shifting to the point that \texttt{blase} identified the chunk as a different line entirely (notice the line center offset increasing in magnitude approaching the chunk border).}
-    \textbf{Since} \texttt{blase} did not detect a spectral line here, we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.
-    This and all spectral lines shown in this paper were identified using the NIST spectral line database \citep{NIST}.}
+    \textbf{Since} \texttt{blase} did not detect a spectral line here, we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.}
     \label{fig:figure3}
 \end{figure*}
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{figure4}
     \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a He II spectral line.
-    \textbf{This plot is much smaller than \autoref{fig:figure3} because} \texttt{blase} detects this line at a select chunk of grid points, leading to \textbf{data only existing between $T_\text{eff}$ 3600 K and 6600 K}.}
+    \texttt{blase} detects this line at a select chunk of grid points, leading to \textbf{data only existing between $T_\text{eff}$ 3600 K and 6600 K}.}
     \label{fig:figure4}
 \end{figure}
 
@@ -250,20 +250,20 @@ We do this to avoid artifacts in the manifolds due to the artifical population o
 
 Finally, the state dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator}, which reconstructs the spectrum by constructing a forward model based on the input state dictionary.
 Any \texttt{nan} values are set to 1 (which we can do because the spectra are all normalized), and the spectral reconstruction is complete.
-\textbf{In \autoref{fig:figure5}, we see a comparison between a PHOENIX generator solar spectrum and two nearby native PHOENIX grid point spectra.}
+\textbf{In \autoref{fig:figure5}, we see a comparison between a PHOENIX generator solar spectrum and two nearby native PHOENIX grid point spectra at the 10123.66 \AA \ He II spectral line.}
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{figure5}
-    \caption{Plot of \textbf{the 10123.66 \AA \ He II} spectral line shown at the closest PHOENIX grid points to the Sun's stellar parameters \textbf{(solid lines)}, as well as a solar spectrum reconstructed with the PHOENIX generator \textbf{(dotted line)}.
-    We can see the spectral line shape be reconstructed mostly between the two native PHOENIX spectra.}
+    \caption{Plot of \textbf{the 10123.66 \AA \ He II} spectral line shown at the closest PHOENIX grid points to the Sun's stellar parameters \textbf{(solid lines)}, as well as a solar spectrum reconstructed with the PHOENIX generator \textbf{(dotted line)}.}
     \label{fig:figure5}
 \end{figure}
 
-We can observe in \autoref{fig:figure6} that \textbf{a Fe I line from a} reconstructed solar spectrum is not simply a pixel interpolation between the nearest \textbf{PHOENIX} grid point \textbf{spectra}.
+We can observe in \autoref{fig:figure6} that \textbf{our He II line from a} reconstructed solar spectrum is not simply a pixel interpolation between the nearest \textbf{PHOENIX} grid point \textbf{spectra}.
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{figure6}
-    \caption{\textbf{Comparison between the PHOENIX generator's line interpolation and a standard pixel intrpolation of the 10123.66 \AA \ He II spectral line.}}
+    \caption{\textbf{Comparison between the PHOENIX generator's line interpolation and a standard pixel interpolation of the 10123.66 \AA \ He II spectral line.
+    Notice that line interpolation results in more symmetrical line wings due to the use of Voigt profiles.}}
     \label{fig:figure6}
 \end{figure}
 It is interpolating the spectral line properties using hundreds of thousands of manifolds, each representing a nonlinear parameter in the shape of the spectral line.
@@ -281,7 +281,7 @@ Performance results are shown in \autoref{fig:figure7}, and we can see that \tex
 \textbf{While the generator takes around 15 seconds per spectrum in serial mode, this drops to 1 second per spectrum in parallel mode as soon as 30 reconstructions.
 The speedup factor between the two methods increases as more spectra are generated, reaching a factor of 20 at 60 reconstructions.
 Assuming linear time scaling with wavelength range, according to KORG benchmarks \citep{korg}, which generate spectra over a 500 \AA \ wavelength range, the PHOENIX generator in serial mode is approximately as fast as KORG and $\sim$30 times faster than Turbospectrum \citep{turbospectrum}.
-The speedup factor in parallel mode compared to KORG is then the same speedup factor from the serial mode.}
+The speedup factor in parallel mode compared to KORG is then the same variable speedup factor from serial mode (20 times faster at 60 reconstructions).}
 
 \textbf{The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
 \begin{table}[h!]
@@ -290,10 +290,10 @@ The speedup factor in parallel mode compared to KORG is then the same speedup fa
         \hline
         CPU & AMD EPYC 7513 (32c/64t, 3.65 GHz boost)\\
         RAM & 256 GB\\
-        GPU & Nvidia A100 40GB ($\times$2)\\
+        GPU & Nvidia A100 [40GB] ($\times$2)\\
         \hline
     \end{tabular}
-    \caption{\textbf{Specifications of the} machine used for computation.
+    \caption{\textbf{Specifications of the} machine used for \textbf{cloning and reconstruction testing}.
     \textbf{This machine is owned by Caroline Morley.}}
     \label{tab:table2}
 \end{table}
@@ -327,7 +327,23 @@ They use the surrogate model in order to select new test points for the minimum 
 This totals to 120 evaluations, \textbf{100} to create \textbf{the} surrogate model, then \textbf{20} guided evaluation\textbf{s}, which was deemed sufficient for this study.
 Fine-tuning these numbers is possible, but simply not warranted for a proof-of concept method.
 \textbf{Tweaking these numbers could lead to a more accurate inference, however it would incur additional computational cost as well.}
-One inference run takes on average just under 7.5 minutes to complete.
+One inference takes on average \textbf{200 seconds, using the computer with specifications in \autoref{tab:table3}}.
+
+\textbf{Inference algorithms that output more information and produce posterior distributions such as \texttt{starfish} \citep{starfish} or MINESweeper \citep{minesweeper} take on the order of an hour to complete an inference on supercomputers.
+\texttt{astroNN} \citep{leung2019} is a more direct comparison, and represents an extremely powerful inference tool that performs inference thousands of times faster thanks to its neural network architecture.}
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{ll}
+        \hline
+        CPU & AMD Ryzen 9 7950X3D (16c/32t, 5.7 GHz boost)\\
+        RAM & 32 GB\\
+        GPU & Nvidia GeForce RTX 4080 SUPER [16GB]\\
+        \hline
+    \end{tabular}
+    \caption{\textbf{Specifications of the machine used for general testing and for generating visualizations.}
+    \textbf{This machine is owned by Sujay Shankar.}}
+    \label{tab:table3}
+\end{table}
 
 \subsection{Bayesian Optimizer Performance}
 To test the performance of the inference algorithm, we used the PHOENIX subset itself.
@@ -336,11 +352,20 @@ To test the performance of the inference algorithm, we used the PHOENIX subset i
 We know that in typical observational settings, a coarse estimate for $T_{\mathrm{eff}}$ tends to be fairly well-constrained from ancillary data \textbf{such as photometric color index}.
 So when testing the inference algorithm, we limited its search space to only include $T_{\mathrm{eff}}$ which lay within 500 K of the true value on either side.
 $\log(g)$ and [Fe/H] were allowed to vary freely.
-The test sample consisted of 9 unique $T_{\mathrm{eff}}$ values, 3 unique $\log(g)$ values, and 2 unique [Fe/H] values, totaling 54 unique spectra in the test set.
-$T_{\mathrm{eff}}$ ranged from 3000 K to 11000 K in increments of 1000 K, $\log(g)$ ranged from 2 to 6 in increments of 2, and [Fe/H] ranged from -0.5 to 0 in increments of 0.5.
+The test sample consisted of 21 $T_{\mathrm{eff}}$ values\textbf{: [3000, 11000] K in steps of 400 K}, 5 $\log(g)$ values\textbf{: [2, 6] dex in steps of 0.5 dex} , and 2 [Fe/H] values\textbf{: [-0.5, 0] dex in steps of 0.5 dex}, totaling \textbf{210} unique spectra in the test set.
+\textbf{Two test passes were run, meaning that 420 inference tests were run in total.}
 
-The results of the inference algorithm are as follows: $T_{\mathrm{eff}}$ differed from the true result by an average of 185 K or 2.6\%.
-$\log(g)$ differed by an average of 0.19 or 6.8\%. [Fe/H] differed by an average of 0.12 dex, which is 24\% of our search range.
+In \autoref{fig:figure8}, we show the residuals of the inferred stellar parameters with respect to the true values.
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{figure8}
+    \caption{\textbf{Residual plots for the GP minimization inference algorithm, all plotted with respect to $T_\text{eff}$ (values aggregated across $\log(g)$ and [Fe/H]).
+    Notice the interesting change in behavior of all residuals at around $T_\text{eff} = 7000$ K.}}
+    \label{fig:figure8}
+\end{figure*}
+\textbf{We see that there is a distinction between the algorithm's behavior above and below $T_{\mathrm{eff}} = 7000$ K, so we define low and high temperature regimes accordingly.
+For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24 dex}, and [Fe/H] \textbf{0.056} dex \textbf{(standard deviations of 139 K, 0.40 dex, and 0.15 dex, respectively)}.
+\textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26 dex, and [Fe/H] 0.16 dex (standard deviations of 293 K, 0.32 dex, and 0.23 dex, respectively).}
 From this, we can see that $T_{\mathrm{eff}}$ was the most accurately inferred parameter, followed by $\log(g)$, and then [Fe/H].
 
 \section{Discussion}
@@ -401,13 +426,17 @@ These include but are not limited to the following:
 \end{enumerate}
 
 \section{Conclusion}
-In this study, we have presented a proof-of-concept algorithm that \textbf{deals with} a subset of the PHOENIX spectral model grid \textbf{([Fe/H]: [-0.5, 0] dex, $T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], $\lambda$: [8038, 12849] \AA)}.
+In this study, we have presented a proof-of-concept algorithm that \textbf{deals with} a subset of the PHOENIX spectral model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex, $\lambda$: [8038, 12849] \AA)}.
 We create state dictionaries for all spectra in the PHOENIX subset \textbf{using \texttt{blase}, recasting spectra into lists of Voigt profiles, and} lossily compress \textbf{the spectral data by a} factor of around 20. 
 The\textbf{y are available on} Zenodo at \url{https://zenodo.org/records/11246174} \citep{zenodo}.
+
 We create the PHOENIX generator and implement a performant spectral reconstruction algorithm, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
-We introduce and test our \textbf{GP minimization} algorithm \textbf{to infer stellar parameters.} 
-\textbf{Testing on 210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex) yields} average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
-In its current state, our algorithm operates on spectra within the PHOENIX subset parameter ranges in \autoref{tab:table1}, requiring that the spectra not contain noticeable Doppler shifting, rotational broadening, or other confounding factors.
+
+We \textbf{then} introduce and test our \textbf{GP minimization} algorithm \textbf{to infer stellar parameters.} 
+\textbf{Two test passes on 210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex) yield} average absolute deviations from true values of \textbf{93} K in $T_\mathrm{eff}$, \textbf{0.24 dex} in $\log(g)$, and \textbf{0.056} dex in [Fe/H] \textbf{in low-temperature ($T_\mathrm{eff}$ < 7000) regimes.
+In high-temperature regimes ($T_\text{eff} \ge$ 7000), the errors increase to 347 K in $T_\mathrm{eff}$, 0.26 dex in $\log(g)$, and 0.16 dex in [Fe/H]}.
+
+In its current state, our algorithm requir\textbf{es} that the spectra not contain noticeable Doppler shifting, rotational broadening, \textbf{noise}, or other confounding factors.
 The methods discussed here represent a step down a road not traveled in spectral inference, and have the potential to become more advanced in the future by fully utilizing the strengths of physics-informed machine learning.
 
 \vspace{0.5cm}
