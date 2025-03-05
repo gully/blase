@@ -73,8 +73,8 @@ The original \texttt{blase} paper demonstrated the ability to tune spectral line
 Here we introduce the next logical step in the sequence of expanding interpretable spectroscopic machine learning from operating on a single grid point and towards an entire 3D grid of precomputed spectra.
 We rebrand this augmentation as \texttt{blase3D}.
 
-Ideally this process would be monolithic, with the end-to-end spectral inference code powered by a single autodiffable machine learning framework, like PyTorch \textbf{\citep{pytorch}} or JAX \citep{jax}.
-However, here we separate the problem into three pieces, only the first of which is currently differentiable.
+Ideally this process would be monolithic, with the end-to-end spectral inference code powered by a single autodiff\textbf{erenti}able machine learning framework, like PyTorch \textbf{\citep{pytorch}} or JAX \citep{jax}.
+However, here we separate the problem into three pieces, only the first \textbf{currently being auto}differentiable.
 \textbf{In \autoref{sec:section2},} we scale out the \texttt{blase} method to 1,314 precomputed synthetic spectral model clones, yielding a downloadable archive of pretrained machine learning models with 128,723 unique spectral lines.
 \textbf{In \autoref{sec:section3},} we \textbf{then} fit manifolds mapping stellar parameters to uniformly-derived spectral line parameters using regular grid linear interpolation.
 Finally, \textbf{in \autoref{sec:section4},} we show how reconstructions of the spectra using said manifolds can be used for inferring stellar fundamental properties from spectra.
@@ -94,8 +94,8 @@ An overview of this process is shown in \autoref{fig:figure1}.
 \subsection{The PHOENIX Subset}
 \textbf{For the purposes of this study, w}e chose the widely-adopted PHOENIX synthetic spectral model grid \citep{PHOENIX}.
 Our approach can be straightforwardly applied to any other model grid in the future, including substellar atmosphere grids such as Sonora \citep{bobcat, cholla, diamondback, elfowl}, but for now we limit our scope to a \textbf{rectilinear} subset of the PHOENIX grid, focusing on near solar metallicities and a broad range of effective temperature and surface gravity, with details given in \autoref{tab:table1}.
-\textbf{This approach is taken due to the computational cost of interpolation algorithms.
-Future versions with more advanced models will be able to bypass the limitation of a rectilinear subset.}
+\textbf{This approach is taken due to the computational cost and storage impact of interpolation algorithms.
+Future versions with more advanced models will be able to cover a broader scope and bypass the limitation of a rectilinear subset.}
 
 \begin{table*}
     \hspace*{0.6cm}\begin{tabular}{llll}
@@ -310,7 +310,7 @@ The speedup factor in parallel mode compared to KORG is then the same variable s
 \section{Bayesian Inference and Testing}
 \label{sec:section4}
 
-\subsection{Inference Algorithm}
+\subsection{\textbf{Gaussian Process Minimization}}
 \textbf{The goals of this study's inference algorithm are to infer the stellar parameters $T_\text{eff}$, $\log(g)$, and [Fe/H] by comparing a spectrum with our reconstructions and solving the optimization problem.}
 We elected to use Bayesian optimization \textbf{for this component}, specifically the \texttt{gp\_minimize} function from the \texttt{scikit-optimize} library \citep{skopt}.
 This algorithm uses a Gaussian Process to model the objective function, which in this case was the RMS (Root-Mean-Square) loss between the interpolated spectrum $\mathsf{M}$ and the true spectrum $\mathsf{D}$, defined as:
@@ -345,7 +345,7 @@ One inference takes on average \textbf{200 seconds, using the computer with spec
     \label{tab:table3}
 \end{table}
 
-\subsection{Bayesian Optimizer Performance}
+\subsection{\textbf{Inference Accuracy}}
 To test the performance of the inference algorithm, we used the PHOENIX subset itself.
 \textbf{This is possible for two reasons: first, the PHOENIX generator has not truly memorized the PHOENIX subset due to its Voigt profile basis and the ignoring of weaker features, and secondly, random samples within the parameter space are extremely unlikely to be PHOENIX grid points themselves, avoiding any overlap.}
 
@@ -365,8 +365,14 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
 \end{figure*}
 \textbf{We see that there is a distinction between the algorithm's behavior above and below $T_{\mathrm{eff}} = 7000$ K, so we define low and high temperature regimes accordingly.
 For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24 dex}, and [Fe/H] \textbf{0.056} dex \textbf{(standard deviations of 139 K, 0.40 dex, and 0.15 dex, respectively)}.
-\textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26 dex, and [Fe/H] 0.16 dex (standard deviations of 293 K, 0.32 dex, and 0.23 dex, respectively).}
-From this, we can see that $T_{\mathrm{eff}}$ was the most accurately inferred parameter, followed by $\log(g)$, and then [Fe/H].
+\textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26 dex, and [Fe/H] 0.16 dex (standard deviations of 293 K, 0.32 dex, and 0.23 dex, respectively).
+We see that \texttt{blase3D} is much more effective at predicting stellar parameters of lower temperature spectra, presumably due to the larger amount of spectral lines that can be detected.}
+
+\textbf{In the low-temperature regime, our median $T_\text{eff}$ residual is about 10 K, about half that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, and about ten times larger than ASPCAP \citep{ASPCAP}.
+Median $\log(g)$ and [Fe/H] residuals are 0 dex, which are comparable to all three aforementioned methods, however \texttt{blase3D} is overall less consistent as the standard deviation of the residuals are about an order of magnitude larger.
+At high temperatures, the median $T_\text{eff}$ residual changes drastically to about -434 K, which is significantly worse than the other methods.
+$\log(g)$ becomes a few times less accurate, and both $\log(g)$ and [Fe/H] have large standard deviations, all leading to large inconsistencies and worse performance in this temperature regime.
+\texttt{blase3D} at this stage does not quite reach the level of contemporary methods that can deal with more realistic data and cover much larger parameter spaces, but the fact that, in its best case, it can perform to within an order of magnitude using a drastically simpler implementation, sparks promise for future improvements.}
 
 \section{Discussion}
 \subsection{Scientific Applications}
