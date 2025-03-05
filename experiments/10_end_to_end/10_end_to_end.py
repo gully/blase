@@ -13,6 +13,7 @@ from pickle import dump, load
 from re import split
 from skopt import gp_minimize
 from scipy.interpolate import RegularGridInterpolator
+from sys import getsizeof
 from time import perf_counter
 from tqdm import tqdm
 from typing import Callable
@@ -99,29 +100,18 @@ def inference_test():
 
 
 if __name__ == '__main__':
-    """sys.stderr = open('log.txt', 'w')
-    sys.stdout = open('out.txt', 'w')
     start = perf_counter()
     interpolator_list = load(open('interpolator_list.pkl', 'rb'))
     R = np.random.default_rng()
-    teff_samples = np.arange(3000, 11000.1, 1000)
-    logg_samples = np.arange(2, 6.1, 2)
+    teff_samples = np.arange(3000, 11000.1, 400)
+    logg_samples = np.arange(2, 6.1, 1)
     Z_samples = np.arange(-0.5, 0.1, 0.5)
     print(f'Initializations complete in {perf_counter() - start} s')
     for T, G, Z in product(teff_samples, logg_samples, Z_samples):
-        spec = default_clean(PHOENIXSpectrum(teff=int(T), logg=G, Z=Z, download=True))
+        spec = default_clean(PHOENIXSpectrum(teff=int(T), logg=G, Z=Z, wl_lo=8038, wl_hi=12849))
         start = perf_counter()
         point_random = R.uniform([T-500, 2, -0.5], [T+500, 6, 0], (100, 3))
         reconstructions = reconstructn(spec.wavelength.value, point_random, interpolator_list)
         rms_array = np.sqrt(((reconstructions - spec.flux.value)**2).mean(axis=1))
-        res = gp_minimize(rms_loss(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(T-500.0, T+500), (2.0, 6), (-0.5, 0)], n_calls=20, x0=[list(array) for array in point_random], y0=list(rms_array), n_initial_points=0, n_jobs=16)
-        print(f'{(T, G, Z)} -> {res.x} achieved in {perf_counter() - start} s')"""
-    df = read_state_dicts('/home/sujays/github/blase/experiments/08_blase3D_HPC_test/emulator_states')
-    df_gp = df[['teff', 'logg', 'Z']]
-    df = df.explode(['center', 'amp', 'sigma', 'gamma', 'shift_center']).convert_dtypes(dtype_backend='numpy_nullable')
-    optimize_memory(df)
-    df_line = df.query('center <= 8545 and center <= 8544', engine='python').merge(df_gp, how='right', on=['teff', 'logg', 'Z']).fillna(-1000)
-    df.sort_values(['teff', 'logg', 'Z'], inplace=True)
-    for i, line in enumerate(df.value_counts('center').index):
-        if line <= 8545 and line >= 8544:
-            print(f'{i}: {line}')
+        res = gp_minimize(rms_loss(spec.wavelength.value, spec.flux.value, interpolator_list), dimensions=[(T-500.0, T+500), (2.0, 6), (-0.5, 0)], n_calls=20, x0=[list(array) for array in point_random], y0=list(rms_array), n_initial_points=0, n_jobs=28)
+        print(f'{(T, G, Z)} -> {res.x} achieved in {perf_counter() - start} s')

@@ -8,7 +8,7 @@ from sys import argv
 
 
 def main(wl_lo: int, wl_hi: int, device: str | torch.device):
-    grid = PHOENIXGrid(wl_lo=wl_lo, wl_hi=wl_hi, path="/data/libraries/raw/PHOENIX/")
+    grid = PHOENIXGrid(wl_lo=wl_lo, wl_hi=wl_hi, path="/mnt/c/Users/sujay/Downloads/PHOENIX/")
     for spec in grid:
         run_emulator(spec, device=device)
 
@@ -24,6 +24,6 @@ if __name__ == "__main__":
                 device = torch.device("mps")
             except RuntimeError:
                 device = torch.device("cpu") 
-    main(int(argv[1]), int(argv[2]), device)
+    main(8038, 12849, device)
     end_time = dt.now()
     system(f"echo {f'{start_time} to {end_time}: {end_time - start_time}'} >> delta.txt")

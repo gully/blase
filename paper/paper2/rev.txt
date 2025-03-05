@@ -11,6 +11,7 @@ Line 15: "sporting"? Should this be "supporting" or "boasting" instead?
 - Changed "sporting" to "enabling".
 
 Line 18: The scope of the testing should be included in the abstract. That is, mention that the tests were performed using ~50 noise-free synthetic models and the range of parameter-space they cover (e.g. "In testing noise-free synthetic models spanning 3000<Teff/K<11000, 2<logg<6, -0.5<[Fe/H]<0, we find inference errors of ...").
+- Added this information to the abstract.
 
 Line 19: Great to see open sourcing of outputs! Thanks for your work to make astro more accessible!
 - Of course! The best science is open science.
@@ -142,6 +143,7 @@ Line 279: Figure 7 should have a larger description in the text (i.e. solar spec
 - Added a bit more.
 
 Figure 7: Why is this spectral line chosen to be different from the lines highlighted in Figures 3 and 4? Could there be more panels showing other wavelength region comparisons with the features in Figures 3 and 4?
+- Not sure why we did this actually, I agree that less is more and we should be using the existing lines we look at. Changed to use the He II line from Figure 4. 
 
 Figure 7: The figure caption and lines themselves could be clearer about which lines are the PHOENIX spectra and which is the generated one. When viewed through a colorblind simulator (e.g. Color Oracle: https://colororacle.org/) these lines are very similar to each other. It would be helpful to change the colors and/or change the linestyles to be more distinct (e.g. solid, dashed, dotted). Similarly, it would be helpful for the lines in the legend to have larger widths. In python, this would look like:
 leg = plt.legend()
@@ -150,6 +152,7 @@ line.set_linewidth(5.0)
 - Changed the solar reconstruction to be a dotted line, tweaked the color scheme to be colorblind friendly, and added bits in the caption.
 
 Figure 7: It would be helpful to show the result of directly interpolating the PHOENIX grid spectra to the Sun's parameters to have a better visual comparison between the generator (i.e. directly show that the generated spectrum is not simply a linear interpolation of fluxes). It would also be helpful to show an actual solar spectrum in this wavelength region to prove that the generated spectrum is closer to the truth.
+- Added a new figure comparing standard pixel interpolation to our line interpolation. I can't seem to find a solar spectrum at the resolution necessary to study these individual lines. I should also clarify that we don't intend to claim that line interpolation is more accurate than pixel interpolation. We're just introducing a viable line interpolation implementation.
 
 Subsection 4.1: This portion of text would fit better in the previous section describing the generator.
 - Subsection 4.1 is now section 3.3.
@@ -167,6 +170,7 @@ Figure 8 caption: Suggest changing "Line chart" to "Plots". Also, "time taken pe
 - Changed.
 
 Line 304: These timing results should be compared to other spectral synthesis techniques. For example, Figure 11 and Section 4 of the KORG paper (https://ui.adsabs.harvard.edu/abs/2023AJ....165...68W/abstract) shows benchmarks with classical synthesis codes.
+- Added a comparison of timing between blase3D, KORG and Turbospectrum. Serial mode is about as fast and parallel mode is much faster.
 
 Line 296: "RegularGridInterpolator API" should say that this is a component of scipy.
 - Added.
@@ -198,6 +202,7 @@ Line 334: "ancillary data prior to even looking at the spectra" consider adding 
 - Added.
 
 Line 340: 54 inferences seem like an extremely limited amount of testing. It would greatly improve the manuscript to significantly increase the number of these tests, considering there are a possible ~1300 synthetic spectra available for comparisons.
+- Increased the number of test grid points to 210. With 2 passes, that makes 420.
 
 Lines 345-351:
 These results do not explain what the mean/median of the residuals are for each parameter. Are they all close to 0 or is there some systematic bias present in some of the parameters?
@@ -237,3 +242,4 @@ Line 523: The PHOENIX subset should be restated here (i.e. the range of stellar 
 - Added the extent of the PHOENIX subset, and gave more detail into blase's role.
 
 Line 527: As in the abstract, the conclusion should explain the scope of the tests performed. That is, state that 54 tests were done and the range of stellar parameters tested to yield these results.
+- Added this information to the conclusion.

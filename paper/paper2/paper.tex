@@ -25,12 +25,12 @@
     Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters given stellar spectra.
     We study $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method \textbf{could be extended} to other \textbf{parameters} such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
     We first use \texttt{blase}'s nontraditional semi-empirical approach, \textbf{recasting} spectra \textbf{into} sets of tunable spectral lines.
-    \texttt{blase} is \textbf{run} on 1,314 spectra from \textbf{a rectilinear subset of} the PHOENIX synthetic spectral model grid \textbf{([Fe/H]: [-0.5, 0] dex, $T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], $\lambda$: [8038, 12849] \AA)}.
-    For each of the \textbf{128,723} lines, we continuously map stellar parameters to spectral line parameters using regular grid linear interpolation.
+    \texttt{blase} is \textbf{run} on 1,314 spectra from \textbf{a rectilinear subset of} the PHOENIX synthetic spectral model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex, $\lambda$: [8038, 12849] \AA)}.
+    For \textbf{128,723 detected features}, we map stellar parameters to spectral line parameters using linear interpolation.
     These manifolds are aggregated to create the PHOENIX generator, \textbf{enabling} parallelized reconstruction of spectra given stellar parameters.
-    Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square (RMS) loss between input and PHOENIX generator spectra.
-    From testing, the inference error in $T_{\mathrm{eff}}$ was 185 K, $\log(g)$ was 0.19, and [Fe/H] was 0.12 dex.
-    Our products are an archive of the \texttt{blase} \textbf{models} of the PHOENIX subset, as well as the spectral reconstruction and inference algorithms themselves.
+    Gaussian Process minimization is then used to infer stellar parameters by minimizing the root-mean-square loss between input and PHOENIX generator spectra.
+    \textbf{In} testing \textbf{210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex), we find inference errors of:} $T_{\mathrm{eff}}$\textbf{:} 185 K, $\log(g)$\textbf{:} 0.19, and [Fe/H]\textbf{:} 0.12 dex.
+    \textbf{We also publish online} an archive of the \texttt{blase} \textbf{models} of the PHOENIX subset.
     This study is a proof of concept showing that semi-empirical HML is a viable alternative to traditional approaches.
 \end{abstract}
 
@@ -140,7 +140,7 @@ The optimization used the Adam optimizer \textbf{\citep{adam}} with a learning r
 \textbf{\citealt{blase} recommends this setup as the minimum, and for a proof-of-concept implementation, we found it best to leave it as is.}
 In addition, we limited two custom parameters: wing cut to 6,000 and prominence to 0.005.
 Wing cut \textbf{(in pixels)} is a parameter that determines the extent of the Voigt profile to evaluate, saving computational resources by not evaluating negligible line wings.
-Prominence \textbf{(in normalized flux counts)} sets a lower limit for the amplitude of detected lines, which saves resources by disregarding shallow lines, so in our case we disregard lines \textbf{with amplitude} $<$ 0.05.
+Prominence \textbf{(in normalized flux counts)} sets a lower limit for the amplitude of detected lines, which saves resources by disregarding shallow lines, so in our case we disregard lines \textbf{with amplitude less than} 0.005.
 In short, our choices for wing cut and prominence decrease the computational cost of \texttt{blase}'s cloning process at the expense of decreasing its accuracy slightly.
 \texttt{blase} uses the pseudo-Voigt approximation, which saves on computational cost while remaining accurate to about 1\% \citep{pseudovoigt}.
 The pseudo-Voigt approximation uses a weighted average of a Gaussian and Lorentzian as opposed to a convolution.
@@ -214,16 +214,16 @@ Every one of these lines can be visualized as a manifold mapping a 3D stellar pa
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure3}
-    \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a \textbf{C I} spectral line.
+    \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a \textbf{C I} spectral line\textbf{, notable for being detected at nearly all subset grid points}.
     Notice the missing chunk in the top left; \textbf{this could perhaps be due to the line center shifting to the point that \texttt{blase} identified the chunk as a different line entirely (notice the line center offset increasing in magnitude approaching the chunk border).}
-    \textbf{Since} \texttt{blase} did not detect a spectral line here, \textbf{so} we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.
+    \textbf{Since} \texttt{blase} did not detect a spectral line here, we artificially populate those points with lines that have $\ln(a) = -1000$ \textbf{during interpolation}.
     This and all spectral lines shown in this paper were identified using the NIST spectral line database \citep{NIST}.}
     \label{fig:figure3}
 \end{figure*}
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{figure4}
-    \caption{Heatmap showing how $\ln(a)$ and $\sigma$ vary over the PHOENIX subset slice at solar metallicity of a He II spectral line.
+    \caption{Heatmap\textbf{s} showing how $\ln(a)$, $\sigma$\textbf{, $\gamma$, and $\mu' - \mu$} vary over the PHOENIX subset slice at solar metallicity of a He II spectral line.
     \textbf{This plot is much smaller than \autoref{fig:figure3} because} \texttt{blase} detects this line at a select chunk of grid points, leading to \textbf{data only existing between $T_\text{eff}$ 3600 K and 6600 K}.}
     \label{fig:figure4}
 \end{figure}
@@ -250,14 +250,22 @@ We do this to avoid artifacts in the manifolds due to the artifical population o
 
 Finally, the state dictionary is fed into \texttt{blase}'s \texttt{SparseLinearEmulator}, which reconstructs the spectrum by constructing a forward model based on the input state dictionary.
 Any \texttt{nan} values are set to 1 (which we can do because the spectra are all normalized), and the spectral reconstruction is complete.
-We can observe in \autoref{fig:figure5} that \textbf{a Fe I line from a} reconstructed solar spectrum is not simply a pixel interpolation between the nearest \textbf{PHOENIX} grid point \textbf{spectra}.
-\begin{figure*}
+\textbf{In \autoref{fig:figure5}, we see a comparison between a PHOENIX generator solar spectrum and two nearby native PHOENIX grid point spectra.}
+\begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{figure5}
-    \caption{Plot of an Fe I spectral line shown at the closest PHOENIX grid points to the Sun's stellar parameters \textbf{(solid lines)}, as well as a solar spectrum reconstructed with the PHOENIX generator \textbf{(dotted line)}.
-    We can see the spectral line shape be reconstructed mostly between the two native PHOENIX spectra, being closer to the 5800 K spectrum as the Sun's $T_{\mathrm{eff}}$ used here is 5772 K.}
+    \includegraphics[width=\columnwidth]{figure5}
+    \caption{Plot of \textbf{the 10123.66 \AA \ He II} spectral line shown at the closest PHOENIX grid points to the Sun's stellar parameters \textbf{(solid lines)}, as well as a solar spectrum reconstructed with the PHOENIX generator \textbf{(dotted line)}.
+    We can see the spectral line shape be reconstructed mostly between the two native PHOENIX spectra.}
     \label{fig:figure5}
-\end{figure*}
+\end{figure}
+
+We can observe in \autoref{fig:figure6} that \textbf{a Fe I line from a} reconstructed solar spectrum is not simply a pixel interpolation between the nearest \textbf{PHOENIX} grid point \textbf{spectra}.
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{figure6}
+    \caption{\textbf{Comparison between the PHOENIX generator's line interpolation and a standard pixel intrpolation of the 10123.66 \AA \ He II spectral line.}}
+    \label{fig:figure6}
+\end{figure}
 It is interpolating the spectral line properties using hundreds of thousands of manifolds, each representing a nonlinear parameter in the shape of the spectral line.
 
 \subsection{Spectral Reconstruction Time}
@@ -268,10 +276,14 @@ First, for a single input, which would be relevant in serial applications.
 Second, for an array of multiple inputs, which would be relevant in parallel applications.
 \textbf{\texttt{scipy}'s} \texttt{RegularGridInterpolator} API allows for the passing in of an entire array of input coordinates to be evaluated at once.
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless.
-Performance results are shown in \autoref{fig:figure6}, and we can see that the multi-reconstruction is much faster than a series of single reconstructions.
-\textbf{While the generator takes around 15 seconds per spectrum serially, this drops to 1 second per spectrum as soon as 30 reconstructions.
+
+Performance results are shown in \autoref{fig:figure7}, and we can see that \textbf{the PHOENIX generator's parallel mode} is much faster than \textbf{serial mode}.
+\textbf{While the generator takes around 15 seconds per spectrum in serial mode, this drops to 1 second per spectrum in parallel mode as soon as 30 reconstructions.
 The speedup factor between the two methods increases as more spectra are generated, reaching a factor of 20 at 60 reconstructions.
-The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
+Assuming linear time scaling with wavelength range, according to KORG benchmarks \citep{korg}, which generate spectra over a 500 \AA \ wavelength range, the PHOENIX generator in serial mode is approximately as fast as KORG and $\sim$30 times faster than Turbospectrum \citep{turbospectrum}.
+The speedup factor in parallel mode compared to KORG is then the same speedup factor from the serial mode.}
+
+\textbf{The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
 \begin{table}[h!]
     \centering
     \begin{tabular}{ll}
@@ -281,17 +293,18 @@ The computer used for this test has specifications shown in \autoref{tab:table2}
         GPU & Nvidia A100 40GB ($\times$2)\\
         \hline
     \end{tabular}
-    \caption{\textbf{Specifications of the} machine used for computations, but not for generating visualizations.}
+    \caption{\textbf{Specifications of the} machine used for computation.
+    \textbf{This machine is owned by Caroline Morley.}}
     \label{tab:table2}
 \end{table}
 
 \begin{figure}[t!]
     \centering
-    \includegraphics[width=\columnwidth]{figure6}
+    \includegraphics[width=\columnwidth]{figure7}
     \caption{\textbf{Plots} showing the time taken to reconstruct varying numbers of spectra using the PHOENIX generator (lower is better).
     We can see that the time taken per spectr\textbf{um} for the serial implementation hovers around 15 seconds within run-to-run variance, while the pseudo-parallel implementation continually decreases in time taken per spectrum as the number of inputs increases.
     The speedup factor (higher is better) increases as more spectra are generated, which is also a desirable outcome.}
-    \label{fig:figure6}
+    \label{fig:figure7}
 \end{figure}
 
 \section{Bayesian Inference and Testing}
@@ -392,7 +405,8 @@ In this study, we have presented a proof-of-concept algorithm that \textbf{deals
 We create state dictionaries for all spectra in the PHOENIX subset \textbf{using \texttt{blase}, recasting spectra into lists of Voigt profiles, and} lossily compress \textbf{the spectral data by a} factor of around 20. 
 The\textbf{y are available on} Zenodo at \url{https://zenodo.org/records/11246174} \citep{zenodo}.
 We create the PHOENIX generator and implement a performant spectral reconstruction algorithm, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
-We introduce and test our \textbf{GP minimization} algorithm \textbf{to infer stellar parameters}, with average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
+We introduce and test our \textbf{GP minimization} algorithm \textbf{to infer stellar parameters.} 
+\textbf{Testing on 210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0] dex) yields} average absolute deviations from true values of 185 K in $T_\mathrm{eff}$, 0.19 in $\log(g)$, and 0.12 dex in [Fe/H].
 In its current state, our algorithm operates on spectra within the PHOENIX subset parameter ranges in \autoref{tab:table1}, requiring that the spectra not contain noticeable Doppler shifting, rotational broadening, or other confounding factors.
 The methods discussed here represent a step down a road not traveled in spectral inference, and have the potential to become more advanced in the future by fully utilizing the strengths of physics-informed machine learning.
 

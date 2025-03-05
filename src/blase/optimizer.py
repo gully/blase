@@ -9,7 +9,7 @@ extract = lambda x: x.detach().cpu().numpy()
 
 
 def default_clean(spec: PHOENIXSpectrum):
-    norm_spec = spec.divide_by_blackbody().normalize(99) # B in paper
+    norm_spec = spec.divide_by_blackbody() # B in paper
     continuum = norm_spec.fit_continuum(polyorder=5) # P in paper
     return norm_spec.divide(continuum, handle_meta="ff") # S in paper
 
