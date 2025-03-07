@@ -29,7 +29,7 @@
     For \textbf{128,723 detected features}, we map stellar parameters to spectral line parameters using linear interpolation.
     \textbf{This} create\textbf{s} the PHOENIX generator, \textbf{enabling parallelized spectral synthesis}.
     Gaussian Process minimization is used to infer stellar parameters by minimizing \textbf{a} root-mean-square loss \textbf{function}.
-    Testing \textbf{210 noise-free models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0]), we find inference errors:} $T_{\mathrm{eff}}$\textbf{: 93 K, $\log(g)$: 0.24, and [Fe/H]: 0.056 for $T_\text{eff}$ < 7000 K, and $T_{\mathrm{eff}}$: 347 K, $\log(g)$: 0.26, and [Fe/H]: 0.16 for $T_\text{eff} \ge$ 7000 K}.
+    Testing \textbf{210 noise-free models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0]), we find inference errors:} $T_{\mathrm{eff}}$\textbf{: 93 K, $\log(g)$: 0.24, and [Fe/H]: 0.056 for $T_\text{eff} < $ 7000 K, and $T_{\mathrm{eff}}$: 347 K, $\log(g)$: 0.26, and [Fe/H]: 0.16 for $T_\text{eff} \ge$ 7000 K}.
     \textbf{We also upload online} an archive of \texttt{blase} \textbf{models} of the PHOENIX subset.
     This proof-of-concept \textbf{study} shows that semi-empirical HML is a viable alternative to traditional approaches \textbf{in spectroscopic inference}.
 \end{abstract}
@@ -366,7 +366,7 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
 We know that as $T_\text{eff}$ increases, we detect less lines with \texttt{blase}, as shown in \autoref{fig:figure2}, and lines tend to spread out, possibly resulting in artifacts from our wing cut approximation.
 Any number of physical or computational factors could explain this behavior, although the apparent sharpness of the transition leads us to postulate that it could be due to PHOENIX grid $T_\text{eff}$ sampling changing from 100 K to 200 K at this point.}
 
-\textbf{For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24}, and [Fe/H] \textbf{0.056} \textbf{(standard deviations of 139 K, 0.40, and 0.15, respectively)}.
+\textbf{For $T_{\mathrm{eff}} < $ 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24}, and [Fe/H] \textbf{0.056} \textbf{(standard deviations of 139 K, 0.40, and 0.15, respectively)}.
 \textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26, and [Fe/H] 0.16 (standard deviations of 293 K, 0.32, and 0.23, respectively).
 We see that \texttt{blase3D} is more effective and generally more self-consistent when predicting stellar parameters of lower temperature spectra.}
 
@@ -441,7 +441,7 @@ The\textbf{y are available on} Zenodo at \url{https://zenodo.org/records/1124617
 We create the PHOENIX generator and implement a performant spectral reconstruction algorithm, enabling anyone to create reconstructions of PHOENIX spectra with continuously valued stellar parameters.
 
 We \textbf{then} introduce and test our \textbf{GP minimization} algorithm \textbf{to infer stellar parameters.} 
-\textbf{Two test passes on 210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex) yield} average absolute deviations from true values of \textbf{93} K in $T_\mathrm{eff}$, \textbf{0.24 dex} in $\log(g)$, and \textbf{0.056} dex in [Fe/H] \textbf{in low-temperature ($T_\mathrm{eff}$ < 7000) regimes.
+\textbf{Two test passes on 210 noise-free synthetic models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex) yield} average absolute deviations from true values of \textbf{93} K in $T_\mathrm{eff}$, \textbf{0.24 dex} in $\log(g)$, and \textbf{0.056} dex in [Fe/H] \textbf{in low-temperature ($T_\mathrm{eff} < $ 7000) regimes.
 In high-temperature regimes ($T_\text{eff} \ge$ 7000), the errors increase to 347 K in $T_\mathrm{eff}$, 0.26 dex in $\log(g)$, and 0.16 dex in [Fe/H]}.
 
 In its current state, our algorithm requir\textbf{es} that the spectra not contain noticeable Doppler shifting, rotational broadening, \textbf{noise}, or other confounding factors.
