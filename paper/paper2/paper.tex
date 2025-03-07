@@ -363,16 +363,17 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
     \label{fig:figure8}
 \end{figure*}
 \textbf{We see that there is a distinction between the algorithm's behavior above and below $T_{\mathrm{eff}} = 7000$ K, so we define low and high temperature regimes accordingly.
-It is interesting that this observed change occurs where the PHOENIX grid changes in $T_\text{eff}$ sampling from 100 K to 200 K.}
+We know that as $T_\text{eff}$ increases, we detect less lines with \texttt{blase}, as shown in \autoref{fig:figure2}, and lines tend to spread out, possibly resulting in artifacts from our wing cut approximation.
+Any number of physical or computational factors could explain this behavior, although the apparent sharpness of the transition leads us to postulate that it could be due to PHOENIX grid $T_\text{eff}$ sampling changing from 100 K to 200 K at this point.}
 
 \textbf{For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24}, and [Fe/H] \textbf{0.056} \textbf{(standard deviations of 139 K, 0.40, and 0.15, respectively)}.
 \textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26, and [Fe/H] 0.16 (standard deviations of 293 K, 0.32, and 0.23, respectively).
 We see that \texttt{blase3D} is more effective and generally more self-consistent when predicting stellar parameters of lower temperature spectra.}
 
-\textbf{In the low-temperature regime, our median $T_\text{eff}$ residual is about 10 K, about half that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, and about ten times larger than ASPCAP \citep{ASPCAP}.
+\textbf{In the low-temperature regime, our median $T_\text{eff}$ residual is about 10 K, about half that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, but about ten times larger than ASPCAP \citep{ASPCAP}.
 Median $\log(g)$ and [Fe/H] residuals are 0 dex, which are comparable to all three aforementioned methods, however \texttt{blase3D} is overall less consistent as the standard deviation of the residuals are about an order of magnitude larger.
 At high temperatures, the median $T_\text{eff}$ residual changes drastically to about -434 K, which is significantly worse than the other methods.
-$\log(g)$ becomes a few times less accurate, and both $\log(g)$ and [Fe/H] have large standard deviations, all leading to large inconsistencies and worse performance in this temperature regime.
+$\log(g)$ becomes a few times less accurate, and both $\log(g)$ and [Fe/H] have larger standard deviations, all leading to large inconsistencies and worse performance in this temperature regime.
 \texttt{blase3D} at this stage does not quite reach the level of contemporary methods that can deal with more realistic data and cover much larger parameter spaces, but the fact that, in its best case, it can perform to within an order of magnitude using a drastically simpler implementation, sparks promise for future improvements.}
 
 \section{Discussion}
@@ -398,7 +399,7 @@ These include but are not limited to the following:
 \begin{enumerate}[label=-]
     \item \textit{Limited PHOENIX Subset}: The PHOENIX subset used in this study did not include the full PHOENIX grid, which expands the [Fe/H] range to [-4.0, 1.0] dex and the $\log(g)$ range to [0, 6], and also includes the alpha element abundance parameter, which we elected to fix at 0 for this study.
     In addition to the actual stellar parameters, we also took a subset of the PHOENIX wavelength range, with the full [500, 55000] \AA \ wavelength range also being left to future work.
-    Users would be able to fit a greater variety of stellar spectra in many different wavelength regimes.
+    \textbf{With this, u}sers would be able to fit a greater variety of stellar spectra in many different wavelength regimes.
     \item \textit{Strict Wavelength Range}: Currently, the generator only supports inference on spectra whose wavelength limits are either equal to it, or encompass that of the generator and have been truncated to match.
     However, when the spectrum in question has a smaller wavelength range than the generator, currently there is no functionality to truncate the generator.
     This would require externally indexing the generator's individual interpolators by line center position and selectively evaluating those to eliminate wasteful computation.
@@ -411,7 +412,7 @@ These include but are not limited to the following:
     As interpolators require memorization of the data, advanced interpolation becomes extremely expensive in terms of disk utilization.
     Future work would involve constructing manifolds using \textbf{more generalizable ML} methods \textbf{such as lasso or ridge regression}, which would allow for much better generalization, high speed, and lower disk utilization at the expense of some accuracy.
     \item \textit{Extrinsic Absence}: The current design of our algorithm does not account for extrinsic parameters that modify the appearance of spectra such as rotational broadening and Doppler shifting.
-    Future work would need to develop ways to tune these extrinsic parameters alongside stellar parameters, enabling users to optimize these frequently-observed extrinsic parameters on top of the base stellar parameters.
+    Future work would need to develop ways to tune these extrinsic parameters alongside stellar parameters.
     \item \textit{Framework Overhead}: As this algorithm is currently more proof of concept than practical, it uses convenience functions from various libraries, which naturally introduces some level of overhead and leaves performance on the table.
     Future work would involve writing custom functions expressly designed for \texttt{blase}, most likely a complete rewrite of the library from the ground up.
     This has the potential to greatly increase the speed of this algorithm, depending on how much overhead is avoided with a bespoke implementation.
