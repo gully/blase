@@ -25,11 +25,11 @@
     Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters \textbf{of} stellar spectra.
     We study $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method \textbf{could be extended} to other \textbf{parameters} such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
     We first use \texttt{blase} \textbf{to} semi-empirical\textbf{ly recast} spectra \textbf{into} sets of \textbf{Voigt profiles}.
-    \texttt{blase} is \textbf{run} on 1,314 \textbf{synthetic} spectra from \textbf{a rectilinear subset of} the PHOENIX model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex, $\lambda$: [8038, 12849] \AA)}.
+    \texttt{blase} is \textbf{run} on 1,314 \textbf{synthetic} spectra from \textbf{a rectilinear subset of} the PHOENIX model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0], $\lambda$: [8038, 12849] \AA)}.
     For \textbf{128,723 detected features}, we map stellar parameters to spectral line parameters using linear interpolation.
     \textbf{This} create\textbf{s} the PHOENIX generator, \textbf{enabling parallelized spectral synthesis}.
     Gaussian Process minimization is used to infer stellar parameters by minimizing \textbf{a} root-mean-square loss \textbf{function}.
-    Testing \textbf{210 noise-free models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6] dex, [Fe/H]: [-0.5, 0] dex), we find inference errors:} $T_{\mathrm{eff}}$\textbf{: 93 K, $\log(g)$: 0.24 dex, and [Fe/H]: 0.056 dex for $T_\text{eff}$ < 7000 K, and $T_{\mathrm{eff}}$: 347 K, $\log(g)$: 0.26 dex, and [Fe/H]: 0.16 dex for $T_\text{eff} \ge$ 7000 K}.
+    Testing \textbf{210 noise-free models ($T_{\mathrm{eff}}$: [3000, 11000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0]), we find inference errors:} $T_{\mathrm{eff}}$\textbf{: 93 K, $\log(g)$: 0.24, and [Fe/H]: 0.056 for $T_\text{eff}$ < 7000 K, and $T_{\mathrm{eff}}$: 347 K, $\log(g)$: 0.26, and [Fe/H]: 0.16 for $T_\text{eff} \ge$ 7000 K}.
     \textbf{We also upload online} an archive of \texttt{blase} \textbf{models} of the PHOENIX subset.
     This proof-of-concept \textbf{study} shows that semi-empirical HML is a viable alternative to traditional approaches \textbf{in spectroscopic inference}.
 \end{abstract}
@@ -102,10 +102,10 @@ Future versions with more advanced models will be able to cover a broader scope 
         \hline
         \bf{Parameter} & \bf{Symbol} & \bf{Interval} & \bf{Sampling}\\
         \hline
-        Alpha Element Abundance & $\alpha$ & [0] dex & \bf{N/A}\\
-        Iron Abundance & [Fe/H] & [-0.5, 0] dex & \bf{0.5 dex}\\
+        Alpha Element Abundance & $\alpha$ & [0]& \bf{N/A}\\
+        Iron Abundance & [Fe/H] & [-0.5, 0] & \bf{0.5}\\
         Effective Temperature & $T_{\mathrm{eff}}$ & [2300, 12000] K & \bf{100 K until 7000 K, then 200 K}\\
-        Surface Gravity & $\log(g)$ & [2, 6] dex & \bf{0.5 dex} \\
+        Surface Gravity & $\log(g)$ & [2, 6] & \bf{0.5} \\
         Wavelength & $\lambda$ & [8038, 12849] \AA & $\mathbf{R = 500,000}$\\
         \hline
     \end{tabular}
@@ -176,7 +176,7 @@ Since the goal of this study is to interpolate the properties of each line, we n
 We decided to do this by using the line centers $\mu$ of the detected lines pre-optimization.
 
 \textbf{Pre-optimized line centers were required to be equal in order to group lines together.
-The values of $\mu$ pre-optimization are recorded by \texttt{blase} to 0.01 \AA (picometer) precision; if they instead used the full available floating point precision, this method would likely detect singular (ungroupable) instances of spectral lines across the grid, completely negating the premise of this study.
+The values of $\mu$ pre-optimization are recorded by \texttt{blase} to 0.01 \AA \ (picometer) precision; if they instead used the full available floating point precision, this method would likely detect singular (ungroupable) instances of spectral lines across the grid, completely negating the premise of this study.
 Of course, this method can be confused by species that produce spectral lines at very close wavelengths and other confounding factors, likely resulting in some false positives and negatives.
 However, we deem it sufficient to approximate this way, as an in-depth treatment would be time-consuming and computationally expensive.}
 
@@ -210,7 +210,7 @@ This is an extremely large reduction for an extremely small deviation from a gri
 
 Examples of the appearance of missing sections in heatmaps where a line does not appear \textbf{can be seen} in \autoref{fig:figure3} and \autoref{fig:figure4}\textbf{, which show heatmaps of the 11617.66 \AA \ C I and the 10123.66 \AA \ He II lines (identified with NIST \citep{NIST}) varying over a solar metallicity slice of the PHOENIX subset stellar parameter space}.
 Across the entire PHOENIX subset, \texttt{blase} detected 128,723 spectral lines \textbf{with unique $\mu$}.
-\textbf{On average, a PHOENIX spectrum has 9,167 detected spectral lines, with the minimum being 252 ($T_\text{eff}$ = 12000 K, $\log(g)$ = 6 dex, [Fe/H] = -0.5 dex) and the maximum being 34,551 ($T_\text{eff}$ = 2300 K, $\log(g)$ = 3 dex, [Fe/H] = 0 dex).}
+\textbf{On average, a PHOENIX spectrum has 9,167 detected spectral lines, with the minimum being 252 ($T_\text{eff}$ = 12000 K, $\log(g)$ = 6, [Fe/H] = -0.5) and the maximum being 34,551 ($T_\text{eff}$ = 2300 K, $\log(g)$ = 3, [Fe/H] = 0).}
 Every one of these lines can be visualized as a manifold mapping a 3D stellar parameter vector to a 4D spectral line parameter vector, and every one \textbf{was} interpolated \textbf{to map stellar parameters to spectral line properties}.
 \begin{figure*}
     \centering
@@ -278,6 +278,14 @@ Second, for an array of multiple inputs, which would be relevant in parallel app
 However using \texttt{blase} to reconstruct the spectrum from our interpolated state dictionary is always done serially, leading to what is actually more of a pseudo-parallel evaluation, but extremely performant nonetheless.
 
 Performance results are shown in \autoref{fig:figure7}, and we can see that \textbf{the PHOENIX generator's parallel mode} is much faster than \textbf{serial mode}.
+\begin{figure}[t!]
+    \centering
+    \includegraphics[width=\columnwidth]{figure7}
+    \caption{\textbf{Plots} showing the time taken to reconstruct varying numbers of spectra using the PHOENIX generator (lower is better).
+    We can see that the time taken per spectr\textbf{um} for the serial implementation hovers around 15 seconds within run-to-run variance, while the pseudo-parallel implementation continually decreases in time taken per spectrum as the number of inputs increases.
+    The speedup factor (higher is better) increases as more spectra are generated, which is also a desirable outcome.}
+    \label{fig:figure7}
+\end{figure}
 \textbf{While the generator takes around 15 seconds per spectrum in serial mode, this drops to 1 second per spectrum in parallel mode as soon as 30 reconstructions.
 The speedup factor between the two methods increases as more spectra are generated, reaching a factor of 20 at 60 reconstructions.
 Assuming linear time scaling with wavelength range, according to KORG benchmarks \citep{korg}, which generate spectra over a 500 \AA \ wavelength range, the PHOENIX generator in serial mode is approximately as fast as KORG and $\sim$30 times faster than Turbospectrum \citep{turbospectrum}.
@@ -297,15 +305,6 @@ The speedup factor in parallel mode compared to KORG is then the same variable s
     \textbf{This machine is owned by Caroline Morley.}}
     \label{tab:table2}
 \end{table}
-
-\begin{figure}[t!]
-    \centering
-    \includegraphics[width=\columnwidth]{figure7}
-    \caption{\textbf{Plots} showing the time taken to reconstruct varying numbers of spectra using the PHOENIX generator (lower is better).
-    We can see that the time taken per spectr\textbf{um} for the serial implementation hovers around 15 seconds within run-to-run variance, while the pseudo-parallel implementation continually decreases in time taken per spectrum as the number of inputs increases.
-    The speedup factor (higher is better) increases as more spectra are generated, which is also a desirable outcome.}
-    \label{fig:figure7}
-\end{figure}
 
 \section{Bayesian Inference and Testing}
 \label{sec:section4}
@@ -352,7 +351,7 @@ To test the performance of the inference algorithm, we used the PHOENIX subset i
 We know that in typical observational settings, a coarse estimate for $T_{\mathrm{eff}}$ tends to be fairly well-constrained from ancillary data \textbf{such as photometric color index}.
 So when testing the inference algorithm, we limited its search space to only include $T_{\mathrm{eff}}$ which lay within 500 K of the true value on either side.
 $\log(g)$ and [Fe/H] were allowed to vary freely.
-The test sample consisted of 21 $T_{\mathrm{eff}}$ values\textbf{: [3000, 11000] K in steps of 400 K}, 5 $\log(g)$ values\textbf{: [2, 6] dex in steps of 0.5 dex} , and 2 [Fe/H] values\textbf{: [-0.5, 0] dex in steps of 0.5 dex}, totaling \textbf{210} unique spectra in the test set.
+The test sample consisted of 21 $T_{\mathrm{eff}}$ values\textbf{: [3000, 11000] K in steps of 400 K}, 5 $\log(g)$ values\textbf{: [2, 6] in steps of 0.5} , and 2 [Fe/H] values\textbf{: [-0.5, 0] in steps of 0.5}, totaling \textbf{210} unique spectra in the test set.
 \textbf{Two test passes were run, meaning that 420 inference tests were run in total.}
 
 In \autoref{fig:figure8}, we show the residuals of the inferred stellar parameters with respect to the true values.
@@ -364,9 +363,11 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
     \label{fig:figure8}
 \end{figure*}
 \textbf{We see that there is a distinction between the algorithm's behavior above and below $T_{\mathrm{eff}} = 7000$ K, so we define low and high temperature regimes accordingly.
-For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24 dex}, and [Fe/H] \textbf{0.056} dex \textbf{(standard deviations of 139 K, 0.40 dex, and 0.15 dex, respectively)}.
-\textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26 dex, and [Fe/H] 0.16 dex (standard deviations of 293 K, 0.32 dex, and 0.23 dex, respectively).
-We see that \texttt{blase3D} is much more effective at predicting stellar parameters of lower temperature spectra, presumably due to the larger amount of spectral lines that can be detected.}
+It is interesting that this observed change occurs where the PHOENIX grid changes in $T_\text{eff}$ sampling from 100 K to 200 K.}
+
+\textbf{For $T_{\mathrm{eff}}$ < 7000 K, the inferred} $T_{\mathrm{eff}}$ differed from the true \textbf{value} by an average of \textbf{93} K, $\log(g)$ \textbf{0.24}, and [Fe/H] \textbf{0.056} \textbf{(standard deviations of 139 K, 0.40, and 0.15, respectively)}.
+\textbf{For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26, and [Fe/H] 0.16 (standard deviations of 293 K, 0.32, and 0.23, respectively).
+We see that \texttt{blase3D} is more effective and generally more self-consistent when predicting stellar parameters of lower temperature spectra.}
 
 \textbf{In the low-temperature regime, our median $T_\text{eff}$ residual is about 10 K, about half that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, and about ten times larger than ASPCAP \citep{ASPCAP}.
 Median $\log(g)$ and [Fe/H] residuals are 0 dex, which are comparable to all three aforementioned methods, however \texttt{blase3D} is overall less consistent as the standard deviation of the residuals are about an order of magnitude larger.
@@ -445,9 +446,11 @@ In high-temperature regimes ($T_\text{eff} \ge$ 7000), the errors increase to 34
 In its current state, our algorithm requir\textbf{es} that the spectra not contain noticeable Doppler shifting, rotational broadening, \textbf{noise}, or other confounding factors.
 The methods discussed here represent a step down a road not traveled in spectral inference, and have the potential to become more advanced in the future by fully utilizing the strengths of physics-informed machine learning.
 
-\vspace{0.5cm}
+\textbf{All figures in this paper are publicly available on GitHub at \url{https://github.com/Sujay-Shankar/blase3D} under \texttt{paper/paper2}.}
+
+\section*{}
 This material is based on work supported by the National Aeronautics and Space Administration under grant No. 80NSSC21K0650 for the NNH20ZDA001N-ADAP:D.2 program. C.V.M. acknowledges support from the Alfred P. Sloan Foundation under grant number FG-2021-16592 and support from the National Science Foundation under grant number 1910969.
-\vspace{0.5cm}
+\vspace*{0.5cm}
 
 \software{
     \texttt{altair} \citep{altair1, altair2},
@@ -466,7 +469,6 @@ This material is based on work supported by the National Aeronautics and Space A
     \texttt{vegafusion} \citep{vegafusion},
 }
 
-\pagebreak
 \bibliography{paper}
 
 \end{document}
