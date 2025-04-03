@@ -22,7 +22,7 @@
 
 \begin{abstract}
     The advent of machine learning (ML) is revolutionary to numerous scientific disciplines, with a growing number of examples in astronomical spectroscopic inference, as ML is more powerful than traditional techniques.
-    Here we introduce a hybrid ML (HML) method combin{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters \textbf{of} stellar spectra.
+    Here we introduce a hybrid ML (HML) method combin\textbf{ing} automatic differentiation, interpolation, and Bayesian optimization to infer stellar parameters \textbf{of} stellar spectra.
     We study $T_{\mathrm{eff}}$, $\log(g)$, and [Fe/H], but this method \textbf{could be extended} to other \textbf{parameters} such as [$\alpha$/Fe] \textbf{(alpha element abundance)}, C/O \textbf{(carbon-oxygen ratio)}, and $f_{sed}$ \textbf{(sedimentation efficiency)}.
     We first use \texttt{blase} \textbf{to} semi-empirical\textbf{ly recast} spectra \textbf{into} sets of \textbf{Voigt profiles}.
     \texttt{blase} is \textbf{run} on 1,314 \textbf{synthetic} spectra from \textbf{a rectilinear subset of} the PHOENIX model grid \textbf{($T_\text{eff}$: [2300, 12000] K, $\log(g)$: [2, 6], [Fe/H]: [-0.5, 0], $\lambda$: [8038, 12849] \AA)}.
@@ -288,8 +288,7 @@ Performance results are shown in \autoref{fig:figure7}, and we can see that \tex
 \end{figure}
 \textbf{While the generator takes around 15 seconds per spectrum in serial mode, this drops to 1 second per spectrum in parallel mode as soon as 30 reconstructions.
 The speedup factor between the two methods increases as more spectra are generated, reaching a factor of 20 at 60 reconstructions.
-Assuming linear time scaling with wavelength range, according to KORG benchmarks \citep{korg}, which generate spectra over a 500 \AA \ wavelength range, the PHOENIX generator in serial mode is approximately as fast as KORG and $\sim$30 times faster than Turbospectrum \citep{turbospectrum}.
-The speedup factor in parallel mode compared to KORG is then the same variable speedup factor from serial mode (20 times faster at 60 reconstructions).}
+Assuming linear time scaling with wavelength range, according to KORG benchmarks \citep{korg}, which generate spectra over a 500 \AA \ wavelength range, the PHOENIX generator in serial mode is approximately as fast as KORG and $\sim$30 times faster than Turbospectrum \citep{turbospectrum}.}
 
 \textbf{The computer used for this test has specifications shown in \autoref{tab:table2} (note that spectral reconstruction does not currently leverage the GPU):}
 \begin{table}[h!]
@@ -358,7 +357,7 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure8}
-    \caption{\textbf{Residual plots for the GP minimization inference algorithm, all plotted with respect to $T_\text{eff}$ (values aggregated across $\log(g)$ and [Fe/H]).
+    \caption{\textbf{Residual plots for the GP minimization inference algorithm, all plotted with respect to $T_\text{eff}$ (values averaged across $\log(g)$ and [Fe/H]).
     Notice the interesting change in behavior of all residuals at around $T_\text{eff} = 7000$ K.}}
     \label{fig:figure8}
 \end{figure*}
@@ -470,6 +469,7 @@ This material is based on work supported by the National Aeronautics and Space A
     \texttt{vegafusion} \citep{vegafusion},
 }
 
+\pagebreak
 \bibliography{paper}
 
 \end{document}
