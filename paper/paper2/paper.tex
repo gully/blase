@@ -357,11 +357,11 @@ In \autoref{fig:figure8}, we show the residuals of the inferred stellar paramete
 \begin{figure*}
     \centering
     \includegraphics[width=\textwidth]{figure8}
-    \caption{\textbf{Residual plots for the GP minimization inference algorithm, all plotted with respect to $T_\text{eff}$.
+    \caption{Residual plots for the GP minimization inference algorithm, all plotted with respect to $T_\text{eff}$.
     Values are averaged across $\log(g)$ and [Fe/H], and the vertical bars indicate the spread of the 20 data points behind each average via the standard deviation.
     These bars' size is not surprising; these should not be considered as proper error bars.
     The 20 data points being averaged at each $T_\text{eff}$ are actually 10 differently distributed pairs of points, with each pair having unique $\log(g)$ and [Fe/H] (the two points within a pair should be considered as identically distributed).
-    Notice the interesting change in behavior of all residuals at around $T_\text{eff} = 7000$ K.}}
+    Notice the interesting change in behavior of all residuals at around $T_\text{eff} = 7000$ K.}
     \label{fig:figure8}
 \end{figure*}
 We see that there is a distinction between the algorithm's behavior above and below $T_{\mathrm{eff}} = 7000$ K, so we define low and high temperature regimes accordingly.
@@ -372,12 +372,12 @@ For $T_{\mathrm{eff}} < $ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from 
 For $T_{\mathrm{eff}} \ge$ 7000 K, the inferred $T_{\mathrm{eff}}$ differed from the true value by an average of 347 K, $\log(g)$ 0.26, and [Fe/H] 0.16 (standard deviations of 293 K, 0.32, and 0.23, respectively).
 We see that \texttt{blase3D} is more effective and generally more self-consistent when predicting stellar parameters of lower temperature spectra.
 
-\textbf{In the low-temperature regime, our median absolute $T_\text{eff}$ residual is 60 K, about three times that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, being within an order of magnitude, but about 60 times larger than ASPCAP \citep{ASPCAP}.
+In the low-temperature regime, our median absolute $T_\text{eff}$ residual is 60 K, about three times that of MINESweeper \citep{minesweeper} and \texttt{astroNN} \citep{leung2019}, being within an order of magnitude, but about 60 times larger than ASPCAP \citep{ASPCAP}.
 For $\log(g)$, this quantity is 0.09, about an order of magnitude larger than the other methods, and for [Fe/H], 0, comparable to all three aforementioned methods.
 It should be noted that \texttt{blase3D} is generally less consistent as the standard deviation of its residuals are about an order of magnitude larger than the other methods.
 At high temperatures, the median absolute $T_\text{eff}$ residual changes drastically to 500 K (meaning that more often than not, inference in this regime runs into the edge of the search space), which is significantly worse than both itself in the low temperature regime and the other methods.
 For $\log(g)$, this quantity becomes 0.13, and [Fe/H] remains at 0, although once again, they have larger standard deviations, all leading to large inconsistencies and generally worse performance in this temperature regime.
-\texttt{blase3D} at this stage does not quite reach the level of contemporary methods that can deal with more realistic data and cover much larger parameter spaces, but the fact that, in its best case, it can perform to within an order of magnitude using a drastically simpler implementation, sparks promise for future improvements.}
+\texttt{blase3D} at this stage does not quite reach the level of contemporary methods that can deal with more realistic data and cover much larger parameter spaces, but the fact that, in its best case, it can perform to within an order of magnitude using a drastically simpler implementation, sparks promise for future improvements.
 
 \section{Discussion}
 \subsection{Scientific Applications}
