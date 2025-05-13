@@ -91,7 +91,11 @@ class SparseLinearEmulator(object):
         elif init_state_dict is None and self.flux_native is not None:
             if prominence is None:
                 prominence = 0.03
-            (lam_centers, amplitudes, widths_angstroms,) = self.detect_lines(
+            (
+                lam_centers,
+                amplitudes,
+                widths_angstroms,
+            ) = self.detect_lines(
                 self.wl_native, self.flux_native, prominence=prominence
             )
 
@@ -247,9 +251,10 @@ class SparseLinearEmulator(object):
         return self.sparse_pseudo_Voigt_model(
             ln_amplitudes, ln_sigma_widths, ln_gamma_widths
         )
-    
 
-    def sparse_pseudo_Voigt_model(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
+    def sparse_pseudo_Voigt_model(
+        self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths
+    ):
         r"""A sparse pseudo-Voigt model
 
         The sparse matrix :math:`\hat{F}` is composed of the log flux
@@ -304,8 +309,6 @@ class SparseLinearEmulator(object):
         return jnp.exp(flux_out)[self.active_mask]
 
 
-
-
 class SparseLinearEmissionEmulator(SparseLinearEmulator):
     """An emission line version of the sparse emulator"""
 
@@ -317,14 +320,9 @@ class SparseLinearEmissionEmulator(SparseLinearEmulator):
         torch.tensor
             The 1D generative spectral model destined for backpropagation
         """
-        return self.sparse_Voigt_model(
-            ln_amplitudes, ln_sigma_widths, ln_gamma_widths
-        )
+        return self.sparse_Voigt_model(ln_amplitudes, ln_sigma_widths, ln_gamma_widths)
 
-
-    def sparse_Voigt_model(
-        self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths
-    ):
+    def sparse_Voigt_model(self, ln_amplitudes, ln_sigma_widths, ln_gamma_widths):
         r"""A sparse pseudo-Voigt model
 
         The sparse matrix :math:`\hat{F}` is composed of the log flux
@@ -341,20 +339,22 @@ class SparseLinearEmissionEmulator(SparseLinearEmulator):
         torch.tensor
             The 1D generative sparse spectral model
         """
-        #fwhm_G = 2.3548 * jnp.exp(ln_sigma_widths)[:, None]
-        #fwhm_L = 2.0 * jnp.exp(ln_gamma_widths)[:, None]
-        #fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
-  
+        # fwhm_G = 2.3548 * jnp.exp(ln_sigma_widths)[:, None]
+        # fwhm_L = 2.0 * jnp.exp(ln_gamma_widths)[:, None]
+        # fwhm = self._compute_fwhm(fwhm_L, fwhm_G)
 
         rv_shifted_centers = self.lam_centers * (
             1.0 + self.radial_velocity / 299_792.458
         )
 
-        flux_2D = jnp.exp(ln_amplitudes)[:, None] * vvoigt(
+        flux_2D = (
+            jnp.exp(ln_amplitudes)[:, None]
+            * vvoigt(
                 self.wl_2D - rv_shifted_centers[:, None],
                 jnp.exp(ln_sigma_widths)[:, None],
-                jnp.exp(ln_gamma_widths)[:, None]).squeeze()
-
+                jnp.exp(ln_gamma_widths)[:, None],
+            ).squeeze()
+        )
 
         flux_1D = flux_2D.reshape(-1)
 
@@ -364,5 +364,3 @@ class SparseLinearEmissionEmulator(SparseLinearEmulator):
         flux_out = flux_out.at[self.indices_1D].add(flux_1D)
 
         return flux_out
-
-

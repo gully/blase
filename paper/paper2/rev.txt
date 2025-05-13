@@ -1,0 +1,251 @@
+We would like to thank the referee for their detailed and helpful comments on this manuscript.
+Each of their comments has been addressed with responses starting with '-'.
+
+Line 10: Define f_{sed} in abstract.
+- Fixed, and also defined alpha element abundance and carbon-oxygen ratio as well.
+
+Lines 11 and 13: Should references be included in the abstract? Maybe just say "blase" and "PHOENIX" in the abstract and then put the proper citations later in the text.
+- Fixed, citations removed.
+
+Line 12: The grid of stellar parameters considered for this work should be included in the abstract.
+- Included.
+
+Line 15: "sporting"? Should this be "supporting" or "boasting" instead?
+- Changed "sporting" to "enabling".
+
+Line 18: The scope of the testing should be included in the abstract. That is, mention that the tests were performed using ~50 noise-free synthetic models and the range of parameter-space they cover (e.g. "In testing noise-free synthetic models spanning 3000<Teff/K<11000, 2<logg<6, -0.5<[Fe/H]<0, we find inference errors of ...").
+- Added this information to the abstract.
+
+Line 19: Great to see open sourcing of outputs! Thanks for your work to make astro more accessible!
+- Of course! The best science is open science.
+
+Line 19: "state dictionaries of the blase clone" is ML-jargon heavy, so consider changing it to something more accessible to an astronomy audience. I would suggest saving the terms "state dictionaries" and "clone" until later in the text when you can define them for the reader.
+- Changed "state dictionaries of the blase clones" to "blase models".
+
+Lines 39-41: The wording makes it seem like there aren't currently other pipelines that are fast, accurate, and precise, but this is not the case (e.g. KORG, for example, https://ui.adsabs.harvard.edu/abs/2023AJ....165...68W/abstract ).
+- Changed the wording to emphasize our addition of interpretability, as well as cited KORG as an existing, effective pipeline.
+
+Lines 51-54: Give some examples of ways in which physical inputs are imperfect and simplifying assumptions are inexact (eg unknown physics, non-LTE effects, spherical symmetry).
+- Added.
+
+Line 55: Foundation models in astronomy are still new, but they are being explored (e.g. Leung+2024: https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.1494L/abstract), so these examples should be included and discussed.
+- Added two examples of studies regarding foundational models for spectroscopy.
+
+Lines 56-61: Can the work also give some examples and references that fall into either of the two approaches listed? Also, there are pipelines that use a combination of physics models and data-driven approaches (e.g. https://ui.adsabs.harvard.edu/abs/2019MNRAS.483.3255L/abstract ) that should be included in the references.
+- Added examples of model driven, data driven, and hybrid approaches.
+
+Line 79: Change this list of references to start with "e.g." and it would be helpful for the references to specifically say which surveys/analysis tools they belong to.
+- Added more specificity to these and used "e.g.".
+
+Line 95: "blase" is not in \texttt{} form like it is in other parts of the paper. There are a few other times throughout the manuscript where programs are also not correctly inside of \texttt (e.g. lines 125 and 126 with PyTorch and JAX).
+- Fixed the mistake.
+
+Line 111: The references to exojax and wobble are put together instead of directly after the associated work (i.e. should be changed to "such as exojac (Kawahara+2022) and wobble (Bedell+2019)" ), which makes it more difficult for the reader to figure out which reference belongs to which tool. This occurs a few more times throughout the paper (e.g. line 65, lines 125-126, top left of page 4 describing the Adam optimizer, the Ida+2000 & Thompson+1987 references above the Voigt profile), so please update.
+- Fixed, removed an extraneous citation for the pseudo-Voigt.
+
+Line 130: "clone" should be defined for the reader (maybe back when describing what blase does and its outputs).
+- "clone" is now defined on line 118.
+
+Paragraph starting on Line 123: The end part of this paragraph serves as the standard "In section #, we will do ..." paragraph defining the structure of the paper, but it should be more explicit by linking the different sections so the reader knows where to find the different steps in the manuscript. For example, line 128/129 could be changed to "In section 2, we scale the blase method to ...".
+- Added section links and tweaked sentence structure accordingly.
+
+Line 139/140: The "more accurate" statement gives me pause. Why should this interpolation-based method built from clones of (imperfect) synthetic spectra be more accurate than other approaches?
+- In hindsight, that was a bold claim. Removed.
+
+Paragraph starting on line 142: This paragraph would likely fit better in Section 2.
+- Agreed. Moved and merged into the beginning paragraph of Section 2.
+
+Paragraph starting on line 152: It would be helpful for the manuscript to clarify/justify why a subset of the PHOENIX grid was used instead of the full grid. Arguably, using only models with [Fe/H] near solar implies that the models are not fully exploring the tool's ability to recover/describe this parameter.
+- Added "rectilinear", as well as a few sentences explaining why this is an important caveat. And yes, we explore less [Fe/H] than I'd like, this is more of a 2.5D situation rather than 3D in that sense.
+
+Table 1: This table should list the steps in each of the parameters so the reader understands the spacing of the grid (i.e. is it log spacing or linear, or linear with different sized spacing depending on location in the grid?).
+- Excellent point. I think I initially had this at some point and removed it because the table wasn't fitting in a single column. Although somehow I neglected the fact that I could have just made a full-width table. Which is now the case.
+
+Line 160: What is gollum? Should there be a reference here?
+- I mistakenly put the citation at the end of the sentence.
+
+Line 161: There is a reference to Shankar et al 2024, which I believe is the paper that I am currently reading. From searching ADS and arxiv, I cannot find another piece of work that this could be referring to. Looking at the Reference list, it appears the manuscript is citing itself (i.e. line 650), which is likely in error. Maybe this reference is talking about the zenodo DOI given on line 648, so the reference in the text should be updated.
+- This was a citation to gollum, unpublished at the time, which is now published in JOSS, on ADS, and has a proper citation.
+
+Figure 1: In the scipy panel, the word "line" is used instead of "Voigt profiles" which is used everywhere else in the figure. For clarification, the figure should specify that lines and Voigt profiles are the same thing or change to use only one name.
+- Good catch! Changed and updated.
+
+Line 166: "the according blackbody spectrum" should remove the word "according" or change it to "corresponding".
+- Changed to "corresponding".
+
+Lines 168-172: Why is the percentile normalization necessary? Both the blackbody division and continuum normalization work to flatten the synthetic spectra, and I don't see why dividing by the 99th percentile flux would do anything that the continuum normalization step isn't going to capture. In the original blase paper, there was no Percentile Normalization, so if this is a necessary new step in the methods, I think it should be explained.
+- You're absolutely correct in your intuition. After some poking around, it's not necessary in the slightest. Due to probably artifacts from machine precision, it affects the spectrum by a factor of 10^-15, which is vanishingly insignificant. Removed this step.
+
+Paragraph after subsection 2.3: "rather than a array of fluxes" should be changed to "an array of fluxes".
+- Changed "a" to "an".
+
+Top left of page 4: "a learning rate of 0.05 over 100 epochs" It would be helpful to justify the choices of learning rate and number of epochs. From the original blase paper, 100 epochs is on the lowest end of what they recommend for the process, and that was when fitting 3 parameters (i.e. sigma, gamma, amplitude) instead of 4 (i.e. adding in line center) like in this work. The manuscript should justify this choice and potentially show that increasing the number of epochs does not yield any improvement.
+- Added a sentence explaining this. In a nutshell, for a proof-of-concept paper, it's best not to overdo the computation and stick to the recommended minimum.
+
+Top left of page 4: "In addition, we limited two custom parameters" What are the units of wing cut and prominence?
+- Wing cut is in pixels and prominence is in normalized flux counts. Added in parentheses.
+
+Top left of page 4: "so in our case we disregard lines that affect the spectrum by < 0.5%" What is meant by "affect the spectrum"? Is it that the lines have a smaller amplitude or equivalent width than the prominence? Clarification would be helpful.
+- Specified that this is referring to amplitude.
+
+Line 191: "the list of identified lines, was saved" The comma after "lines" should be removed.
+- Comma removed.
+
+Line 195: The zenodo link should be included here again so that users can easily find the compressed library.
+- Agreed. Added a sentence for that.
+
+Line 210: The manuscript needs to spend more time describing how the identified features (of varying wavelength) are grouped together as unique lines because this seems non-trivial. For example, how much are the pre-optimized line locations allowed to be different for them to still be classified as the same unique line? Can this process be confused by features that have similar wavelengths but come from different chemical species (ie are some of the unique lines actually produced by multiple sources)? Is there a possibility of lines being incorrectly grouped together?
+- The pre-optimized line centers must be identical to be grouped. This process can be confused by species that happen to produce lines that fall at the same pre-optimized line center. There is, as with any classification problem, most certainly a possibility for false positives and false negatives. A new paragraph making this process clearer has been added.
+
+Line 220: "sport" is used again and should maybe be changed to "find".
+- Changed to "show".
+
+Line 222: There should be a larger description of Figure 2 in the text. Why are there some obvious outlier regions in this figure (e.g. T=7000, logg = 6)? What is leading to this dramatic change in counts in this cell but not its neighbors?
+- This is probably a combination of line indentification and PHOENIX itself changing something there, but the models are treated as gospel in this study, so we take it as it is. Added additional discussion of this in the figure caption.
+
+Figure 2: Good choice on the colormaps for these figures! These images are quite colorblind friendly!
+- Thank you!
+
+Figure 2: The figure caption could make it explicit that this only shows the results for [Fe/H] = 0 dex. Maybe this figure could be remade with a top panel showing [Fe/H] = 0.0 and a bottom panel showing [Fe/H] = -0.5 to show the reader how things look in all 3 dimensions of consideration.
+- The old figure caption did say the slice was taken at solar metallicity, however I do agree that seeing the whole PHOENIX subset would be ideal anyhow. Added a second chart.
+
+Line 223: "missing-lines phenomenon" This wording makes it seem like there are lines that should be detected that are being missed, though the later text clarifies that is not the only reason. Maybe change to "The number of detected lines change as a function of stellar parameter for different reasons".
+- Agree. Changed.
+
+Line 227: These "line-finding and line-associating algorithms" should be explained in detail because this is the first and only mention of them. If they are causing lines to be dropped, then it would be helpful to know the current methods. These descriptions should probably be included in the previous section.
+- This had misleading wording, it was referring to blase's line profile tuning and this work's line identification by pre-optimization line center, which have already been discussed. Fixed to be more clear to the reader.
+
+Lines 233-235: I agree that using log-amplitude of -1000 for the non-detected lines is probably a good choice, but that seems like a bad decision for lines that were missed because they are missed by the algorithm (i.e. the line is real, but the code messed up) because giving log-amplitude=-1000 to real-but-ignored lines has large consequences for a linear interpolator. The manuscript should quantify the differences between the "too weak to measure" and "algorithm missed a feature" cases. Potentially, this belongs in an appendix where some synthetic spectra are generated using your line lists but with varying amplitudes to assess how often the features are not detected because they are weak versus how often they are ignored by accident. Similarly, this paragraph only describes what log-amplitude is given to non-detected lines, but does not describe what the other parameters (i.e. line center, gaussian and lorentzian widths) are set to for these missing lines, which will also be needed for filling in these holes in the interpolation.
+- It may seem that a log-amplitude of -1000 would have negative consequences, however in reality, I maintain that this process is achieving exactly what we want it to achieve. Firstly, remember that we are working in log space. A log amplitude going from say 0 to -1000 is a true amplitude going from 1 to well, basically 0 (-1000 is our approximation to negative infinity). And since that 0 would be where the line does not appear, that's actually perfect. Furthermore, we do not need to extend this to any other line parameters because no matter what the other parameters are, an amplitude of zero dominates and nullifies the line (recognizing this saves on computation and is virtually free performance). The linear interpolator drops log(a) off so quickly that a change in 1 degree Kelvin immediately cuts the true amplitude down to less than 0.00005 (well outside the precision range we operate in, both in Teff and amplitude, so most certainly safe). I understand that perhaps this is not made clear at first, so I have added some more content explaining this throughout section 3. I can agree that comparing small lines to 'missed' lines may potentially be of interest, however I do feel that it is out of the scope of this work, as this is something to do with the original blase algorithm and not this study, which uses only blase's line tuning without modification of its algorithm. If I were to update the base code however, I would want to look into this at that point.
+
+Lines 236-238: The description of Figures 3 and 4 in the text should be expanded upon. For example, the text should mention that we are looking at the features detected for two different lines produced by different chemical species. It should also describe what the figures are showing (i.e. "Figures 3 and 4 show heatmaps of the blase-measured line parameters as a function of Teff and logg"). It would also be helpful to include a description of the reason for the hole at the top of Figure 3. Are these lines truly so weak they can't be detected, or were they missed by the algorithm? In the latter case, filling these points in with ln-a=-1000 would be a poor choice. By eye, I would guess that there should be real detected lines here with log amplitudes near -5.5, so it would be helpful to explain why this is not necessarily the case.
+- Elaborated the in-text description of Figures 3 and 4, and resized Figure 4 to a column width chart to reduce wasted whitespace. I added a note for Figure 3 that by looking at the line center offset we can see that it likely shifted out of blase's 'reach' and got identified as a different line. The blase algorithm isn't perfect unfortunately, and this is just a phenomenon that appears when using blase's tunable spectral lines method. I'd love to look more into things like this, but for this project it's just too big of a scope for what we're trying to demonstrate.
+
+Figures 3 and 4: Why are the lorentzian width and line centers (e.g. line center offsets, mu'-mu) also not shown as heatmaps?
+- I was worried about either a 4x1 ridiculously tall figure or a 2x2 unreadable figure. I decided to tweak global aspect resolution for square heatmap cells and go with 4x1. Looks better now!
+
+Figure 3: "An unknown spectral line" in the figure caption is at odds with the title saying that this is a "C I Line at 11617.66 A". If it is that C I feature, the figure caption should include those line properties.
+- This is vestigial from a time before we identified the line with NIST. Fixed.
+
+Line 239: Is "128,723 individual spectral lines" the unique number of features after grouping them together, or the total number of detected features from all the spectra? What is the average number of detected feature per spectra (as well as the min and max)?
+- It is the unique number of features after grouping them together by line center mu. Clarified this and added average, min, and max values for detected line count.
+
+Line 242: "every one must be interpolated" I would suggest that this wording be changed to something like "every one can be interpolated to link the relationship between line and stellar properties"
+- Wording changed to elaborate.
+
+Line 252: One of the goals of this work is to provide light-weight implementations of a spectral generator, but the 13.2GB of their interpolator is quite a bit larger than the original 8.1GB size of the PHOENIX grid of spectra used. For larger grids of input synthetic spectra, would the interpolator also continue to increase? The manuscript should clarify why this increase in disk space/RAM usage is beneficial versus using the synthetic spectra directly
+- The archive that users download from Zenodo is ~20x smaller than the PHOENIX subset (and with those native PHOENIX download times, that's the real benefit); users would locally build the PHOENIX generator with our code. This still does admittedly take up a lot of space, although given that we're working with interpolator function objects and using pickle to store them, this isn't all that surprising. Future work will definitely reduce this, but with overhead from the current implementation, this is the best we can do. This is why we don't put the generator itself on Zenodo, because we believe it works for now as proof-of-concept, but unlike the state dictionaries, doesn't represent enough of an efficiency bump to be put up on Zenodo as an official research product.
+
+Lines 256-260: Are Figures 5 and 6 necessary to show? They simply show the results of linearly interpolating Figures 3 and 4, which the average reader is likely able to imagine in their head.
+- Less quanta is good, I suppose.
+
+Figure 5: Caption should include reference to the fact that this should be compared to Figure 3. Same with Figures 6 and 4.
+- No longer an issue.
+
+Line 279: Figure 7 should have a larger description in the text (i.e. solar spectrum around an Fe feature comparing the nearest PHOENIX spectra to the generated one).
+- Added a bit more.
+
+Figure 7: Why is this spectral line chosen to be different from the lines highlighted in Figures 3 and 4? Could there be more panels showing other wavelength region comparisons with the features in Figures 3 and 4?
+- Not sure why we did this actually, I agree that less is more and we should be using the existing lines we look at. Changed to use the He II line from Figure 4. 
+
+Figure 7: The figure caption and lines themselves could be clearer about which lines are the PHOENIX spectra and which is the generated one. When viewed through a colorblind simulator (e.g. Color Oracle: https://colororacle.org/) these lines are very similar to each other. It would be helpful to change the colors and/or change the linestyles to be more distinct (e.g. solid, dashed, dotted). Similarly, it would be helpful for the lines in the legend to have larger widths. In python, this would look like:
+leg = plt.legend()
+for line in leg.get_lines():
+line.set_linewidth(5.0)
+- Changed the solar reconstruction to be a dotted line, tweaked the color scheme to be colorblind friendly, and added bits in the caption.
+
+Figure 7: It would be helpful to show the result of directly interpolating the PHOENIX grid spectra to the Sun's parameters to have a better visual comparison between the generator (i.e. directly show that the generated spectrum is not simply a linear interpolation of fluxes). It would also be helpful to show an actual solar spectrum in this wavelength region to prove that the generated spectrum is closer to the truth.
+- Added a new figure comparing standard pixel interpolation to our line interpolation. I can't seem to find a solar spectrum at the resolution necessary to study these individual lines. I should also clarify that we don't intend to claim that line interpolation is more accurate than pixel interpolation. We're just introducing a viable line interpolation implementation.
+
+Subsection 4.1: This portion of text would fit better in the previous section describing the generator.
+- Subsection 4.1 is now section 3.3.
+
+Subsection 4.1: This text should reference what computer/architecture these timing tests are being run on. I see that Table 2 lists this information, but Table 2 is not referenced anywhere in the body of the text, and should likely be in this subsection. Similarly, is the GPU used in the parallelization, or is all the computation done on a CPU?
+- Added the specs of the computer that these tests were run on, as well as specified it does not currently use the GPU.
+
+Line 303: The discussion of Figure 8 should include some of its key results in the body of the text (e.g. the time to synthesize spectra, the speedup from parallelizing).
+- Added some important takeaways about the benefits of pseudo-parallel reconstruction in the main text.
+
+Figure 8: As with Figure 7, it would be helpful for the legend lines to be thinker for ease of reading.
+- Made lines thicker to be easier to see.
+
+Figure 8 caption: Suggest changing "Line chart" to "Plots". Also, "time taken per spectra" should be changed to "time taken per spectrum".
+- Changed.
+
+Line 304: These timing results should be compared to other spectral synthesis techniques. For example, Figure 11 and Section 4 of the KORG paper (https://ui.adsabs.harvard.edu/abs/2023AJ....165...68W/abstract) shows benchmarks with classical synthesis codes.
+- Added a comparison of timing between blase3D, KORG and Turbospectrum. Serial mode is about as fast and parallel mode is much faster.
+
+Line 296: "RegularGridInterpolator API" should say that this is a component of scipy.
+- Added.
+
+Either at beginning of Section 4 or Subsection 4.2, the manuscript should state what the goals of the inference algorithm is.
+- Added a sentence stating this at the beginning of Section 4.
+
+Equation 4: There is an extra ^\circ symbol in the exponent.
+- Removed.
+
+Lines 306-307: "100 random evaluations to seed the surrogate model" This needs to be explained more in the text. What do random evaluations mean in this context? What is the surrogate model? This is the first time these terms are used.
+- Explained what random evaluations and a surrogate model are.
+
+Line 311: Similarly, what is meant by a "moderately guided evaluation phase"? What has changed between the 100 initial evaluations and the 20 additional evaluations?
+- Explained this as well.
+
+Line 312: While I agree that fine tuning these numbers might not be needed for proof of concept, it would be helpful to describe to the reader what effects changing these numbers might have on the results.
+- Added a sentence explaining how this affects accuracy and runtime.
+
+Line 314: The 7.5 minutes per inference should be compared with the literature.
+- Time is now 200 seconds, much faster than statistical methods like starfish and MINESweeper, but slower than astroNN.
+
+Lines 319-322: "this may seem circular, as the PHOENIX generator has memorized the PHOENIX subset" This wording makes it seem like the PHOENIX generator has in fact memorized the spectra it was trained on. This sentence could be reworded to tell the reader that it may APPEAR that the generator has memorized the synthetic spectra, but this is not the case for a variety of reasons (e.g. approximating all lines as Voigt profiles, ignoring really weak features, etc.), so we do not expect perfect agreement between the generated spectra and the models.
+- Made this more clear, explaining why it's okay to use the PHOENIX subset itself to test the inference method.
+
+Lines 322-330: These few sentences need clarification. Is it saying that because the surrogate model is not started at the exact grid points of the synthetic spectra, everything should be okay? If this is true, then would a user choosing to start their search using a grid cause the analysis tool to fail? How are the "random continuously sampled generator evaluations" defined?
+- These sentences were just me trying to explain the GP minimizer way later than I should have, and they confuse the reader more than they explain anything. I just removed them. Nothing would fail in the event of a grid-based method; the past unclear wording may have made that seem to be the case.
+
+Line 334: "ancillary data prior to even looking at the spectra" consider adding ", such as photometric color"
+- Added.
+
+Line 340: 54 inferences seem like an extremely limited amount of testing. It would greatly improve the manuscript to significantly increase the number of these tests, considering there are a possible ~1300 synthetic spectra available for comparisons.
+- Increased the number of test grid points to 210. With 2 test passes, that makes 420. Nearly an 8x increase in the number of inferences used for testing.
+
+Lines 345-351:
+These results do not explain what the mean/median of the residuals are for each parameter. Are they all close to 0 or is there some systematic bias present in some of the parameters?
+The size of the uncertainty on [Fe/H] is not that different from other pipelines that measure abundances (~0.1 dex), but the tests and the spectra grid in this work cover a very limited range of [Fe/H] values compared to those other tools. A 24% uncertainty in [Fe/H] from such idealized tests (ie perfect, noise-free synthetic spectra that were used to create the generator) is concerning for the proof that this technique could be useful in measuring abundances from real data. To address these concerns, the manuscript should consider expanding the PHOENIX grid used to include more grid points in the [Fe/H] dimension, as well as to compare the synthetic spectra after they have been degraded to differing signal-to-noise ratios to simulate comparisons with real data.
+Similarly, this paragraph/subsection needs to have corresponding figures for these tests, such as residual parameters as a function of Teff (and S/N if those tests are implemented) and residual histograms so the reader can see where these numbers came from.
+- Added a new figure exploring the residual variation over Teff. It interestingly splits our inference algorithm into high and low temperature regimes, where our method is more effective at low temperatures (presumably due to more spectral lines being detected). We did in the conclusion state that this method assumes very clean data without any confounding factors (noise would most definitely throw off a naive RMSE loss function), but I made it more clear that we include noise in that condition along with RV, rotational broadening, and the rest.
+
+Line 351: The output parameter uncertainties should be placed in the context of the other pipelines in the literature (e.g. the ASPCAP paper referenced in the introduction, MINESweeper https://ui.adsabs.harvard.edu/abs/2020ApJ...900...28C/abstract, the astroNN paper linked above). Many contemporary pipelines are able to recover uncertainties on the parameters listed here to about twice this work's precision, and that is when considering real data and covering a much larger region of parameter space, which should be addressed in the text.
+- Compared residuals and their standard deviations to that of astroNN, MINESweeper, and ASPCAP.
+
+Line 361: "We balance rigidity and flexibility where we want them while maintaining interpretability" What is meant by the balance of rigidity and flexibility in the context of this work?
+- Clarified this. Rigidity in the feature form (Voigt profile) and flexibility in those profiles via their tuning (notably the line center, mentioned the sentence prior).
+
+Line 368-372: "introduce the concept of postulating" This sentence makes it seem like this work is the first to use precomputed model spectra to build a generator for use in inference, but this is not the case. It should be reworded to avoid this claim.
+- Agreed. Reworded.
+
+Line 385: What is meant by "pathfinder"?
+- Not actually sure. Removed.
+
+Line 386: As discussed in the KORG paper, autodifferentiable spectral synthesis codes are now available.
+- This was meant to refer to a future version of blase. Made this clearer.
+
+Line 428: Sonora has no associated references while ATLAS and coolTLUSTY do.
+- Fixed.
+
+Lines 432-437: The wording of this sentence makes it seem like this manuscript is asking the blase developers to implement these new features (I do understand that this includes the coauthors on this work). Changing it to "Future versions of the blase pipeline will implement these features" make it clear that these are plans that the team is working on for the future instead of desires that someone would someday implement this.
+- Changed.
+
+Line 447: Please give some examples of what the "more advanced methods" might be.
+- Changed to say "more generalizable" and added lasso and ridge regression as quick examples.
+
+Line 501 & 503: "continua" is the plural of "continuum".
+- Fixed.
+
+Line 521: Suggest changing to "uses GP minimization to infer stellar parameters."
+- Changed.
+
+Line 523: The PHOENIX subset should be restated here (i.e. the range of stellar parameters). This sentence should also reference blase and that fact that synthetic spectra are turned into lists of lines and associated properties.
+- Added the extent of the PHOENIX subset, and gave more detail into blase's role.
+
+Line 527: As in the abstract, the conclusion should explain the scope of the tests performed. That is, state that 54 tests were done and the range of stellar parameters tested to yield these results.
+- Added this information to the conclusion.
